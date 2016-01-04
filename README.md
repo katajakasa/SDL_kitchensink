@@ -34,18 +34,35 @@ pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg
 
 ## 2. Compiling
 
-### 2.1. Building the libraries
+By default, both static and dynamic libraries are built.
+* Dynamic library is called libSDL_kitchensink.dll or .so
+* Static library is called libSDL_kitchensink_static.a
+* If you build in debug mode (```-DCMAKE_BUILD_TYPE=Debug```), libraries will be postfixed with 'd'.
 
-1. ```cmake -G "MSYS Makefiles" -DCMAKE_BULD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
-2. ```make```
-3. ```sudo make install```
-4. Profit!
+Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The files will be installed to
+* CMAKE_INSTALL_PREFIX/lib for libraries (.dll.a, .a, etc.)
+* CMAKE_INSTALL_PREFIX/bin for binaries (.dll, .so)
+* CMAKE_INSTALL_PREFIX/include for headers
 
-### 2.2. Building examples
+### 2.1. Building the libraries on Debian/Ubuntu
+
+1. ```mkdir build && cd build```
+2. ```cmake -DCMAKE_BULD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
+3. ```make -j```
+4. ```sudo make install```
+
+### 2.2. Building the libraries on MSYS2
+
+1. ```mkdir build && cd build```
+2. ```cmake -G "MSYS Makefiles" -DCMAKE_BULD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
+3. ```make```
+4. ```make install```
+
+### 2.3. Building examples
 
 Just add ```-DBUILD_EXAMPLES=1``` to cmake arguments and rebuild.
 
-### 2.3. Building unittests
+### 2.4. Building unittests
 
 Make sure CUnit is installed, then add ```-DBUILD_UNITTESTS=1``` to the cmake arguments and rebuild.
 
@@ -57,12 +74,18 @@ MIT. Please see ```LICENSE``` for details.
 
 ## 4. FAQ
 
-* Q: Why SDL_kitchensink ?
-* A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
-     kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
+### Q: Why SDL_kitchensink ?
+A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
+   kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
-* Q: Documentation ?
-* A: None yet. Maybe more doxygen later.
+### Q: Documentation ?
+A: None yet. Maybe more doxygen later.
 
-* Q: Encoding ?
-* A: Not going to happen. Decoding and playback only.
+### Q: Encoding ?
+A: Not going to happen. Decoding and playback only.
+
+5. Examples
+
+Please see examples directory. You can also take a look at unittests for some help.
+Note that examples are NOT meant for any kind of real life use; they are only meant to
+show simple use cases for the library.
