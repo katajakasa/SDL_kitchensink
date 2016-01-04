@@ -1,6 +1,6 @@
 # SDL_kitchensink
 
-FFMPEG and SDL2 based library for audio and video playback.
+FFMPEG and SDL2 based C99 library for audio and video playback.
 
 ## 1. Library requirements
 
@@ -8,14 +8,13 @@ Build requirements:
 * CMake (>=2.8)
 * GCC (C99 support required)
 
-Clang might work, but is not tested!
-
 Library requirements:
 * SDL2 (>=2.0.3)
 * FFMPEG (>=2.8)
 * CUnit (optional, for unittests)
 
-Older package versions may or may not work; versions noted here are the only ones tested.
+Note that Clang might work, but is not tested. Older SDL2 and FFMPEG library versions
+may or may not work; versions noted here are the only ones tested.
 
 ### 1.1. Debian / Ubuntu
 
@@ -55,3 +54,15 @@ You can run unittests by running ```make unittest```.
 ## 3. License
 
 MIT. Please see ```LICENSE``` for details.
+
+## 4. FAQ
+
+Q: Why SDL_kitchensink ?
+A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
+   kitchensink to the project. Also, SDL_ffmpeg is already reserved :(
+
+Q: Documentation ?
+A: None yet. Maybe more doxygen later.
+
+Q: Encoding ?
+A: Not going to happen. Decoding and playback only.
