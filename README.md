@@ -57,12 +57,12 @@ MIT. Please see ```LICENSE``` for details.
 
 ## 4. FAQ
 
-Q: Why SDL_kitchensink ?
-A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
-   kitchensink to the project. Also, SDL_ffmpeg is already reserved :(
+* Q: Why SDL_kitchensink ?
+* A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
+     kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
-Q: Documentation ?
-A: None yet. Maybe more doxygen later.
+* Q: Documentation ?
+* A: None yet. Maybe more doxygen later.
 
-Q: Encoding ?
-A: Not going to happen. Decoding and playback only.
+* Q: Encoding ?
+* A: Not going to happen. Decoding and playback only.
