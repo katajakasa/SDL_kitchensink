@@ -84,7 +84,7 @@ A: None yet. Maybe more doxygen later.
 ### Q: Encoding ?
 A: Not going to happen. Decoding and playback only.
 
-5. Examples
+## 5. Examples
 
 Please see examples directory. You can also take a look at unittests for some help.
 Note that examples are NOT meant for any kind of real life use; they are only meant to
