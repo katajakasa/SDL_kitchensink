@@ -50,6 +50,8 @@ Just add ```-DBUILD_EXAMPLES=1``` to cmake arguments and rebuild.
 
 Make sure CUnit is installed, then add ```-DBUILD_UNITTESTS=1``` to the cmake arguments and rebuild.
 
+You can run unittests by running ```make unittest```.
+
 ## 3. License
 
 MIT. Please see ```LICENSE``` for details.
