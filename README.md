@@ -9,7 +9,7 @@ Build requirements:
 * GCC (C99 support required)
 
 Library requirements:
-* SDL2 (>=2.0.3)
+* SDL2 (>=2.0.3) (Note! Examples require 2.0.4!)
 * FFMPEG (>=2.8)
 * CUnit (optional, for unittests)
 

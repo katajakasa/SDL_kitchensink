@@ -1,7 +1,10 @@
 #include "kitchensink/kitchensink.h"
 
+#include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define KIT_ERRBUFSIZE 1024
 
@@ -17,6 +20,7 @@ const char* Kit_GetError() {
 }
 
 void Kit_SetError(const char* fmt, ...) {
+	assert(fmt != NULL);
 	va_list args;
 	va_start(args, fmt);
 	vsnprintf(_error_message, KIT_ERRBUFSIZE, (char*)fmt, args);

@@ -1,9 +1,10 @@
 #include "kitchensink/kitchensink.h"
 #include <libavformat/avformat.h>
+#include <assert.h>
 
-static Uint32 _init_flags = 0;
+static unsigned int _init_flags = 0;
 
-int Kit_Init(Uint32 flags) {
+int Kit_Init(unsigned int flags) {
     if(flags & KIT_INIT_NETWORK)
        avformat_network_init();
     if(flags & KIT_INIT_FORMATS)
@@ -20,6 +21,7 @@ void Kit_Quit() {
 }
 
 void Kit_GetVersion(Kit_Version *version) {
+    assert(version != NULL);
     version->major = KIT_VERSION_MAJOR;
     version->minor = KIT_VERSION_MINOR;
     version->patch = KIT_VERSION_PATCH;

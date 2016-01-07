@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.0)
 project(SDL_kitchensink C)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -11,11 +11,11 @@ add_definitions(
 	-DKIT_VERSION_PATCH=${VERSION_PATCH}
 )
 
-set(CMAKE_C_FLAGS "-Wall -std=c99")
-set(CMAKE_C_FLAGS_DEBUG "-ggdb -Werror -fno-omit-frame-pointer")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O2 -fno-omit-frame-pointer -DNDEBUG")
-set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
-set(CMAKE_C_FLAGS_MINSIZEREL "-Os -DNDEBUG")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -Werror -fno-omit-frame-pointer")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ggdb -O2 -fno-omit-frame-pointer -DNDEBUG")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -DNDEBUG")
+set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_TESTS "Build unittests" OFF)
@@ -33,18 +33,16 @@ include_directories(
 	${FFMPEG_INCLUDE_DIRS}
 )
 
-set(SOURCES 
-	src/kitchensink.c
-	src/kiterror.c
-	src/kitplayer.c
-	src/kitsource.c
-)
+FILE(GLOB SOURCES "src/*.c")
+FILE(GLOB HEADERS "include/kitchensink/*.h")
 
 add_library(SDL_kitchensink SHARED ${SOURCES})
 add_library(SDL_kitchensink_static STATIC ${SOURCES})
 
 set_target_properties(SDL_kitchensink PROPERTIES DEBUG_POSTFIX "d")
 set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
+target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
+target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 
 target_link_libraries(SDL_kitchensink
 	${SDL2_LIBRARIES}
@@ -53,9 +51,11 @@ target_link_libraries(SDL_kitchensink
 
 if(BUILD_EXAMPLES)
 	add_executable(exampleplay examples/example_play.c)
+
 	if(MINGW)
 		target_link_libraries(exampleplay mingw32)
 	endif()
+
 	target_link_libraries(exampleplay
 		SDL_kitchensink_static
 		${SDL2_LIBRARIES}
@@ -64,8 +64,8 @@ if(BUILD_EXAMPLES)
 endif()
 
 # Installation
-FILE(GLOB H_FILES "include/kitchensink/*.h")
-INSTALL(FILES ${H_FILES} DESTINATION include/kitchensink/)
+
+INSTALL(FILES ${HEADERS} DESTINATION include/kitchensink/)
 INSTALL(TARGETS SDL_kitchensink SDL_kitchensink_static
 	RUNTIME DESTINATION bin
 	LIBRARY DESTINATION lib
