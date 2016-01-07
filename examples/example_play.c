@@ -190,9 +190,9 @@ int main(int argc, char *argv[]) {
         // Refresh audio
         ret = SDL_GetQueuedAudioSize(audio_dev);
         if(ret < AUDIOBUFFER_SIZE) {
-            SDL_LockAudio();
             ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE);
             if(ret > 0) {
+                SDL_LockAudio();
                 SDL_QueueAudio(audio_dev, audiobuf, ret);
                 SDL_UnlockAudio();
                 SDL_PauseAudioDevice(audio_dev, 0);
