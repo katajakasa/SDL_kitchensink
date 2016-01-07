@@ -194,7 +194,6 @@ int main(int argc, char *argv[]) {
             ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE);
             if(ret > 0) {
                 SDL_QueueAudio(audio_dev, audiobuf, ret);
-                printf("Queued: %d\n", ret);
                 SDL_UnlockAudio();
                 SDL_PauseAudioDevice(audio_dev, 0);
             }
