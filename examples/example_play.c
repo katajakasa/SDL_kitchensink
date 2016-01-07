@@ -69,8 +69,8 @@ int main(int argc, char *argv[]) {
     const char* filename = NULL;
 
     // Video
-	SDL_Window *window = NULL;
-	SDL_Renderer *renderer = NULL;
+    SDL_Window *window = NULL;
+    SDL_Renderer *renderer = NULL;
 
     // Events
     SDL_Event event;
@@ -93,9 +93,9 @@ int main(int argc, char *argv[]) {
     filename = argv[1];
 
     // Init SDL
-	err = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
-	window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 800, 0);
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
+    err = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+    window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 800, 0);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
 
     if(err != 0 || window == NULL || renderer == NULL) {
@@ -214,8 +214,8 @@ int main(int argc, char *argv[]) {
     Kit_CloseSource(src);
 
     Kit_Quit();
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
-	return 0;
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 0;
 }
