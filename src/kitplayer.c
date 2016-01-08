@@ -211,6 +211,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     player->abuffer = Kit_CreateRingBuffer(KIT_ABUFFERSIZE);
     player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
     player->tmp_vframe = av_frame_alloc();
+    player->tmp_aframe = av_frame_alloc();
     return player;
 
 exit_0:
@@ -223,6 +224,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     sws_freeContext((struct SwsContext *)player->sws);
     swr_free((struct SwrContext **)&player->swr);
     av_frame_free((AVFrame**)&player->tmp_vframe);
+    av_frame_free((AVFrame**)&player->tmp_aframe);
     avcodec_close((AVCodecContext*)player->acodec_ctx);
     avcodec_close((AVCodecContext*)player->vcodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->acodec_ctx);
@@ -238,11 +240,21 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     
     int frame_finished;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
-    AVFrame *vframe_dec = av_frame_alloc();
     AVPicture *iframe = (AVPicture*)player->tmp_vframe;
+    AVFrame *vframe_dec = av_frame_alloc();
     AVPicture *oframe = (AVPicture*)vframe_dec;
-    int bytes = avpicture_get_size(_FindAVPixelFormat(player->vformat.format), vcodec_ctx->width, vcodec_ctx->height);
-    avpicture_fill(oframe, av_malloc(bytes), _FindAVPixelFormat(player->vformat.format), vcodec_ctx->width, vcodec_ctx->height);
+
+    int bytes = avpicture_get_size(
+        _FindAVPixelFormat(player->vformat.format),
+        vcodec_ctx->width,
+        vcodec_ctx->height);
+    unsigned char *dst_buffer = av_malloc(bytes);
+    avpicture_fill(
+        oframe,
+        dst_buffer,
+        _FindAVPixelFormat(player->vformat.format),
+        vcodec_ctx->width,
+        vcodec_ctx->height);
 
     avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
 
@@ -274,12 +286,12 @@ void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
     unsigned char **dst_data;
     AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
     struct SwrContext *swr = (struct SwrContext *)player->swr;
-    AVFrame *aframe = av_frame_alloc();
+    AVFrame *aframe = (AVFrame*)player->tmp_aframe;
 
     if(packet->size > 0) {
         len = avcodec_decode_audio4(acodec_ctx, aframe, &frame_finished, packet);
         if(len < 0) {
-            goto exit_1;
+            return;
         }
 
         if(frame_finished) {
@@ -315,8 +327,6 @@ void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
         }
     }
 
-exit_1:
-    av_frame_free(&aframe);
 }
 
 // Return 0 if stream is good but nothing else to do for now
