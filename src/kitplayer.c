@@ -166,7 +166,7 @@ static unsigned int _FindAVChannelLayout(int channels) {
 
 static void _FreeVideoPacket(Kit_VideoPacket *packet) {
     avpicture_free(packet->frame);
-    av_free(&packet->frame);
+    av_free(packet->frame);
     free(packet);
 }
 
