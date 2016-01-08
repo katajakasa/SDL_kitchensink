@@ -18,7 +18,7 @@
 
 typedef struct Kit_VideoPacket {
     double pts;
-    AVFrame *frame;
+    AVPicture *frame;
 } Kit_VideoPacket;
 
 static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
@@ -239,9 +239,6 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     assert(packet != NULL);
     
     int frame_finished;
-    int bytes;
-    unsigned char *dst_buffer;
-
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
     AVPicture *iframe = (AVPicture*)player->tmp_vframe;
 
@@ -249,16 +246,9 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
 
     if(frame_finished) {
         // Target frame
-        AVFrame *vframe_dec = av_frame_alloc();
-        AVPicture *oframe = (AVPicture*)vframe_dec;
-        bytes = avpicture_get_size(
-            _FindAVPixelFormat(player->vformat.format),
-            vcodec_ctx->width,
-            vcodec_ctx->height);
-        dst_buffer = av_malloc(bytes);
-        avpicture_fill(
+        AVPicture *oframe = av_malloc(sizeof(AVPicture));
+        avpicture_alloc(
             oframe,
-            dst_buffer,
             _FindAVPixelFormat(player->vformat.format),
             vcodec_ctx->width,
             vcodec_ctx->height);
@@ -275,7 +265,7 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
 
         // Save to buffer
         Kit_VideoPacket *p = calloc(1, sizeof(Kit_VideoPacket));
-        p->frame = vframe_dec;
+        p->frame = oframe;
         p->pts = 0;
         Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, p);
     }
@@ -332,7 +322,6 @@ void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
             av_freep(&dst_data[0]);
         }
     }
-
 }
 
 // Return 0 if stream is good but nothing else to do for now
@@ -392,7 +381,7 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
     }
 
     Kit_VideoPacket *packet = (Kit_VideoPacket*)Kit_ReadBuffer((Kit_Buffer*)player->vbuffer);
-    if(!packet) {
+    if(packet == NULL) {
         return 0;
     }
 
@@ -416,13 +405,14 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
         }
     }
     else {
-        Kit_SetError("Incorrect texture access: only streaming access is supported");
+        Kit_SetError("Incorrect texture access");
         goto exit_0;
     }
 
     retval = 0;
 exit_0:
-    av_frame_free(&packet->frame);
+    avpicture_free(packet->frame);
+    av_free(&packet->frame);
     free(packet);
     return retval;
 }
