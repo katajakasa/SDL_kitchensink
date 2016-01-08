@@ -98,8 +98,7 @@ exit_0:
 
 static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
     switch(fmt) {
-        // For now, only support ABGR8888 as output format
-        /*case AV_PIX_FMT_YUV420P:
+        case AV_PIX_FMT_YUV420P:
             *out_fmt = SDL_PIXELFORMAT_YV12;
             break;
         case AV_PIX_FMT_YUYV422:
@@ -107,7 +106,7 @@ static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
             break;
         case AV_PIX_FMT_UYVY422:
             *out_fmt = SDL_PIXELFORMAT_UYVY;
-            break;*/
+            break;
         default:
             *out_fmt = SDL_PIXELFORMAT_ABGR8888;
             break;
@@ -211,6 +210,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     player->sws = sws;
     player->abuffer = Kit_CreateRingBuffer(KIT_ABUFFERSIZE);
     player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
+    player->tmp_vframe = av_frame_alloc();
     return player;
 
 exit_0:
@@ -222,6 +222,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     if(player == NULL) return;
     sws_freeContext((struct SwsContext *)player->sws);
     swr_free((struct SwrContext **)&player->swr);
+    av_frame_free((AVFrame**)&player->tmp_vframe);
     avcodec_close((AVCodecContext*)player->acodec_ctx);
     avcodec_close((AVCodecContext*)player->vcodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->acodec_ctx);
@@ -237,14 +238,13 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     
     int frame_finished;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
-    AVFrame *vframe_raw = av_frame_alloc();
     AVFrame *vframe_dec = av_frame_alloc();
-    AVPicture *iframe = (AVPicture*)vframe_raw;
+    AVPicture *iframe = (AVPicture*)player->tmp_vframe;
     AVPicture *oframe = (AVPicture*)vframe_dec;
     int bytes = avpicture_get_size(_FindAVPixelFormat(player->vformat.format), vcodec_ctx->width, vcodec_ctx->height);
     avpicture_fill(oframe, av_malloc(bytes), _FindAVPixelFormat(player->vformat.format), vcodec_ctx->width, vcodec_ctx->height);
 
-    avcodec_decode_video2(vcodec_ctx, vframe_raw, &frame_finished, packet);
+    avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
 
     if(frame_finished) {
         sws_scale(
@@ -261,8 +261,6 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
         p->pts = 0;
         Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, p);
     }
-
-    av_frame_free(&vframe_raw);
 }
 
 void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {

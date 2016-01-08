@@ -43,6 +43,7 @@ typedef struct Kit_Player {
     void *vbuffer;
     void *vcodec_ctx;
     void *acodec_ctx;
+    void *tmp_vframe;
     void *swr;
     void *sws;
     const Kit_Source *src;
