@@ -38,6 +38,10 @@ int Kit_WriteBuffer(Kit_Buffer *buffer, void *ptr) {
     if(!Kit_IsBufferFull(buffer)) {
         buffer->data[buffer->write_p % buffer->size] = ptr;
         buffer->write_p++;
+        if(buffer->read_p >= buffer->size) {
+            buffer->read_p = buffer->read_p % buffer->size;
+            buffer->write_p = buffer->write_p % buffer->size;
+        }
         return 0;
     }
     return 1;
