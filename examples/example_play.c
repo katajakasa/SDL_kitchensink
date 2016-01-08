@@ -167,8 +167,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Set logical size for the renderer. This way when we scale, we keep aspect ratio.
+    SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
+
     while(run) {
-         while(SDL_PollEvent(&event)) {
+        // Check for events
+        while(SDL_PollEvent(&event)) {
             switch(event.type) {
                 case SDL_KEYUP:
                     if(event.key.keysym.sym == SDLK_ESCAPE) {
@@ -202,6 +206,7 @@ int main(int argc, char *argv[]) {
         // Refresh video
         Kit_RefreshTexture(player, tex);
 
+        // Render to the screen
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, tex, NULL, NULL);
         SDL_RenderPresent(renderer);
