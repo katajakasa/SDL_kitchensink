@@ -42,7 +42,7 @@ foreach(comp ${FFMPEG_COMPONENTS})
             PATH_SUFFIXES include
             PATHS ${FFMPEG_SEARCH_PATHS}
         )
-        find_library(${comp}_LIBRARY lib${comp}
+        find_library(${comp}_LIBRARY ${comp}
             HINTS
             PATH_SUFFIXES lib
             PATHS ${FFMPEG_SEARCH_PATHS}
