@@ -336,6 +336,7 @@ void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
 
             Kit_WriteRingBuffer((Kit_RingBuffer*)player->abuffer, (char*)dst_data[0], dst_bufsize);
             av_freep(&dst_data[0]);
+            av_freep(&dst_data);
         }
     }
 }
