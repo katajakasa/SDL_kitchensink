@@ -12,17 +12,19 @@ Kit_Buffer* Kit_CreateBuffer(unsigned int size) {
 
 void Kit_DestroyBuffer(Kit_Buffer *buffer) {
     assert(buffer != NULL);
+    free(buffer->data);
+    free(buffer);
 }
 
 void* Kit_ReadBuffer(Kit_Buffer *buffer) {
     assert(buffer != NULL);
     if(buffer->read_p < buffer->write_p) {
-        void *out = buffer->data[buffer->read_p];
-        buffer->data[buffer->read_p] = NULL;
+        void *out = buffer->data[buffer->read_p % buffer->size];
+        buffer->data[buffer->read_p % buffer->size] = NULL;
         buffer->read_p++;
         if(buffer->read_p >= buffer->size) {
-            buffer->read_p -= buffer->size;
-            buffer->write_p -= buffer->size;
+            buffer->read_p = buffer->read_p % buffer->size;
+            buffer->write_p = buffer->write_p % buffer->size;
         }
         return out;
     }
@@ -34,7 +36,7 @@ int Kit_WriteBuffer(Kit_Buffer *buffer, void *ptr) {
     assert(ptr != NULL);
 
     if(!Kit_IsBufferFull(buffer)) {
-        buffer->data[buffer->write_p] = ptr;
+        buffer->data[buffer->write_p % buffer->size] = ptr;
         buffer->write_p++;
         return 0;
     }
