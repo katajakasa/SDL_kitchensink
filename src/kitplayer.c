@@ -164,6 +164,19 @@ static unsigned int _FindAVChannelLayout(int channels) {
     }
 }
 
+static void _FreeVideoPacket(Kit_VideoPacket *packet) {
+    avpicture_free(packet->frame);
+    av_free(&packet->frame);
+    free(packet);
+}
+
+static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
+    Kit_VideoPacket *p = calloc(1, sizeof(Kit_VideoPacket));
+    p->frame = frame;
+    p->pts = pts;
+    return p;
+}
+
 Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     assert(src != NULL);
 
@@ -230,6 +243,10 @@ void Kit_ClosePlayer(Kit_Player *player) {
     avcodec_free_context((AVCodecContext**)&player->acodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->vcodec_ctx);
     Kit_DestroyRingBuffer((Kit_RingBuffer*)player->abuffer);
+    Kit_VideoPacket *p;
+    while((p = Kit_ReadBuffer(player->vbuffer)) != NULL) {
+        _FreeVideoPacket(p);
+    }
     Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
     free(player);
 }
@@ -264,10 +281,9 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
             oframe->linesize);
 
         // Save to buffer
-        Kit_VideoPacket *p = calloc(1, sizeof(Kit_VideoPacket));
-        p->frame = oframe;
-        p->pts = 0;
-        Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, p);
+        Kit_WriteBuffer(
+            (Kit_Buffer*)player->vbuffer,
+            _CreateVideoPacket(oframe, 0));
     }
 }
 
@@ -411,9 +427,7 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
 
     retval = 0;
 exit_0:
-    avpicture_free(packet->frame);
-    av_free(&packet->frame);
-    free(packet);
+    _FreeVideoPacket(packet);
     return retval;
 }
 
