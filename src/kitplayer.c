@@ -98,7 +98,8 @@ exit_0:
 
 static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
     switch(fmt) {
-        case AV_PIX_FMT_YUV420P:
+        // For now, only support ABGR8888 as output format
+        /*case AV_PIX_FMT_YUV420P:
             *out_fmt = SDL_PIXELFORMAT_YV12;
             break;
         case AV_PIX_FMT_YUYV422:
@@ -106,7 +107,7 @@ static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
             break;
         case AV_PIX_FMT_UYVY422:
             *out_fmt = SDL_PIXELFORMAT_UYVY;
-            break;
+            break;*/
         default:
             *out_fmt = SDL_PIXELFORMAT_ABGR8888;
             break;
