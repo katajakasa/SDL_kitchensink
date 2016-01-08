@@ -239,26 +239,31 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     assert(packet != NULL);
     
     int frame_finished;
+    int bytes;
+    unsigned char *dst_buffer;
+
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
     AVPicture *iframe = (AVPicture*)player->tmp_vframe;
-    AVFrame *vframe_dec = av_frame_alloc();
-    AVPicture *oframe = (AVPicture*)vframe_dec;
-
-    int bytes = avpicture_get_size(
-        _FindAVPixelFormat(player->vformat.format),
-        vcodec_ctx->width,
-        vcodec_ctx->height);
-    unsigned char *dst_buffer = av_malloc(bytes);
-    avpicture_fill(
-        oframe,
-        dst_buffer,
-        _FindAVPixelFormat(player->vformat.format),
-        vcodec_ctx->width,
-        vcodec_ctx->height);
 
     avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
 
     if(frame_finished) {
+        // Target frame
+        AVFrame *vframe_dec = av_frame_alloc();
+        AVPicture *oframe = (AVPicture*)vframe_dec;
+        bytes = avpicture_get_size(
+            _FindAVPixelFormat(player->vformat.format),
+            vcodec_ctx->width,
+            vcodec_ctx->height);
+        dst_buffer = av_malloc(bytes);
+        avpicture_fill(
+            oframe,
+            dst_buffer,
+            _FindAVPixelFormat(player->vformat.format),
+            vcodec_ctx->width,
+            vcodec_ctx->height);
+
+        // Scale from source format to target format, don't touch the size
         sws_scale(
             (struct SwsContext *)player->sws,
             (const unsigned char * const *)iframe->data,
@@ -268,6 +273,7 @@ void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
             oframe->data,
             oframe->linesize);
 
+        // Save to buffer
         Kit_VideoPacket *p = calloc(1, sizeof(Kit_VideoPacket));
         p->frame = vframe_dec;
         p->pts = 0;
