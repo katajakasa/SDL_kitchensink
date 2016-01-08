@@ -377,8 +377,6 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
     assert(texture != NULL);
 
-    int retval = 1;
-
     // Get texture information
     unsigned int format;
     int access, w, h;
@@ -397,39 +395,30 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
         return 1;
     }
 
+    // Read a packet from buffer, if one exists. Stop here if not.
     Kit_VideoPacket *packet = (Kit_VideoPacket*)Kit_ReadBuffer((Kit_Buffer*)player->vbuffer);
     if(packet == NULL) {
         return 0;
     }
 
+    // Update textures as required
     if(format == SDL_PIXELFORMAT_YV12 || format == SDL_PIXELFORMAT_IYUV) {
         SDL_UpdateYUVTexture(
             texture, NULL, 
             packet->frame->data[0], packet->frame->linesize[0],
             packet->frame->data[1], packet->frame->linesize[1],
             packet->frame->data[2], packet->frame->linesize[2]);
-    }
-    else if(access == SDL_TEXTUREACCESS_STREAMING) {
-        unsigned char *pixels;
-        int pitch;
-
-        if(SDL_LockTexture(texture, NULL, (void**)&pixels, &pitch) == 0) {
-            memcpy(pixels, packet->frame->data[0], pitch * h);
-            SDL_UnlockTexture(texture);
-        } else {
-            Kit_SetError("Unable to lock texture for streaming access");
-            goto exit_0;
-        }
-    }
+    } 
     else {
-        Kit_SetError("Incorrect texture access");
-        goto exit_0;
+        SDL_UpdateTexture(
+            texture, NULL,
+            packet->frame->data[0],
+            packet->frame->linesize[0]);
     }
 
-    retval = 0;
-exit_0:
+    // Free the packet
     _FreeVideoPacket(packet);
-    return retval;
+    return 0;
 }
 
 int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, size_t length) {

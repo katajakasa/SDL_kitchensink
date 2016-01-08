@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
     SDL_Texture *tex = SDL_CreateTexture(
         renderer,
         pinfo.video.format,
-        SDL_TEXTUREACCESS_STREAMING,
+        SDL_TEXTUREACCESS_STATIC,
         pinfo.video.width,
         pinfo.video.height);
     if(tex == NULL) {
