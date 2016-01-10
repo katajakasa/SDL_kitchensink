@@ -28,56 +28,59 @@ static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
     AVCodecContext *vcodec_ctx = NULL;
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
-
-    // Make sure indexes seem correct
     AVFormatContext *format_ctx = (AVFormatContext *)src->format_ctx;
-    if(src->astream_idx < 0 || src->astream_idx >= format_ctx->nb_streams) {
-        Kit_SetError("Invalid audio stream index");
-        return 1;
-    }
-    if(src->vstream_idx < 0 || src->vstream_idx >= format_ctx->nb_streams) {
-        Kit_SetError("Invalid video stream index");
-        return 1;
-    }
 
-    // Find video decoder
-    vcodec = avcodec_find_decoder(format_ctx->streams[src->vstream_idx]->codec->codec_id);
-    if(!vcodec) {
-        Kit_SetError("No suitable video decoder found");
+    // Make sure index seems correct
+    if(src->astream_idx >= (int)format_ctx->nb_streams) {
+        Kit_SetError("Invalid audio stream index: %d", src->astream_idx);
         goto exit_0;
+    } else if(src->astream_idx >= 0) {
+        // Find audio decoder
+        acodec = avcodec_find_decoder(format_ctx->streams[src->astream_idx]->codec->codec_id);
+        if(!acodec) {
+            Kit_SetError("No suitable audio decoder found");
+            goto exit_0;
+        }
+
+        // Copy the original audio codec context
+        acodec_ctx = avcodec_alloc_context3(acodec);
+        if(avcodec_copy_context(acodec_ctx, format_ctx->streams[src->astream_idx]->codec) != 0) {
+            Kit_SetError("Unable to copy audio codec context");
+            goto exit_0;
+        }
+
+        // Create an audio decoder context
+        if(avcodec_open2(acodec_ctx, acodec, NULL) < 0) {
+            Kit_SetError("Unable to allocate audio codec context");
+            goto exit_1;
+        }
     }
 
-    // Copy the original video codec context
-    vcodec_ctx = avcodec_alloc_context3(vcodec);
-    if(avcodec_copy_context(vcodec_ctx, format_ctx->streams[src->vstream_idx]->codec) != 0) {
-        Kit_SetError("Unable to copy video codec context");
-        goto exit_0;
-    }
-
-    // Create a video decoder context
-    if(avcodec_open2(vcodec_ctx, vcodec, NULL) < 0) {
-        Kit_SetError("Unable to allocate video codec context");
-        goto exit_1;
-    }
-
-    // Find audio decoder
-    acodec = avcodec_find_decoder(format_ctx->streams[src->astream_idx]->codec->codec_id);
-    if(!acodec) {
-        Kit_SetError("No suitable audio decoder found");
+    // Make sure index seems correct
+    if(src->vstream_idx >= (int)format_ctx->nb_streams) {
+        fprintf(stderr, "%d >= %d\n", src->vstream_idx, format_ctx->nb_streams);
+        Kit_SetError("Invalid video stream index: %d", src->vstream_idx);
         goto exit_2;
-    }
+    } else if(src->vstream_idx >= 0) {
+        // Find video decoder
+        vcodec = avcodec_find_decoder(format_ctx->streams[src->vstream_idx]->codec->codec_id);
+        if(!vcodec) {
+            Kit_SetError("No suitable video decoder found");
+            goto exit_2;
+        }
 
-    // Copy the original audio codec context
-    acodec_ctx = avcodec_alloc_context3(acodec);
-    if(avcodec_copy_context(acodec_ctx, format_ctx->streams[src->astream_idx]->codec) != 0) {
-        Kit_SetError("Unable to copy audio codec context");
-        goto exit_2;
-    }
+        // Copy the original video codec context
+        vcodec_ctx = avcodec_alloc_context3(vcodec);
+        if(avcodec_copy_context(vcodec_ctx, format_ctx->streams[src->vstream_idx]->codec) != 0) {
+            Kit_SetError("Unable to copy video codec context");
+            goto exit_2;
+        }
 
-    // Create an audio decoder context
-    if(avcodec_open2(acodec_ctx, acodec, NULL) < 0) {
-        Kit_SetError("Unable to allocate audio codec context");
-        goto exit_3;
+        // Create a video decoder context
+        if(avcodec_open2(vcodec_ctx, vcodec, NULL) < 0) {
+            Kit_SetError("Unable to allocate video codec context");
+            goto exit_3;
+        }
     }
 
     player->acodec_ctx = acodec_ctx;
@@ -86,11 +89,11 @@ static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
     return 0;
 
 exit_3:
-    avcodec_free_context(&acodec_ctx);
-exit_2:
-    avcodec_close(vcodec_ctx);
-exit_1:
     avcodec_free_context(&vcodec_ctx);
+exit_2:
+    avcodec_close(acodec_ctx);
+exit_1:
+    avcodec_free_context(&acodec_ctx);
 exit_0:
     return 1;
 }
@@ -282,14 +285,14 @@ static int _UpdatePlayer(Kit_Player *player) {
     int ret;
 
     // If either buffer is full, just stop here for now.
-    if(SDL_LockMutex(player->vmutex) == 0) {
+    if(player->vcodec_ctx != NULL && SDL_LockMutex(player->vmutex) == 0) {
         ret = Kit_IsBufferFull(player->vbuffer);
         SDL_UnlockMutex(player->vmutex);
         if(ret) {
             return 0;
         }
     }
-    if(SDL_LockMutex(player->amutex) == 0) {
+    if(player->acodec_ctx != NULL && SDL_LockMutex(player->amutex) == 0) {
         ret = Kit_GetRingBufferFree(player->abuffer);
         SDL_UnlockMutex(player->amutex);
         if(ret < 16384) {
@@ -306,10 +309,10 @@ static int _UpdatePlayer(Kit_Player *player) {
     }
 
     // Check if this is a packet we need to handle and pass it on
-    if(packet.stream_index == player->src->vstream_idx) {
+    if(player->vcodec_ctx != NULL && packet.stream_index == player->src->vstream_idx) {
         _HandleVideoPacket(player, &packet);
     }
-    if(packet.stream_index == player->src->astream_idx) {
+    if(player->acodec_ctx != NULL && packet.stream_index == player->src->astream_idx) {
         _HandleAudioPacket(player, &packet);
     }
 
@@ -346,101 +349,137 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     assert(src != NULL);
 
     Kit_Player *player = calloc(1, sizeof(Kit_Player));
+    if(player == NULL) {
+        Kit_SetError("Unable to allocate player");
+        return NULL;
+    }
+
+    AVCodecContext *acodec_ctx = NULL;
+    AVCodecContext *vcodec_ctx = NULL;
 
     // Initialize codecs
     if(_InitCodecs(player, src) != 0) {
-        goto exit_0;
+        goto error;
     }
 
-    AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
-    AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
-    player->vformat.width = vcodec_ctx->width;
-    player->vformat.height = vcodec_ctx->height;
-    _FindPixelFormat(vcodec_ctx->pix_fmt, &player->vformat.format);
-    player->aformat.samplerate = acodec_ctx->sample_rate;
-    player->aformat.channels = acodec_ctx->channels;
-    _FindAudioFormat(acodec_ctx->sample_fmt, &player->aformat.bytes, &player->aformat.is_signed);
+    // Init audio codec information if audio codec is initialized
+    acodec_ctx = (AVCodecContext*)player->acodec_ctx;
+    if(acodec_ctx != NULL) {
+        player->aformat.samplerate = acodec_ctx->sample_rate;
+        player->aformat.channels = acodec_ctx->channels;
+        player->aformat.is_enabled = true;
+        _FindAudioFormat(acodec_ctx->sample_fmt, &player->aformat.bytes, &player->aformat.is_signed);
 
-    // Audio converter
-    struct SwrContext *swr = swr_alloc_set_opts(
-        NULL,
-        _FindAVChannelLayout(player->aformat.channels), // Target channel layout
-        _FindAVSampleFormat(player->aformat.bytes), // Target fmt
-        player->aformat.samplerate, // Target samplerate
-        acodec_ctx->channel_layout, // Source channel layout
-        acodec_ctx->sample_fmt, // Source fmt
-        acodec_ctx->sample_rate, // Source samplerate
-        0, NULL);
-    if(swr_init(swr) != 0) {
-        Kit_SetError("Unable to initialize audio converter context");
-        goto exit_0;
+        player->swr = swr_alloc_set_opts(
+            NULL,
+            _FindAVChannelLayout(player->aformat.channels), // Target channel layout
+            _FindAVSampleFormat(player->aformat.bytes), // Target fmt
+            player->aformat.samplerate, // Target samplerate
+            acodec_ctx->channel_layout, // Source channel layout
+            acodec_ctx->sample_fmt, // Source fmt
+            acodec_ctx->sample_rate, // Source samplerate
+            0, NULL);
+        if(swr_init((struct SwrContext *)player->swr) != 0) {
+            Kit_SetError("Unable to initialize audio converter context");
+            goto error;
+        }
+
+        player->abuffer = Kit_CreateRingBuffer(KIT_ABUFFERSIZE);
+        if(player->abuffer == NULL) {
+            Kit_SetError("Unable to initialize audio ringbuffer");
+            goto error;
+        }
+
+        player->tmp_aframe = av_frame_alloc();
+        if(player->tmp_aframe == NULL) {
+            Kit_SetError("Unable to initialize temporary audio frame");
+            goto error;
+        }
     }
 
-    // Video converter
-    struct SwsContext *sws = sws_getContext(
-        vcodec_ctx->width, // Source w
-        vcodec_ctx->height, // Source h
-        vcodec_ctx->pix_fmt, // Source fmt
-        vcodec_ctx->width, // Target w
-        vcodec_ctx->height, // Target h
-        _FindAVPixelFormat(player->vformat.format), // Target fmt
-        SWS_BICUBIC,
-        NULL, NULL, NULL);
-    if(sws == NULL) {
-        Kit_SetError("Unable to initialize video converter context");
-        goto exit_1;
+    // Initialize video codec information is initialized
+    vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
+    if(vcodec_ctx != NULL) {
+        player->vformat.is_enabled = true;
+        player->vformat.width = vcodec_ctx->width;
+        player->vformat.height = vcodec_ctx->height;
+        _FindPixelFormat(vcodec_ctx->pix_fmt, &player->vformat.format);
+
+        player->sws = sws_getContext(
+            vcodec_ctx->width, // Source w
+            vcodec_ctx->height, // Source h
+            vcodec_ctx->pix_fmt, // Source fmt
+            vcodec_ctx->width, // Target w
+            vcodec_ctx->height, // Target h
+            _FindAVPixelFormat(player->vformat.format), // Target fmt
+            SWS_BICUBIC,
+            NULL, NULL, NULL);
+        if((struct SwsContext *)player->sws == NULL) {
+            Kit_SetError("Unable to initialize video converter context");
+            goto error;
+        }
+
+        player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
+        if(player->vbuffer == NULL) {
+            Kit_SetError("Unable to initialize video ringbuffer");
+            goto error;
+        }
+
+        player->tmp_vframe = av_frame_alloc();
+        if(player->tmp_vframe == NULL) {
+            Kit_SetError("Unable to initialize temporary video frame");
+            goto error;
+        }
     }
 
-    player->abuffer = Kit_CreateRingBuffer(KIT_ABUFFERSIZE);
-    if(player->abuffer == NULL) {
-        Kit_SetError("Unable to initialize audio ringbuffer");
-        goto exit_2;
+    player->vmutex = SDL_CreateMutex();
+    if(player->vmutex == NULL) {
+        Kit_SetError("Unable to allocate video mutex");
+        goto error;
     }
 
-    player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
-    if(player->vbuffer == NULL) {
-        Kit_SetError("Unable to initialize video ringbuffer");
-        goto exit_3;
-    }
-
-    player->tmp_vframe = av_frame_alloc();
-    if(player->tmp_vframe == NULL) {
-        Kit_SetError("Unable to initialize temporary video frame");
-        goto exit_4;
-    }
-
-    player->tmp_aframe = av_frame_alloc();
-    if(player->tmp_aframe == NULL) {
-        Kit_SetError("Unable to initialize temporary audio frame");
-        goto exit_5;
+    player->amutex = SDL_CreateMutex();
+    if(player->amutex == NULL) {
+        Kit_SetError("Unable to allocate audio mutex");
+        goto error;
     }
 
     player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
     if(player->dec_thread == NULL) {
         Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
-        goto exit_6;
+        goto error;
     }
 
-    player->vmutex = SDL_CreateMutex();
-    player->amutex = SDL_CreateMutex();
-    player->swr = swr;
-    player->sws = sws;
     return player;
 
-exit_6:
-    av_frame_free((AVFrame**)&player->tmp_aframe);
-exit_5:
-    av_frame_free((AVFrame**)&player->tmp_vframe);
-exit_4:
-    Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
-exit_3:
-    Kit_DestroyRingBuffer((Kit_RingBuffer*)player->abuffer);
-exit_2:
-    sws_freeContext((struct SwsContext *)sws);
-exit_1:
-    swr_free((struct SwrContext **)swr);
-exit_0:
-    free(player);
+error:
+    if(player->amutex != NULL) {
+        SDL_DestroyMutex(player->amutex);
+    }
+    if(player->vmutex != NULL) {
+        SDL_DestroyMutex(player->vmutex);
+    }
+    if(player->tmp_aframe != NULL) {
+        av_frame_free((AVFrame**)&player->tmp_aframe);
+    }
+    if(player->tmp_vframe != NULL) {
+        av_frame_free((AVFrame**)&player->tmp_vframe);
+    }
+    if(player->vbuffer != NULL) {
+        Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
+    }
+    if(player->abuffer != NULL) {
+        Kit_DestroyRingBuffer((Kit_RingBuffer*)player->abuffer);
+    }
+    if(player->sws != NULL) {
+        sws_freeContext((struct SwsContext *)player->sws);
+    }
+    if(player->swr != NULL) {
+        swr_free((struct SwrContext **)player->swr);
+    }
+    if(player != NULL) {
+        free(player);
+    }
     return NULL;
 }
 
@@ -552,13 +591,19 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
 
-    strncpy(info->acodec, acodec_ctx->codec->name, KIT_CODECMAX);
-    strncpy(info->acodec_name, acodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
-    strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX);
-    strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+    // Reset everything to 0. We might not fill all fields.
+    memset(info, 0, sizeof(Kit_PlayerInfo));
 
-    memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
-    memcpy(&info->audio, &player->aformat, sizeof(Kit_AudioFormat));
+    if(acodec_ctx != NULL) {
+        strncpy(info->acodec, acodec_ctx->codec->name, KIT_CODECMAX);
+        strncpy(info->acodec_name, acodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+        memcpy(&info->audio, &player->aformat, sizeof(Kit_AudioFormat));
+    }
+    if(vcodec_ctx != NULL) {
+        strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX);
+        strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+        memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
+    }
 }
 
 KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player) {

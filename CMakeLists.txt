@@ -6,13 +6,13 @@ set(VERSION_MAJOR "0")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
 add_definitions(
-	-DKIT_VERSION_MAJOR=${VERSION_MAJOR}
-	-DKIT_VERSION_MINOR=${VERSION_MINOR}
-	-DKIT_VERSION_PATCH=${VERSION_PATCH}
+    -DKIT_VERSION_MAJOR=${VERSION_MAJOR}
+    -DKIT_VERSION_MINOR=${VERSION_MINOR}
+    -DKIT_VERSION_PATCH=${VERSION_PATCH}
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -Werror -fno-omit-frame-pointer")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -pedantic -Werror -fno-omit-frame-pointer")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ggdb -O2 -fno-omit-frame-pointer -DNDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -DNDEBUG")
 set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
@@ -28,9 +28,9 @@ if(BUILD_TESTS)
 endif()
 
 include_directories(
-	include/
-	${SDL2_INCLUDE_DIRS}
-	${FFMPEG_INCLUDE_DIRS}
+    include/
+    ${SDL2_INCLUDE_DIRS}
+    ${FFMPEG_INCLUDE_DIRS}
 )
 
 FILE(GLOB SOURCES "src/*.c")
@@ -45,29 +45,36 @@ target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
 target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 
 target_link_libraries(SDL_kitchensink
-	${SDL2_LIBRARIES}
-	${FFMPEG_LIBRARIES}
+    ${SDL2_LIBRARIES}
+    ${FFMPEG_LIBRARIES}
 )
 
 if(BUILD_EXAMPLES)
-	add_executable(exampleplay examples/example_play.c)
+    add_executable(exampleaudio examples/example_audio.c)
+    add_executable(examplevideo examples/example_video.c)
 
-	if(MINGW)
-		target_link_libraries(exampleplay mingw32)
-	endif()
+    if(MINGW)
+        target_link_libraries(exampleaudio mingw32)
+        target_link_libraries(examplevideo mingw32)
+    endif()
 
-	target_link_libraries(exampleplay
-		SDL_kitchensink_static
-		${SDL2_LIBRARIES}
-		${FFMPEG_LIBRARIES}
-	)
+    target_link_libraries(exampleaudio
+        SDL_kitchensink_static
+        ${SDL2_LIBRARIES}
+        ${FFMPEG_LIBRARIES}
+    )
+    target_link_libraries(examplevideo
+        SDL_kitchensink_static
+        ${SDL2_LIBRARIES}
+        ${FFMPEG_LIBRARIES}
+    )
 endif()
 
 # Installation
 
 INSTALL(FILES ${HEADERS} DESTINATION include/kitchensink/)
 INSTALL(TARGETS SDL_kitchensink SDL_kitchensink_static
-	RUNTIME DESTINATION bin
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
 )

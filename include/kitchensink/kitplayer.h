@@ -3,10 +3,11 @@
 
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kitconfig.h"
-#include <stdbool.h>
 
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_thread.h>
+
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,13 +26,15 @@ typedef enum Kit_PlayerState {
 } Kit_PlayerState;
 
 typedef struct Kit_AudioFormat {
-    int bytes;
+    bool is_enabled;
     bool is_signed;
+    int bytes;
     int samplerate;
     int channels;
 } Kit_AudioFormat;
 
 typedef struct Kit_VideoFormat {
+    bool is_enabled;
     unsigned int format;
     int width;
     int height;

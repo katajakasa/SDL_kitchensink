@@ -132,6 +132,12 @@ int main(int argc, char *argv[]) {
     // Print some information
     Kit_PlayerInfo pinfo;
     Kit_GetPlayerInfo(player, &pinfo);
+
+    if(!pinfo.video.is_enabled) {
+        fprintf(stderr, "File contains no video!\n");
+        return 1;
+    }
+
     fprintf(stderr, "Media information:\n");
     fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
         pinfo.acodec,
@@ -170,6 +176,7 @@ int main(int argc, char *argv[]) {
     // Set logical size for the renderer. This way when we scale, we keep aspect ratio.
     SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
 
+    // Start playback
     Kit_PlayerPlay(player);
 
     while(run) {
