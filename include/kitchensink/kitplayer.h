@@ -20,7 +20,8 @@ extern "C" {
 typedef enum Kit_PlayerState {
     KIT_STOPPED = 0,
     KIT_PLAYING,
-    KIT_FINISHED
+    KIT_PAUSED,
+    KIT_CLOSED
 } Kit_PlayerState;
 
 typedef struct Kit_AudioFormat {
@@ -37,10 +38,12 @@ typedef struct Kit_VideoFormat {
 } Kit_VideoFormat;
 
 typedef struct Kit_Player {
-    SDL_Thread *dec_thread;
     Kit_PlayerState state;
     Kit_VideoFormat vformat;
     Kit_AudioFormat aformat;
+    SDL_Thread *dec_thread;
+    SDL_mutex *vmutex;
+    SDL_mutex *amutex;
     void *abuffer;
     void *vbuffer;
     void *vcodec_ctx;
@@ -67,8 +70,12 @@ KIT_API void Kit_ClosePlayer(Kit_Player *player);
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
 KIT_API int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture);
 KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, size_t length);
-KIT_API int Kit_GetPlayerState(Kit_Player *player);
 KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
+
+KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player);
+KIT_API void Kit_PlayerPlay(Kit_Player *player);
+KIT_API void Kit_PlayerStop(Kit_Player *player);
+KIT_API void Kit_PlayerPause(Kit_Player *player);
 
 #ifdef __cplusplus
 }

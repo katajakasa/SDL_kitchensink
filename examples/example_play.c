@@ -170,7 +170,14 @@ int main(int argc, char *argv[]) {
     // Set logical size for the renderer. This way when we scale, we keep aspect ratio.
     SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
 
+    Kit_PlayerPlay(player);
+
     while(run) {
+        if(Kit_GetPlayerState(player) == KIT_STOPPED) {
+            run = false;
+            continue;
+        }
+
         // Check for events
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
@@ -183,12 +190,6 @@ int main(int argc, char *argv[]) {
                     run = false;
                     break;
             }
-        }
-
-        // Run decoder
-        while((ret = Kit_UpdatePlayer(player)) == -1);
-        if(ret == 1) {
-            run = false;
         }
 
         // Refresh audio

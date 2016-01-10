@@ -9,8 +9,7 @@
 #include <libswresample/swresample.h>
 #include <libavutil/pixfmt.h>
 
-#include <SDL2/SDL_types.h>
-#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -177,6 +176,172 @@ static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
     return p;
 }
 
+static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
+    assert(player != NULL);
+    assert(packet != NULL);
+    
+    int frame_finished;
+    AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
+    AVPicture *iframe = (AVPicture*)player->tmp_vframe;
+
+    avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
+
+    if(frame_finished) {
+        // Target frame
+        AVPicture *oframe = av_malloc(sizeof(AVPicture));
+        avpicture_alloc(
+            oframe,
+            _FindAVPixelFormat(player->vformat.format),
+            vcodec_ctx->width,
+            vcodec_ctx->height);
+
+        // Scale from source format to target format, don't touch the size
+        sws_scale(
+            (struct SwsContext *)player->sws,
+            (const unsigned char * const *)iframe->data,
+            iframe->linesize,
+            0,
+            vcodec_ctx->height,
+            oframe->data,
+            oframe->linesize);
+
+        // Lock, write to audio buffer, unlock
+        Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, 0);
+        if(SDL_LockMutex(player->vmutex) == 0) {
+            Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket);
+            SDL_UnlockMutex(player->vmutex);
+        }
+    }
+}
+
+static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
+    assert(player != NULL);
+    assert(packet != NULL);
+
+    int frame_finished;
+    int len, len2;
+    int dst_linesize;
+    int dst_nb_samples, dst_bufsize;
+    unsigned char **dst_data;
+    AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
+    struct SwrContext *swr = (struct SwrContext *)player->swr;
+    AVFrame *aframe = (AVFrame*)player->tmp_aframe;
+
+    if(packet->size > 0) {
+        len = avcodec_decode_audio4(acodec_ctx, aframe, &frame_finished, packet);
+        if(len < 0) {
+            return;
+        }
+
+        if(frame_finished) {
+            dst_nb_samples = av_rescale_rnd(
+                aframe->nb_samples,
+                player->aformat.samplerate,
+                acodec_ctx->sample_rate,
+                AV_ROUND_UP);
+
+            av_samples_alloc_array_and_samples(
+                &dst_data,
+                &dst_linesize,
+                player->aformat.channels,
+                dst_nb_samples,
+                _FindAVSampleFormat(player->aformat.bytes),
+                0);
+
+            len2 = swr_convert(
+                swr,
+                dst_data,
+                aframe->nb_samples,
+                (const unsigned char **)aframe->extended_data,
+                aframe->nb_samples);
+
+            dst_bufsize = av_samples_get_buffer_size(
+                &dst_linesize,
+                player->aformat.channels,
+                len2,
+                _FindAVSampleFormat(player->aformat.bytes), 1);
+
+            // Lock, write to audio buffer, unlock
+            if(SDL_LockMutex(player->amutex) == 0) {
+                Kit_WriteRingBuffer((Kit_RingBuffer*)player->abuffer, (char*)dst_data[0], dst_bufsize);
+                SDL_UnlockMutex(player->amutex);
+            }
+
+            av_freep(&dst_data[0]);
+            av_freep(&dst_data);
+        }
+    }
+}
+
+// Return 0 if stream is good but nothing else to do for now
+// Return -1 if there is still work to be done
+// Return 1 if there was an error or stream end
+static int _UpdatePlayer(Kit_Player *player) {
+    assert(player != NULL);
+
+    int ret;
+
+    // If either buffer is full, just stop here for now.
+    if(SDL_LockMutex(player->vmutex) == 0) {
+        ret = Kit_IsBufferFull(player->vbuffer);
+        SDL_UnlockMutex(player->vmutex);
+        if(ret) {
+            return 0;
+        }
+    }
+    if(SDL_LockMutex(player->amutex) == 0) {
+        ret = Kit_GetRingBufferFree(player->abuffer);
+        SDL_UnlockMutex(player->amutex);
+        if(ret < 16384) {
+            return 0;
+        }
+    }
+
+    AVPacket packet;
+    AVFormatContext *format_ctx = (AVFormatContext*)player->src->format_ctx;
+
+    // Attempt to read frame. Just return here if it fails.
+    if(av_read_frame(format_ctx, &packet) < 0) {
+        return 1;
+    }
+
+    // Check if this is a packet we need to handle and pass it on
+    if(packet.stream_index == player->src->vstream_idx) {
+        _HandleVideoPacket(player, &packet);
+    }
+    if(packet.stream_index == player->src->astream_idx) {
+        _HandleAudioPacket(player, &packet);
+    }
+
+    // Free packet and that's that
+    av_free_packet(&packet);
+    return -1;
+}
+
+static int _DecoderThread(void *ptr) {
+    Kit_Player *player = (Kit_Player*)ptr;
+    bool run = true;
+    int ret;
+
+    while(run) {
+        // If state is closed, bail.
+        if(player->state == KIT_CLOSED) {
+            run = false;
+            continue;
+        }
+
+        // Get more data from demuxer, decode.
+        ret = _UpdatePlayer(player);
+        if(ret == 1) {
+            run = false;
+        } else if(ret == 0) {
+            SDL_Delay(1);
+        }
+    }
+
+    return 0;
+}
+
 Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     assert(src != NULL);
 
@@ -250,10 +415,20 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         goto exit_5;
     }
 
+    player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
+    if(player->dec_thread == NULL) {
+        Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
+        goto exit_6;
+    }
+
+    player->vmutex = SDL_CreateMutex();
+    player->amutex = SDL_CreateMutex();
     player->swr = swr;
     player->sws = sws;
     return player;
 
+exit_6:
+    av_frame_free((AVFrame**)&player->tmp_aframe);
 exit_5:
     av_frame_free((AVFrame**)&player->tmp_vframe);
 exit_4:
@@ -271,6 +446,14 @@ exit_0:
 
 void Kit_ClosePlayer(Kit_Player *player) {
     if(player == NULL) return;
+
+    // Kill the decoder thread
+    player->state = KIT_CLOSED;
+    SDL_WaitThread(player->dec_thread, NULL);
+    SDL_DestroyMutex(player->vmutex);
+    SDL_DestroyMutex(player->amutex);
+
+    // Free up the ffmpeg context
     sws_freeContext((struct SwsContext *)player->sws);
     swr_free((struct SwrContext **)&player->swr);
     av_frame_free((AVFrame**)&player->tmp_vframe);
@@ -279,138 +462,17 @@ void Kit_ClosePlayer(Kit_Player *player) {
     avcodec_close((AVCodecContext*)player->vcodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->acodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->vcodec_ctx);
+
+    // Free local buffers
     Kit_DestroyRingBuffer((Kit_RingBuffer*)player->abuffer);
     Kit_VideoPacket *p;
     while((p = Kit_ReadBuffer(player->vbuffer)) != NULL) {
         _FreeVideoPacket(p);
     }
     Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
+
+    // Free the player structure itself
     free(player);
-}
-
-void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
-    assert(player != NULL);
-    assert(packet != NULL);
-    
-    int frame_finished;
-    AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
-    AVPicture *iframe = (AVPicture*)player->tmp_vframe;
-
-    avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
-
-    if(frame_finished) {
-        // Target frame
-        AVPicture *oframe = av_malloc(sizeof(AVPicture));
-        avpicture_alloc(
-            oframe,
-            _FindAVPixelFormat(player->vformat.format),
-            vcodec_ctx->width,
-            vcodec_ctx->height);
-
-        // Scale from source format to target format, don't touch the size
-        sws_scale(
-            (struct SwsContext *)player->sws,
-            (const unsigned char * const *)iframe->data,
-            iframe->linesize,
-            0,
-            vcodec_ctx->height,
-            oframe->data,
-            oframe->linesize);
-
-        // Save to buffer
-        Kit_WriteBuffer(
-            (Kit_Buffer*)player->vbuffer,
-            _CreateVideoPacket(oframe, 0));
-    }
-}
-
-void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
-    assert(player != NULL);
-    assert(packet != NULL);
-
-    int frame_finished;
-    int len, len2;
-    int dst_linesize;
-    int dst_nb_samples, dst_bufsize;
-    unsigned char **dst_data;
-    AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
-    struct SwrContext *swr = (struct SwrContext *)player->swr;
-    AVFrame *aframe = (AVFrame*)player->tmp_aframe;
-
-    if(packet->size > 0) {
-        len = avcodec_decode_audio4(acodec_ctx, aframe, &frame_finished, packet);
-        if(len < 0) {
-            return;
-        }
-
-        if(frame_finished) {
-            dst_nb_samples = av_rescale_rnd(
-                aframe->nb_samples,
-                player->aformat.samplerate,
-                acodec_ctx->sample_rate,
-                AV_ROUND_UP);
-
-            av_samples_alloc_array_and_samples(
-                &dst_data,
-                &dst_linesize,
-                player->aformat.channels,
-                dst_nb_samples,
-                _FindAVSampleFormat(player->aformat.bytes),
-                0);
-
-            len2 = swr_convert(
-                swr,
-                dst_data,
-                aframe->nb_samples,
-                (const unsigned char **)aframe->extended_data,
-                aframe->nb_samples);
-
-            dst_bufsize = av_samples_get_buffer_size(
-                &dst_linesize,
-                player->aformat.channels,
-                len2,
-                _FindAVSampleFormat(player->aformat.bytes), 1);
-
-            Kit_WriteRingBuffer((Kit_RingBuffer*)player->abuffer, (char*)dst_data[0], dst_bufsize);
-            av_freep(&dst_data[0]);
-            av_freep(&dst_data);
-        }
-    }
-}
-
-// Return 0 if stream is good but nothing else to do for now
-// Return -1 if there is still work to be done
-// Return 1 if there was an error or stream end
-int Kit_UpdatePlayer(Kit_Player *player) {
-    assert(player != NULL);
-
-    // If either buffer is full, just stop here for now.
-    if(Kit_IsBufferFull(player->vbuffer)) {
-        return 0;
-    }
-    if(Kit_GetRingBufferFree(player->abuffer) < 16384) {
-        return 0;
-    }
-
-    AVPacket packet;
-    AVFormatContext *format_ctx = (AVFormatContext*)player->src->format_ctx;
-
-    // Attempt to read frame. Just return here if it fails.
-    if(av_read_frame(format_ctx, &packet) < 0) {
-        return 1;
-    }
-
-    // Check if this is a packet we need to handle and pass it on
-    if(packet.stream_index == player->src->vstream_idx) {
-        _HandleVideoPacket(player, &packet);
-    }
-    if(packet.stream_index == player->src->astream_idx) {
-        _HandleAudioPacket(player, &packet);
-    }
-
-    // Free packet and that's that
-    av_free_packet(&packet);
-    return -1;
 }
 
 int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
@@ -436,7 +498,13 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
     }
 
     // Read a packet from buffer, if one exists. Stop here if not.
-    Kit_VideoPacket *packet = (Kit_VideoPacket*)Kit_ReadBuffer((Kit_Buffer*)player->vbuffer);
+    Kit_VideoPacket *packet = NULL;
+    if(SDL_LockMutex(player->vmutex) == 0) {
+        packet = (Kit_VideoPacket*)Kit_ReadBuffer((Kit_Buffer*)player->vbuffer);
+        SDL_UnlockMutex(player->vmutex);
+    } else {
+        return 1;
+    }
     if(packet == NULL) {
         return 0;
     }
@@ -469,7 +537,11 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, size_t length) {
         return 0;
     }
 
-    int ret = Kit_ReadRingBuffer((Kit_RingBuffer*)player->abuffer, (char*)buffer, length);
+    int ret = 0;
+    if(SDL_LockMutex(player->amutex) == 0) {
+        ret = Kit_ReadRingBuffer((Kit_RingBuffer*)player->abuffer, (char*)buffer, length);
+        SDL_UnlockMutex(player->amutex);
+    }
     return ret;
 }
 
@@ -487,4 +559,23 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
 
     memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
     memcpy(&info->audio, &player->aformat, sizeof(Kit_AudioFormat));
+}
+
+KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player) {
+    return player->state;
+}
+
+KIT_API void Kit_PlayerPlay(Kit_Player *player) {
+    player->state = KIT_PLAYING;
+}
+
+KIT_API void Kit_PlayerStop(Kit_Player *player) {
+    player->state = KIT_STOPPED;
+}
+
+KIT_API void Kit_PlayerPause(Kit_Player *player) {
+    if(player->state != KIT_PLAYING) {
+        return;
+    }
+    player->state = KIT_PAUSED;
 }
