@@ -156,3 +156,12 @@ int Kit_GetRingBufferLength(const Kit_RingBuffer *rb) {
 int Kit_GetRingBufferSize(const Kit_RingBuffer *rb) {
     return rb->size;
 }
+
+/**
+  * Returns the free size of the ringbuffer.
+  * @param rb Ringbuffer to handle
+  * @return Free size in the ringbuffer
+  */
+int Kit_GetRingBufferFree(const Kit_RingBuffer *rb) {
+    return rb->size - rb->len;
+}

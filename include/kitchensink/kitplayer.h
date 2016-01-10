@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_thread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +37,7 @@ typedef struct Kit_VideoFormat {
 } Kit_VideoFormat;
 
 typedef struct Kit_Player {
+    SDL_Thread *dec_thread;
     Kit_PlayerState state;
     Kit_VideoFormat vformat;
     Kit_AudioFormat aformat;

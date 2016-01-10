@@ -206,7 +206,10 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         acodec_ctx->sample_fmt, // Source fmt
         acodec_ctx->sample_rate, // Source samplerate
         0, NULL);
-    swr_init(swr);
+    if(swr_init(swr) != 0) {
+        Kit_SetError("Unable to initialize audio converter context");
+        goto exit_0;
+    }
 
     // Video converter
     struct SwsContext *sws = sws_getContext(
@@ -218,15 +221,49 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         _FindAVPixelFormat(player->vformat.format), // Target fmt
         SWS_BICUBIC,
         NULL, NULL, NULL);
+    if(sws == NULL) {
+        Kit_SetError("Unable to initialize video converter context");
+        goto exit_1;
+    }
+
+    player->abuffer = Kit_CreateRingBuffer(KIT_ABUFFERSIZE);
+    if(player->abuffer == NULL) {
+        Kit_SetError("Unable to initialize audio ringbuffer");
+        goto exit_2;
+    }
+
+    player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
+    if(player->vbuffer == NULL) {
+        Kit_SetError("Unable to initialize video ringbuffer");
+        goto exit_3;
+    }
+
+    player->tmp_vframe = av_frame_alloc();
+    if(player->tmp_vframe == NULL) {
+        Kit_SetError("Unable to initialize temporary video frame");
+        goto exit_4;
+    }
+
+    player->tmp_aframe = av_frame_alloc();
+    if(player->tmp_aframe == NULL) {
+        Kit_SetError("Unable to initialize temporary audio frame");
+        goto exit_5;
+    }
 
     player->swr = swr;
     player->sws = sws;
-    player->abuffer = Kit_CreateRingBuffer(KIT_ABUFFERSIZE);
-    player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
-    player->tmp_vframe = av_frame_alloc();
-    player->tmp_aframe = av_frame_alloc();
     return player;
 
+exit_5:
+    av_frame_free((AVFrame**)&player->tmp_vframe);
+exit_4:
+    Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
+exit_3:
+    Kit_DestroyRingBuffer((Kit_RingBuffer*)player->abuffer);
+exit_2:
+    sws_freeContext((struct SwsContext *)sws);
+exit_1:
+    swr_free((struct SwrContext **)swr);
 exit_0:
     free(player);
     return NULL;
@@ -349,6 +386,9 @@ int Kit_UpdatePlayer(Kit_Player *player) {
 
     // If either buffer is full, just stop here for now.
     if(Kit_IsBufferFull(player->vbuffer)) {
+        return 0;
+    }
+    if(Kit_GetRingBufferFree(player->abuffer) < 16384) {
         return 0;
     }
 
