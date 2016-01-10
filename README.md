@@ -2,6 +2,20 @@
 
 FFMPEG and SDL2 based C99 library for audio and video playback.
 
+This library is still very much todo, but it's slowly getting there.
+
+Can do:
+* Decoding video & audio
+* Dumping video data on SDL_textures
+* Dumping audio data in the usual mono/stereo interleaved formats
+* Automatic audio and video conversion to SDL2 friendly formats
+
+Can't do (yet):
+* Synchronizing
+
+Won't do (probably):
+* Encoding
+
 ## 1. Library requirements
 
 Build requirements:
