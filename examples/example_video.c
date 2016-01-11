@@ -226,7 +226,6 @@ int main(int argc, char *argv[]) {
         // Render to the screen
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, tex, NULL, NULL);
-        fprintf(stderr, "PRESENT\n");
         SDL_RenderPresent(renderer);
     }
 
