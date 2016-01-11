@@ -8,12 +8,21 @@
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 #include <libavutil/pixfmt.h>
+#include <libavutil/time.h>
 
 #include <SDL2/SDL.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+// Threshold is in seconds
+#define VIDEO_SYNC_THRESHOLD 0.01
+
+// Buffersizes
+#define KIT_VBUFFERSIZE 5
+#define KIT_ABUFFERSIZE (256*1024)
+#define KIT_ABUFFERLIMIT (192*1024)
 
 typedef struct Kit_VideoPacket {
     double pts;
@@ -58,7 +67,6 @@ static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
 
     // Make sure index seems correct
     if(src->vstream_idx >= (int)format_ctx->nb_streams) {
-        fprintf(stderr, "%d >= %d\n", src->vstream_idx, format_ctx->nb_streams);
         Kit_SetError("Invalid video stream index: %d", src->vstream_idx);
         goto exit_2;
     } else if(src->vstream_idx >= 0) {
@@ -179,12 +187,17 @@ static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
     return p;
 }
 
+static double _GetSystemTime() {
+    return (double)av_gettime() / 1000000.0;
+}
+
 static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     assert(player != NULL);
     assert(packet != NULL);
     
     int frame_finished;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
+    AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
     AVPicture *iframe = (AVPicture*)player->tmp_vframe;
 
     avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
@@ -208,8 +221,15 @@ static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
             oframe->data,
             oframe->linesize);
 
+        // Get pts
+        double pts = 0;
+        if(packet->dts != AV_NOPTS_VALUE) {
+            pts = av_frame_get_best_effort_timestamp(player->tmp_vframe);
+            pts *= av_q2d(fmt_ctx->streams[player->src->vstream_idx]->time_base);
+        }
+
         // Lock, write to audio buffer, unlock
-        Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, 0);
+        Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, pts);
         if(SDL_LockMutex(player->vmutex) == 0) {
             Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket);
             SDL_UnlockMutex(player->vmutex);
@@ -295,7 +315,7 @@ static int _UpdatePlayer(Kit_Player *player) {
     if(player->acodec_ctx != NULL && SDL_LockMutex(player->amutex) == 0) {
         ret = Kit_GetRingBufferFree(player->abuffer);
         SDL_UnlockMutex(player->amutex);
-        if(ret < 16384) {
+        if(ret < KIT_ABUFFERLIMIT) {
             return 0;
         }
     }
@@ -323,23 +343,37 @@ static int _UpdatePlayer(Kit_Player *player) {
 
 static int _DecoderThread(void *ptr) {
     Kit_Player *player = (Kit_Player*)ptr;
-    bool run = true;
+    bool is_running = true;
+    bool is_playing = true;
     int ret;
 
-    while(run) {
-        // If state is closed, bail.
+    while(is_running) {
         if(player->state == KIT_CLOSED) {
-            run = false;
+            is_running = false;
             continue;
         }
-
-        // Get more data from demuxer, decode.
-        ret = _UpdatePlayer(player);
-        if(ret == 1) {
-            run = false;
-        } else if(ret == 0) {
-            SDL_Delay(1);
+        if(player->state == KIT_PLAYING) {
+            is_playing = true;
         }
+        while(is_running && is_playing) {
+            if(player->state == KIT_CLOSED) {
+                is_running = false;
+                continue;
+            }
+            if(player->state == KIT_STOPPED) {
+                is_playing = false;
+                continue;
+            }
+
+            // Get more data from demuxer, decode.
+            ret = _UpdatePlayer(player);
+            if(ret == 1) {
+                player->state = KIT_STOPPED;
+            } else if(ret == 0) {
+                SDL_Delay(1);
+            }
+        }
+        SDL_Delay(5);
     }
 
     return 0;
@@ -518,6 +552,14 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
     assert(texture != NULL);
 
+    // If paused or stopped, do nothing
+    if(player->state == KIT_PAUSED) {
+        return 0;
+    }
+    if(player->state == KIT_STOPPED) {
+        return 0;
+    }
+
     // Get texture information
     unsigned int format;
     int access, w, h;
@@ -538,14 +580,57 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
 
     // Read a packet from buffer, if one exists. Stop here if not.
     Kit_VideoPacket *packet = NULL;
+    Kit_VideoPacket *n_packet = NULL;
     if(SDL_LockMutex(player->vmutex) == 0) {
-        packet = (Kit_VideoPacket*)Kit_ReadBuffer((Kit_Buffer*)player->vbuffer);
+        packet = (Kit_VideoPacket*)Kit_PeekBuffer((Kit_Buffer*)player->vbuffer);
         SDL_UnlockMutex(player->vmutex);
     } else {
         return 1;
     }
     if(packet == NULL) {
         return 0;
+    }
+
+    // Print some data
+    double cur_video_ts = _GetSystemTime() - player->clock_sync;
+    fprintf(stderr, "clock %3.3f, pts %3.3f, diff %3.3f => ",
+        cur_video_ts,
+        packet->pts,
+        cur_video_ts - packet->pts);
+
+    // Check if we want the packet
+    if(packet->pts > cur_video_ts + VIDEO_SYNC_THRESHOLD) {
+        fprintf(stderr, "WAIT\n");
+        fflush(stderr);
+        return 0;
+    } else if(packet->pts < cur_video_ts - VIDEO_SYNC_THRESHOLD) {
+        fprintf(stderr, "SKIP\n");
+        fflush(stderr);
+        if(SDL_LockMutex(player->vmutex) == 0) {
+            while(packet != NULL) {
+                Kit_AdvanceBuffer((Kit_Buffer*)player->vbuffer);
+                n_packet = (Kit_VideoPacket*)Kit_PeekBuffer((Kit_Buffer*)player->vbuffer);
+                if(n_packet == NULL) {
+                    break;
+                }
+                _FreeVideoPacket(packet);
+                packet = n_packet;
+                cur_video_ts = _GetSystemTime() - player->clock_sync;
+                player->clock_sync += cur_video_ts - packet->pts;
+                if(packet->pts > cur_video_ts - VIDEO_SYNC_THRESHOLD) {
+                    break;
+                }
+            }
+            Kit_AdvanceBuffer((Kit_Buffer*)player->vbuffer);
+            SDL_UnlockMutex(player->vmutex);
+        }
+    } else {
+        fprintf(stderr, "SYNC\n");
+        fflush(stderr);
+        if(SDL_LockMutex(player->vmutex) == 0) {
+            Kit_AdvanceBuffer((Kit_Buffer*)player->vbuffer);
+            SDL_UnlockMutex(player->vmutex);
+        }
     }
 
     // Update textures as required
@@ -572,6 +657,15 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, size_t length) {
     assert(player != NULL);
     assert(buffer != NULL);
 
+    // If paused or stopped, do nothing
+    if(player->state == KIT_PAUSED) {
+        return 0;
+    }
+    if(player->state == KIT_STOPPED) {
+        return 0;
+    }
+
+    // If asked for nothing, don't return anything either :P
     if(length == 0) {
         return 0;
     }
@@ -611,10 +705,22 @@ KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player) {
 }
 
 KIT_API void Kit_PlayerPlay(Kit_Player *player) {
+    if(player->state == KIT_PLAYING) {
+        return;
+    }
+    if(player->state == KIT_STOPPED) {
+        player->clock_sync = _GetSystemTime();
+    }
+    if(player->state == KIT_PAUSED) {
+        player->clock_sync += _GetSystemTime() - player->pause_start;
+    }
     player->state = KIT_PLAYING;
 }
 
 KIT_API void Kit_PlayerStop(Kit_Player *player) {
+    if(player->state == KIT_STOPPED) {
+        return;
+    }
     player->state = KIT_STOPPED;
 }
 
@@ -622,5 +728,6 @@ KIT_API void Kit_PlayerPause(Kit_Player *player) {
     if(player->state != KIT_PLAYING) {
         return;
     }
+    player->pause_start = _GetSystemTime();
     player->state = KIT_PAUSED;
 }

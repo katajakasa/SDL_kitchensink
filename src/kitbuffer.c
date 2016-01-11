@@ -31,6 +31,23 @@ void* Kit_ReadBuffer(Kit_Buffer *buffer) {
     return NULL;
 }
 
+KIT_LOCAL void* Kit_PeekBuffer(const Kit_Buffer *buffer) {
+    assert(buffer != NULL);
+    return buffer->data[buffer->read_p % buffer->size];
+}
+
+KIT_LOCAL void Kit_AdvanceBuffer(Kit_Buffer *buffer) {
+    assert(buffer != NULL);
+    if(buffer->read_p < buffer->write_p) {
+        buffer->data[buffer->read_p % buffer->size] = NULL;
+        buffer->read_p++;
+        if(buffer->read_p >= buffer->size) {
+            buffer->read_p = buffer->read_p % buffer->size;
+            buffer->write_p = buffer->write_p % buffer->size;
+        }
+    }
+}
+
 int Kit_WriteBuffer(Kit_Buffer *buffer, void *ptr) {
     assert(buffer != NULL);
     assert(ptr != NULL);

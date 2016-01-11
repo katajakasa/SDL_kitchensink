@@ -14,6 +14,8 @@ KIT_LOCAL Kit_Buffer* Kit_CreateBuffer(unsigned int size);
 KIT_LOCAL void Kit_DestroyBuffer(Kit_Buffer *buffer);
 
 KIT_LOCAL void* Kit_ReadBuffer(Kit_Buffer *buffer);
+KIT_LOCAL void* Kit_PeekBuffer(const Kit_Buffer *buffer);
+KIT_LOCAL void Kit_AdvanceBuffer(Kit_Buffer *buffer);
 KIT_LOCAL int Kit_WriteBuffer(Kit_Buffer *buffer, void *ptr);
 KIT_LOCAL int Kit_IsBufferFull(const Kit_Buffer *buffer);
 

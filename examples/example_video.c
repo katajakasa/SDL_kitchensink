@@ -192,6 +192,15 @@ int main(int argc, char *argv[]) {
                     if(event.key.keysym.sym == SDLK_ESCAPE) {
                         run = false;
                     }
+                    if(event.key.keysym.sym == SDLK_q) {
+                        Kit_PlayerPlay(player);
+                    }
+                    if(event.key.keysym.sym == SDLK_w) {
+                        Kit_PlayerPause(player);
+                    }
+                    if(event.key.keysym.sym == SDLK_e) {
+                        Kit_PlayerStop(player);
+                    }
                     break;
                 case SDL_QUIT:
                     run = false;
@@ -217,6 +226,7 @@ int main(int argc, char *argv[]) {
         // Render to the screen
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, tex, NULL, NULL);
+        fprintf(stderr, "PRESENT\n");
         SDL_RenderPresent(renderer);
     }
 

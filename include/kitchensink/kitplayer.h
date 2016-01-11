@@ -15,8 +15,6 @@ extern "C" {
 
 #define KIT_CODECMAX 16
 #define KIT_CODECNAMEMAX 128
-#define KIT_VBUFFERSIZE 3
-#define KIT_ABUFFERSIZE 65536
 
 typedef enum Kit_PlayerState {
     KIT_STOPPED = 0,
@@ -44,6 +42,10 @@ typedef struct Kit_Player {
     Kit_PlayerState state;
     Kit_VideoFormat vformat;
     Kit_AudioFormat aformat;
+    double clock_sync;
+    double clock_vprev;
+    double clock_aprev;
+    double pause_start;
     SDL_Thread *dec_thread;
     SDL_mutex *vmutex;
     SDL_mutex *amutex;
