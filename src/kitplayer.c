@@ -593,19 +593,11 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
 
     // Print some data
     double cur_video_ts = _GetSystemTime() - player->clock_sync;
-    fprintf(stderr, "clock %3.3f, pts %3.3f, diff %3.3f => ",
-        cur_video_ts,
-        packet->pts,
-        cur_video_ts - packet->pts);
 
     // Check if we want the packet
     if(packet->pts > cur_video_ts + VIDEO_SYNC_THRESHOLD) {
-        fprintf(stderr, "WAIT\n");
-        fflush(stderr);
         return 0;
     } else if(packet->pts < cur_video_ts - VIDEO_SYNC_THRESHOLD) {
-        fprintf(stderr, "SKIP\n");
-        fflush(stderr);
         if(SDL_LockMutex(player->vmutex) == 0) {
             while(packet != NULL) {
                 Kit_AdvanceBuffer((Kit_Buffer*)player->vbuffer);
@@ -625,8 +617,6 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
             SDL_UnlockMutex(player->vmutex);
         }
     } else {
-        fprintf(stderr, "SYNC\n");
-        fflush(stderr);
         if(SDL_LockMutex(player->vmutex) == 0) {
             Kit_AdvanceBuffer((Kit_Buffer*)player->vbuffer);
             SDL_UnlockMutex(player->vmutex);
