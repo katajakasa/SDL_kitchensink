@@ -173,6 +173,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    fflush(stderr);
+
     // Set logical size for the renderer. This way when we scale, we keep aspect ratio.
     SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
 
