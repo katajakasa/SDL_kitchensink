@@ -61,5 +61,6 @@ int Kit_WriteBuffer(Kit_Buffer *buffer, void *ptr) {
 }
 
 int Kit_IsBufferFull(const Kit_Buffer *buffer) {
+    assert(buffer != NULL);
     return (buffer->write_p - buffer->read_p >= buffer->size);
 }

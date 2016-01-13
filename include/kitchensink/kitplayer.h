@@ -24,7 +24,8 @@ typedef enum Kit_PlayerState {
 } Kit_PlayerState;
 
 typedef struct Kit_AudioFormat {
-    bool is_enabled;
+    bool is_enabled; // Is stream enabled
+    unsigned int format;
     bool is_signed;
     int bytes;
     int samplerate;
@@ -32,7 +33,7 @@ typedef struct Kit_AudioFormat {
 } Kit_AudioFormat;
 
 typedef struct Kit_VideoFormat {
-    bool is_enabled;
+    bool is_enabled; // Is stream enabled
     unsigned int format;
     int width;
     int height;
@@ -42,10 +43,8 @@ typedef struct Kit_Player {
     Kit_PlayerState state;
     Kit_VideoFormat vformat;
     Kit_AudioFormat aformat;
-    double clock_sync;
-    double clock_vprev;
-    double clock_aprev;
-    double pause_start;
+    double clock_sync; // Clock sync point
+    double pause_start; // Timestamp of pause beginning
     SDL_Thread *dec_thread;
     SDL_mutex *vmutex;
     SDL_mutex *amutex;
@@ -74,7 +73,7 @@ KIT_API void Kit_ClosePlayer(Kit_Player *player);
 
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
 KIT_API int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture);
-KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, size_t length);
+KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, size_t length, size_t cur_buf_len);
 KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 
 KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player);

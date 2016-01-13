@@ -10,7 +10,7 @@
 * It is for example use only!
 */
 
-#define AUDIOBUFFER_SIZE 8192
+#define AUDIOBUFFER_SIZE (16384)
 
 const char *stream_types[] = {
     "KIT_STREAMTYPE_UNKNOWN",
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     // Init SDL
     err = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
-    window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 800, 0);
+    window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
 
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = pinfo.audio.samplerate;
-    wanted_spec.format = AUDIO_S16SYS;
+    wanted_spec.format = pinfo.audio.format;
     wanted_spec.channels = pinfo.audio.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
@@ -213,7 +213,7 @@ int main(int argc, char *argv[]) {
         // Refresh audio
         ret = SDL_GetQueuedAudioSize(audio_dev);
         if(ret < AUDIOBUFFER_SIZE) {
-            ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE);
+            ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE, (size_t)ret);
             if(ret > 0) {
                 SDL_LockAudio();
                 SDL_QueueAudio(audio_dev, audiobuf, ret);
