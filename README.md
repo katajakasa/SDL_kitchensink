@@ -89,7 +89,7 @@ You can run unittests by running ```make unittest```.
 
 MIT. Please see ```LICENSE``` for details.
 
-Note that FFmpeg has a rather complex license. Please take a look at (FFmpeg Legal page)[http://ffmpeg.org/legal.html]
+Note that FFmpeg has a rather complex license. Please take a look at [FFmpeg Legal page](http://ffmpeg.org/legal.html)
 for details.
 
 ## 4. FAQ
