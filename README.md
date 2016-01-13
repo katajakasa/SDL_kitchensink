@@ -9,12 +9,15 @@ Can do:
 * Dumping video data on SDL_textures
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
-
-Can't do (yet):
-* Synchronizing
+* Synchronizing video & audio to computer clock
 
 Won't do (probably):
 * Encoding
+
+Should be done better:
+* Synchronizing. It is currently pretty crude (though works).
+* Buffer size tuning. Current ones are decent guesses.
+* Documentation (!!!)
 
 ## 1. Library requirements
 
