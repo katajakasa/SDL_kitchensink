@@ -4,22 +4,13 @@ FFMPEG and SDL2 based C99 library for audio and video playback.
 
 This library is still very much todo, but it's slowly getting there.
 
-Can do:
-* Decoding video & audio
+Features:
+* Decoding video & audio via FFmpeg
 * Dumping video data on SDL_textures
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
-* Synchronizing video & audio to computer clock
-* Seeking
-
-Won't do (probably):
-* Encoding
-
-Should be done better:
-* Synchronizing. It is currently pretty crude (though works).
-* Buffer size tuning. Current ones are decent guesses.
-* Seeking currently only seeks keyframes, and may or may not work properly with more exotic streams.
-* Documentation (!!!)
+* Synchronizing video & audio to clock
+* Seeking forwards and backwards
 
 ## 1. Library requirements
 
@@ -94,17 +85,10 @@ MIT. Please see ```LICENSE``` for details.
 Note that FFmpeg has a rather complex license. Please take a look at [FFmpeg Legal page](http://ffmpeg.org/legal.html)
 for details.
 
-## 4. FAQ
+## 4. Why SDL_kitchensink
 
-### Q: Why SDL_kitchensink ?
-A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
-   kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
-
-### Q: Documentation ?
-A: None yet. Maybe more doxygen later.
-
-### Q: Encoding ?
-A: Not going to happen. Decoding and playback only.
+Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
+kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
 ## 5. Examples
 
