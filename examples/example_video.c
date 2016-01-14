@@ -12,6 +12,38 @@
 
 #define AUDIOBUFFER_SIZE (16384)
 
+
+void render_gui(SDL_Renderer *renderer, double percent) {
+    // Get window size
+    int size_w, size_h;
+    SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
+
+    // Render progress bar
+    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 192);
+    SDL_Rect progress_border;
+    progress_border.x = 28;
+    progress_border.y = size_h - 61;
+    progress_border.w = size_w - 57;
+    progress_border.h = 22;
+    SDL_RenderFillRect(renderer, &progress_border);
+
+    SDL_SetRenderDrawColor(renderer, 155, 155, 155, 128);
+    SDL_Rect progress_bottom;
+    progress_bottom.x = 30;
+    progress_bottom.y = size_h - 60;
+    progress_bottom.w = size_w - 60;
+    progress_bottom.h = 20;
+    SDL_RenderFillRect(renderer, &progress_bottom);
+
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 128);
+    SDL_Rect progress_top;
+    progress_top.x = 30;
+    progress_top.y = size_h - 60;
+    progress_top.w = (size_w - 60) * percent;
+    progress_top.h = 20;
+    SDL_RenderFillRect(renderer, &progress_top);
+}
+
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
     const char* filename = NULL;
@@ -154,6 +186,11 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
+    // Get movie area size
+    int mouse_x = 0, mouse_y = 0;
+    int size_w = 0, size_h = 0;
+    SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
+    bool gui_enabled = false;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -187,11 +224,32 @@ int main(int argc, char *argv[]) {
                         }
                     }
                     break;
+
+                case SDL_MOUSEMOTION:
+                    mouse_x = event.motion.x;
+                    mouse_y = event.motion.y;
+                    break;
+
+                case SDL_MOUSEBUTTONUP:
+                    // Handle user clicking the progress bar
+                    if(mouse_x >= 30 && mouse_x <= size_w-30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
+                        double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
+                        double m_time = Kit_GetPlayerDuration(player) * pos - Kit_GetPlayerPosition(player);
+                        if(Kit_PlayerSeek(player, m_time) != 0) {
+                            fprintf(stderr, "%s\n", Kit_GetError());
+                        }
+                    }
+                    break;
+
                 case SDL_QUIT:
                     run = false;
                     break;
             }
         }
+
+        // Enable GUI if mouse is hovering over the bottom third of the screen
+        int limit = (pinfo.video.height / 3) * 2; 
+        gui_enabled = (mouse_y >= limit);
 
         // Refresh audio
         ret = SDL_GetQueuedAudioSize(audio_dev);
@@ -205,12 +263,21 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Refresh video
-        Kit_RefreshTexture(player, tex);
-
-        // Render to the screen
+        // Clear screen with black
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
+
+        // Refresh videotexture and render it
+        Kit_RefreshTexture(player, tex);
         SDL_RenderCopy(renderer, tex, NULL, NULL);
+
+        // Render GUI
+        if(gui_enabled) {
+            double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);
+            render_gui(renderer, percent);
+        }
+
+        // Render to screen + wait for vsync
         SDL_RenderPresent(renderer);
     }
 
