@@ -61,6 +61,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Ask for linear texture scaling (better quality)
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+
     // Initialize Kitchensink with network support and all formats.
     err = Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
     if(err != 0) {
