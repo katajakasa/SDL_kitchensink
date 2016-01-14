@@ -10,6 +10,7 @@ Can do:
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
 * Synchronizing video & audio to computer clock
+* Seeking
 
 Won't do (probably):
 * Encoding
@@ -17,6 +18,7 @@ Won't do (probably):
 Should be done better:
 * Synchronizing. It is currently pretty crude (though works).
 * Buffer size tuning. Current ones are decent guesses.
+* Seeking currently only seeks keyframes, and may or may not work properly with more exotic streams.
 * Documentation (!!!)
 
 ## 1. Library requirements
