@@ -10,24 +10,24 @@ extern "C" {
 #define KIT_CODECNAMESIZE 32
 #define KIT_CODECLONGNAMESIZE 128
 
-typedef enum Kit_streamtype {
-    KIT_STREAMTYPE_UNKNOWN,
-    KIT_STREAMTYPE_VIDEO,
-    KIT_STREAMTYPE_AUDIO,
-    KIT_STREAMTYPE_DATA,
-    KIT_STREAMTYPE_SUBTITLE,
-    KIT_STREAMTYPE_ATTACHMENT
-} Kit_streamtype;
+typedef enum Kit_StreamType {
+    KIT_STREAMTYPE_UNKNOWN, ///< Unknown stream type
+    KIT_STREAMTYPE_VIDEO, ///< Video stream
+    KIT_STREAMTYPE_AUDIO, ///< Audio stream
+    KIT_STREAMTYPE_DATA, ///< Data stream
+    KIT_STREAMTYPE_SUBTITLE, ///< Subtitle streawm
+    KIT_STREAMTYPE_ATTACHMENT ///< Attachment stream (images, etc)
+} Kit_StreamType;
 
 typedef struct Kit_Source {
-    int astream_idx;
-    int vstream_idx;
-    void *format_ctx;
+    int astream_idx; ///< Audiostream index
+    int vstream_idx; ///< Videostream index
+    void *format_ctx; ///< FFmpeg: Videostream format context
 } Kit_Source;
 
 typedef struct Kit_Stream {
-    int index;
-    Kit_streamtype type;
+    int index; ///< Stream index
+    Kit_StreamType type; ///< Stream type
 } Kit_StreamInfo;
 
 KIT_API Kit_Source* Kit_CreateSourceFromUrl(const char *path);
@@ -35,9 +35,9 @@ KIT_API void Kit_CloseSource(Kit_Source *src);
 
 KIT_API int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_StreamInfo *info, int index);
 KIT_API int Kit_GetSourceStreamCount(const Kit_Source *src);
-KIT_API int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_streamtype type);
-KIT_API int Kit_SetSourceStream(Kit_Source *src, const Kit_streamtype type, int index);
-KIT_API int Kit_GetSourceStream(const Kit_Source *src, const Kit_streamtype type);
+KIT_API int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type);
+KIT_API int Kit_SetSourceStream(Kit_Source *src, const Kit_StreamType type, int index);
+KIT_API int Kit_GetSourceStream(const Kit_Source *src, const Kit_StreamType type);
 
 #ifdef __cplusplus
 }

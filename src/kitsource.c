@@ -74,7 +74,7 @@ int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_StreamInfo *info, int ind
     return 0;
 }
 
-int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_streamtype type) {
+int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     assert(src != NULL);
     int avmedia_type = 0;
     switch(type) {
@@ -93,7 +93,7 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_streamtype type) {
     return ret;
 }
 
-int Kit_SetSourceStream(Kit_Source *src, const Kit_streamtype type, int index) {
+int Kit_SetSourceStream(Kit_Source *src, const Kit_StreamType type, int index) {
     assert(src != NULL);
     switch(type) {
         case KIT_STREAMTYPE_AUDIO: src->astream_idx = index; break;
@@ -105,7 +105,7 @@ int Kit_SetSourceStream(Kit_Source *src, const Kit_streamtype type, int index) {
     return 0;
 }
 
-int Kit_GetSourceStream(const Kit_Source *src, const Kit_streamtype type) {
+int Kit_GetSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     assert(src != NULL);
     switch(type) {
         case KIT_STREAMTYPE_AUDIO: return src->astream_idx;

@@ -5,6 +5,10 @@
 static unsigned int _init_flags = 0;
 
 int Kit_Init(unsigned int flags) {
+    if(_init_flags != 0) {
+        Kit_SetError("Kitchensink is already initialized.");
+        return 1;
+    }
     if(flags & KIT_INIT_NETWORK) {
         avformat_network_init();
     }

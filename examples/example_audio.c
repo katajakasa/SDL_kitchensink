@@ -51,7 +51,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
+    err = Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
+    if(err != 0) {
+        fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
+        return 1;
+    }
 
     // Open up the sourcefile.
     src = Kit_CreateSourceFromUrl(filename);

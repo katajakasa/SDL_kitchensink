@@ -4,6 +4,7 @@
 #include "kitchensink/kiterror.h"
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kitplayer.h"
+#include "kitchensink/kitutils.h"
 #include "kitchensink/kitconfig.h"
 
 #ifdef __cplusplus

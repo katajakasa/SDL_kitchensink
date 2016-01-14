@@ -12,58 +12,6 @@
 
 #define AUDIOBUFFER_SIZE (16384)
 
-const char *stream_types[] = {
-    "KIT_STREAMTYPE_UNKNOWN",
-    "KIT_STREAMTYPE_VIDEO",
-    "KIT_STREAMTYPE_AUDIO",
-    "KIT_STREAMTYPE_DATA",
-    "KIT_STREAMTYPE_SUBTITLE",
-    "KIT_STREAMTYPE_ATTACHMENT"
-};
-
-const char* get_tex_type(unsigned int type) {
-    switch(type) {
-        case SDL_PIXELFORMAT_UNKNOWN: return "SDL_PIXELFORMAT_UNKNOWN";
-        case SDL_PIXELFORMAT_INDEX1LSB: return "SDL_PIXELFORMAT_INDEX1LSB";
-        case SDL_PIXELFORMAT_INDEX1MSB: return "SDL_PIXELFORMAT_INDEX1MSB";
-        case SDL_PIXELFORMAT_INDEX4LSB: return "SDL_PIXELFORMAT_INDEX4LSB";
-        case SDL_PIXELFORMAT_INDEX4MSB: return "SDL_PIXELFORMAT_INDEX4MSB";
-        case SDL_PIXELFORMAT_INDEX8: return "SDL_PIXELFORMAT_INDEX8";
-        case SDL_PIXELFORMAT_RGB332: return "SDL_PIXELFORMAT_RGB332";
-        case SDL_PIXELFORMAT_RGB444: return "SDL_PIXELFORMAT_RGB444";
-        case SDL_PIXELFORMAT_RGB555: return "SDL_PIXELFORMAT_RGB555";
-        case SDL_PIXELFORMAT_BGR555: return "SDL_PIXELFORMAT_BGR555";
-        case SDL_PIXELFORMAT_ARGB4444: return "SDL_PIXELFORMAT_ARGB4444";
-        case SDL_PIXELFORMAT_RGBA4444: return "SDL_PIXELFORMAT_RGBA4444";
-        case SDL_PIXELFORMAT_ABGR4444: return "SDL_PIXELFORMAT_ABGR4444";
-        case SDL_PIXELFORMAT_BGRA4444: return "SDL_PIXELFORMAT_BGRA4444";
-        case SDL_PIXELFORMAT_ARGB1555: return "SDL_PIXELFORMAT_ARGB1555";
-        case SDL_PIXELFORMAT_RGBA5551: return "SDL_PIXELFORMAT_RGBA5551";
-        case SDL_PIXELFORMAT_ABGR1555: return "SDL_PIXELFORMAT_ABGR1555";
-        case SDL_PIXELFORMAT_BGRA5551: return "SDL_PIXELFORMAT_BGRA5551";
-        case SDL_PIXELFORMAT_RGB565: return "SDL_PIXELFORMAT_RGB565";
-        case SDL_PIXELFORMAT_BGR565: return "SDL_PIXELFORMAT_BGR565";
-        case SDL_PIXELFORMAT_RGB24: return "SDL_PIXELFORMAT_RGB24";
-        case SDL_PIXELFORMAT_BGR24: return "SDL_PIXELFORMAT_BGR24";
-        case SDL_PIXELFORMAT_RGB888: return "SDL_PIXELFORMAT_RGB888";
-        case SDL_PIXELFORMAT_RGBX8888: return "SDL_PIXELFORMAT_RGBX8888";
-        case SDL_PIXELFORMAT_BGR888: return "SDL_PIXELFORMAT_BGR888";
-        case SDL_PIXELFORMAT_BGRX8888: return "SDL_PIXELFORMAT_BGRX8888";
-        case SDL_PIXELFORMAT_ARGB8888: return "SDL_PIXELFORMAT_ARGB8888";
-        case SDL_PIXELFORMAT_RGBA8888: return "SDL_PIXELFORMAT_RGBA8888";
-        case SDL_PIXELFORMAT_ABGR8888: return "SDL_PIXELFORMAT_ABGR8888";
-        case SDL_PIXELFORMAT_BGRA8888: return "SDL_PIXELFORMAT_BGRA8888";
-        case SDL_PIXELFORMAT_ARGB2101010: return "SDL_PIXELFORMAT_ARGB2101010";
-        case SDL_PIXELFORMAT_YV12: return "SDL_PIXELFORMAT_YV12";
-        case SDL_PIXELFORMAT_IYUV: return "SDL_PIXELFORMAT_IYUV";
-        case SDL_PIXELFORMAT_YUY2: return "SDL_PIXELFORMAT_YUY2";
-        case SDL_PIXELFORMAT_UYVY: return "SDL_PIXELFORMAT_UYVY";
-        case SDL_PIXELFORMAT_YVYU: return "SDL_PIXELFORMAT_YVYU";
-        default:
-            return "unknown";
-    }
-}
-
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
     const char* filename = NULL;
@@ -94,16 +42,34 @@ int main(int argc, char *argv[]) {
 
     // Init SDL
     err = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
-    window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
-    Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
+    if(err != 0) {
+        fprintf(stderr, "Unable to initialize SDL2!\n");
+        return 1;
+    }
 
-    if(err != 0 || window == NULL || renderer == NULL) {
-        fprintf(stderr, "Unable to initialize SDL!\n");
+    // Create a resizable window.
+    window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
+    if(window == NULL) {
+        fprintf(stderr, "Unable to create a new window!\n");
+        return 1;
+    }
+
+    // Create an accelerated renderer. Enable vsync, so we don't need to play around with SDL_Delay.
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
+    if(window == NULL) {
+        fprintf(stderr, "Unable to create a renderer!\n");
+        return 1;
+    }
+
+    // Initialize Kitchensink with network support and all formats.
+    err = Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
+    if(err != 0) {
+        fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
     }
 
     // Open up the sourcefile.
+    // This can be a local file, network url, ...
     src = Kit_CreateSourceFromUrl(filename);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
@@ -119,7 +85,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Unable to fetch stream #%d information: %s.\n", i, Kit_GetError());
             return 1;
         }
-        fprintf(stderr, " * Stream #%d: %s\n", i, stream_types[sinfo.type]);
+        fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(sinfo.type));
     }
 
     // Create the player
@@ -151,6 +117,7 @@ int main(int argc, char *argv[]) {
         pinfo.vcodec_name,
         pinfo.video.width,
         pinfo.video.height);
+    fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
@@ -160,8 +127,11 @@ int main(int argc, char *argv[]) {
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
+    // Print some format info
+    fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.format));
+    fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.format));
+
     // Initialize texture
-    fprintf(stderr, "Texture type: %s\n", get_tex_type(pinfo.video.format));
     SDL_Texture *tex = SDL_CreateTexture(
         renderer,
         pinfo.video.format,
@@ -202,6 +172,16 @@ int main(int argc, char *argv[]) {
                     }
                     if(event.key.keysym.sym == SDLK_e) {
                         Kit_PlayerStop(player);
+                    }
+                    if(event.key.keysym.sym == SDLK_RIGHT) {
+                        if(Kit_PlayerSeek(player, 10.0) != 0) {
+                            fprintf(stderr, "%s\n", Kit_GetError());
+                        }
+                    }
+                    if(event.key.keysym.sym == SDLK_LEFT) {
+                        if(Kit_PlayerSeek(player, -10.0) != 0) {
+                            fprintf(stderr, "%s\n", Kit_GetError());
+                        }
                     }
                     break;
                 case SDL_QUIT:
