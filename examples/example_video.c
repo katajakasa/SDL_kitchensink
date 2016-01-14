@@ -152,6 +152,9 @@ int main(int argc, char *argv[]) {
         pinfo.vcodec_name,
         pinfo.video.width,
         pinfo.video.height);
+    fprintf(stderr, " * Subtitle: %s (%s)\n",
+        pinfo.vcodec,
+        pinfo.vcodec_name);
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
     // Init audio

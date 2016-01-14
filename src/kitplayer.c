@@ -28,6 +28,7 @@
 #define KIT_VBUFFERSIZE 3
 #define KIT_ABUFFERSIZE 64
 #define KIT_CBUFFERSIZE 8
+#define KIT_SBUFFERSIZE 32
 
 typedef enum Kit_ControlPacketType {
     KIT_CONTROL_SEEK,
@@ -56,8 +57,10 @@ static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
 
     AVCodecContext *acodec_ctx = NULL;
     AVCodecContext *vcodec_ctx = NULL;
+    AVCodecContext *scodec_ctx = NULL;
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
+    AVCodec *scodec = NULL;
     AVFormatContext *format_ctx = (AVFormatContext *)src->format_ctx;
 
     // Make sure index seems correct
@@ -112,11 +115,41 @@ static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
         }
     }
 
+    if(src->sstream_idx >= (int)format_ctx->nb_streams) {
+        Kit_SetError("Invalid subtitle stream index: %d", src->sstream_idx);
+        goto exit_2;
+    } else if(src->sstream_idx >= 0) {
+        // Find subtitle decoder
+        scodec = avcodec_find_decoder(format_ctx->streams[src->sstream_idx]->codec->codec_id);
+        if(!scodec) {
+            Kit_SetError("No suitable subtitle decoder found");
+            goto exit_4;
+        }
+
+        // Copy the original subtitle codec context
+        scodec_ctx = avcodec_alloc_context3(scodec);
+        if(avcodec_copy_context(scodec_ctx, format_ctx->streams[src->sstream_idx]->codec) != 0) {
+            Kit_SetError("Unable to copy subtitle codec context");
+            goto exit_4;
+        }
+
+        // Create a subtitle decoder context
+        if(avcodec_open2(scodec_ctx, scodec, NULL) < 0) {
+            Kit_SetError("Unable to allocate subtitle codec context");
+            goto exit_5;
+        }
+    }
+
     player->acodec_ctx = acodec_ctx;
     player->vcodec_ctx = vcodec_ctx;
+    player->scodec_ctx = scodec_ctx;
     player->src = src;
     return 0;
 
+exit_5:
+    avcodec_free_context(&scodec_ctx);
+exit_4:
+    avcodec_close(vcodec_ctx);
 exit_3:
     avcodec_free_context(&vcodec_ctx);
 exit_2:
@@ -550,6 +583,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
 
     AVCodecContext *acodec_ctx = NULL;
     AVCodecContext *vcodec_ctx = NULL;
+    AVCodecContext *scodec_ctx = NULL;
 
     // Initialize codecs
     if(_InitCodecs(player, src) != 0) {
@@ -562,6 +596,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->aformat.samplerate = acodec_ctx->sample_rate;
         player->aformat.channels = acodec_ctx->channels;
         player->aformat.is_enabled = true;
+        player->aformat.stream_idx = src->astream_idx;
         _FindAudioFormat(acodec_ctx->sample_fmt, &player->aformat.bytes, &player->aformat.is_signed, &player->aformat.format);
 
         player->swr = swr_alloc_set_opts(
@@ -597,6 +632,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->vformat.is_enabled = true;
         player->vformat.width = vcodec_ctx->width;
         player->vformat.height = vcodec_ctx->height;
+        player->vformat.stream_idx = src->vstream_idx;
         _FindPixelFormat(vcodec_ctx->pix_fmt, &player->vformat.format);
 
         player->sws = sws_getContext(
@@ -622,6 +658,24 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->tmp_vframe = av_frame_alloc();
         if(player->tmp_vframe == NULL) {
             Kit_SetError("Unable to initialize temporary video frame");
+            goto error;
+        }
+    }
+
+    scodec_ctx = (AVCodecContext*)player->scodec_ctx;
+    if(scodec_ctx != NULL) {
+        player->sformat.is_enabled = true;
+        player->sformat.stream_idx = src->sstream_idx;
+
+        player->sbuffer = Kit_CreateBuffer(KIT_SBUFFERSIZE);
+        if(player->sbuffer == NULL) {
+            Kit_SetError("Unable to initialize subtitle ringbuffer");
+            goto error;
+        }
+
+        player->tmp_sframe = av_frame_alloc();
+        if(player->tmp_sframe == NULL) {
+            Kit_SetError("Unable to initialize temporary subtitle frame");
             goto error;
         }
     }
@@ -674,11 +728,17 @@ error:
     if(player->tmp_vframe != NULL) {
         av_frame_free((AVFrame**)&player->tmp_vframe);
     }
+    if(player->tmp_sframe != NULL) {
+        av_frame_free((AVFrame**)&player->tmp_sframe);
+    }
     if(player->vbuffer != NULL) {
         Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
     }
     if(player->abuffer != NULL) {
         Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
+    }
+    if(player->sbuffer != NULL) {
+        Kit_DestroyBuffer((Kit_Buffer*)player->sbuffer);
     }
     if(player->cbuffer != NULL) {
         Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
@@ -718,10 +778,13 @@ void Kit_ClosePlayer(Kit_Player *player) {
     if(player->tmp_aframe != NULL) {
         av_frame_free((AVFrame**)&player->tmp_aframe);
     }
+
     avcodec_close((AVCodecContext*)player->acodec_ctx);
     avcodec_close((AVCodecContext*)player->vcodec_ctx);
+    avcodec_close((AVCodecContext*)player->scodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->acodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->vcodec_ctx);
+    avcodec_free_context((AVCodecContext**)&player->scodec_ctx);
 
     // Free local audio buffers
     if(player->cbuffer != NULL) {
@@ -733,6 +796,12 @@ void Kit_ClosePlayer(Kit_Player *player) {
     if(player->abuffer != NULL) {
         _FlushAudioBuffer(player);
         Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
+    }
+
+    // Free local audio buffers
+    if(player->sbuffer != NULL) {
+        //_FlushSubtitleBuffer(player);
+        Kit_DestroyBuffer((Kit_Buffer*)player->sbuffer);
     }
 
     // Free local video buffers
@@ -928,6 +997,7 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
 
     AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
+    AVCodecContext *scodec_ctx = (AVCodecContext*)player->scodec_ctx;
 
     // Reset everything to 0. We might not fill all fields.
     memset(info, 0, sizeof(Kit_PlayerInfo));
@@ -941,6 +1011,11 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
         strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX-1);
         strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
         memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
+    }
+    if(scodec_ctx != NULL) {
+        strncpy(info->scodec, scodec_ctx->codec->name, KIT_CODECMAX);
+        strncpy(info->scodec_name, scodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+        memcpy(&info->subtitle, &player->sformat, sizeof(Kit_SubtitleFormat));
     }
 }
 
