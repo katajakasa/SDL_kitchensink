@@ -20,10 +20,10 @@ Build requirements:
 
 Library requirements:
 * SDL2 (>=2.0.3) (Note! Examples require 2.0.4!)
-* FFMPEG (>=2.8)
+* FFmpeg (>=2.8)
 * CUnit (optional, for unittests)
 
-Note that Clang might work, but is not tested. Older SDL2 and FFMPEG library versions
+Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions
 may or may not work; versions noted here are the only ones tested.
 
 ### 1.1. Debian / Ubuntu
