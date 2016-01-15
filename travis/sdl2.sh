@@ -1,5 +1,5 @@
 
-if [ ! -d "$HOME/local/lib" ]; then 
+if [ ! -d "$HOME/local/lib/libSDL2.so" ]; then 
     wget https://www.libsdl.org/release/SDL2-2.0.4.tar.gz -O ~/SDL2.tar.gz
     tar -xzvf ~/SDL2.tar.gz -C ~/
     mkdir ~/sdl-build
