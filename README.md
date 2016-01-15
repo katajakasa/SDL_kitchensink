@@ -1,5 +1,8 @@
 # SDL_kitchensink
 
+[![Build Status](https://travis-ci.org/katajakasa/SDL_kitchensink.svg?branch=master)](https://travis-ci.org/katajakasa/SDL_kitchensink)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/7585/badge.svg)](https://scan.coverity.com/projects/katajakasa-sdl_kitchensink)
+
 FFMPEG and SDL2 based C99 library for audio and video playback.
 
 This library is still very much todo, but it's slowly getting there.
