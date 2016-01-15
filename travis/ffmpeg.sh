@@ -1,5 +1,5 @@
 
-if [ ! -d "$HOME/local/lib" ]; then 
+if [ ! -e "$HOME/local/lib/libavcodec.so" ]; then 
     wget https://www.ffmpeg.org/releases/ffmpeg-2.8.4.tar.gz -O ~/ffmpeg.tar.gz
     tar xzf ~/ffmpeg.tar.gz -C ~/
     cd ~/ffmpeg-2.8.4
