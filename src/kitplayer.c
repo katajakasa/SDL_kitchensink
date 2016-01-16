@@ -342,9 +342,15 @@ static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
 
         // Lock, write to audio buffer, unlock
         Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, pts);
+        bool done = false;
         if(SDL_LockMutex(player->vmutex) == 0) {
-            Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket);
+            if(Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket) == 0) {
+                done = true;
+            }
             SDL_UnlockMutex(player->vmutex);
+        }
+        if(!done) {
+            _FreeVideoPacket(vpacket);
         }
     }
 }
@@ -413,9 +419,17 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
 
             // Lock, write to audio buffer, unlock
             Kit_AudioPacket *apacket = _CreateAudioPacket((char*)dst_data[0], (size_t)dst_bufsize, pts);
+            bool done = false;
             if(SDL_LockMutex(player->amutex) == 0) {
-                Kit_WriteBuffer((Kit_Buffer*)player->abuffer, apacket);
+                if(Kit_WriteBuffer((Kit_Buffer*)player->abuffer, apacket) == 0) {
+                    done = true;
+                } 
                 SDL_UnlockMutex(player->amutex);
+            }
+
+            // Couldn't write packet, free memory
+            if(!done) {
+                _FreeAudioPacket(apacket);
             }
 
             av_freep(&dst_data[0]);
