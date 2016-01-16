@@ -215,11 +215,11 @@ static enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt) {
     }
 }
 
-static enum AVSampleFormat _FindAVSampleFormat(int bytes) {
-    switch(bytes) {
-        case 1: return AV_SAMPLE_FMT_U8;
-        case 2: return AV_SAMPLE_FMT_S16;
-        case 3: return AV_SAMPLE_FMT_S32;
+static enum AVSampleFormat _FindAVSampleFormat(int format) {
+    switch(format) {
+        case AUDIO_U8: return AV_SAMPLE_FMT_U8;
+        case AUDIO_S16SYS: return AV_SAMPLE_FMT_S16;
+        case AUDIO_S32SYS: return AV_SAMPLE_FMT_S32;
         default:
             return AV_SAMPLE_FMT_NONE;
     }
@@ -381,7 +381,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
                 &dst_linesize,
                 player->aformat.channels,
                 dst_nb_samples,
-                _FindAVSampleFormat(player->aformat.bytes),
+                _FindAVSampleFormat(player->aformat.format),
                 0);
 
             len2 = swr_convert(
@@ -395,7 +395,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
                 &dst_linesize,
                 player->aformat.channels,
                 len2,
-                _FindAVSampleFormat(player->aformat.bytes), 1);
+                _FindAVSampleFormat(player->aformat.format), 1);
 
             // Get pts
             double pts = 0;
@@ -602,7 +602,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->swr = swr_alloc_set_opts(
             NULL,
             _FindAVChannelLayout(player->aformat.channels), // Target channel layout
-            _FindAVSampleFormat(player->aformat.bytes), // Target fmt
+            _FindAVSampleFormat(player->aformat.format), // Target fmt
             player->aformat.samplerate, // Target samplerate
             acodec_ctx->channel_layout, // Source channel layout
             acodec_ctx->sample_fmt, // Source fmt
@@ -1013,8 +1013,8 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
         memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
     }
     if(scodec_ctx != NULL) {
-        strncpy(info->scodec, scodec_ctx->codec->name, KIT_CODECMAX);
-        strncpy(info->scodec_name, scodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+        strncpy(info->scodec, scodec_ctx->codec->name, KIT_CODECMAX-1);
+        strncpy(info->scodec_name, scodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
         memcpy(&info->subtitle, &player->sformat, sizeof(Kit_SubtitleFormat));
     }
 }

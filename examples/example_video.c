@@ -140,21 +140,25 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Media information:\n");
-    fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
-        pinfo.acodec,
-        pinfo.acodec_name,
-        pinfo.audio.samplerate,
-        pinfo.audio.channels,
-        pinfo.audio.bytes,
-        pinfo.audio.is_signed ? "signed" : "unsigned");
+    if(pinfo.audio.is_enabled) {
+        fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
+            pinfo.acodec,
+            pinfo.acodec_name,
+            pinfo.audio.samplerate,
+            pinfo.audio.channels,
+            pinfo.audio.bytes,
+            pinfo.audio.is_signed ? "signed" : "unsigned");
+    }
     fprintf(stderr, " * Video: %s (%s), %dx%d\n",
         pinfo.vcodec,
         pinfo.vcodec_name,
         pinfo.video.width,
         pinfo.video.height);
-    fprintf(stderr, " * Subtitle: %s (%s)\n",
-        pinfo.vcodec,
-        pinfo.vcodec_name);
+    if(pinfo.subtitle.is_enabled) {
+        fprintf(stderr, " * Subtitle: %s (%s)\n",
+            pinfo.scodec,
+            pinfo.scodec_name);
+    }
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
     // Init audio
@@ -208,20 +212,25 @@ int main(int argc, char *argv[]) {
                         run = false;
                     }
                     if(event.key.keysym.sym == SDLK_q) {
+                        // Start or unpause the video
                         Kit_PlayerPlay(player);
                     }
                     if(event.key.keysym.sym == SDLK_w) {
+                        // Pause playback
                         Kit_PlayerPause(player);
                     }
                     if(event.key.keysym.sym == SDLK_e) {
+                        // Stop playback (will close the window)
                         Kit_PlayerStop(player);
                     }
                     if(event.key.keysym.sym == SDLK_RIGHT) {
+                        // Skip 10 seconds forwards or to the end of the file
                         if(Kit_PlayerSeek(player, 10.0) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
                     }
                     if(event.key.keysym.sym == SDLK_LEFT) {
+                        // Seek 10 seconds backwards or to the start of the file
                         if(Kit_PlayerSeek(player, -10.0) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
