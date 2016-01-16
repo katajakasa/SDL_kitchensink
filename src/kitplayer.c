@@ -933,13 +933,13 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     memset(info, 0, sizeof(Kit_PlayerInfo));
 
     if(acodec_ctx != NULL) {
-        strncpy(info->acodec, acodec_ctx->codec->name, KIT_CODECMAX);
-        strncpy(info->acodec_name, acodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+        strncpy(info->acodec, acodec_ctx->codec->name, KIT_CODECMAX-1);
+        strncpy(info->acodec_name, acodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
         memcpy(&info->audio, &player->aformat, sizeof(Kit_AudioFormat));
     }
     if(vcodec_ctx != NULL) {
-        strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX);
-        strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX);
+        strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX-1);
+        strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
         memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
     }
 }
