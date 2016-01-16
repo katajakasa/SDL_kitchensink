@@ -19,8 +19,13 @@
   */
 Kit_RingBuffer* Kit_CreateRingBuffer(unsigned int size) {
     Kit_RingBuffer *rb = calloc(1, sizeof(Kit_RingBuffer));
+    if(rb == NULL) return NULL;
     rb->size = size;
     rb->data = malloc(size);
+    if(rb->data == NULL) {
+        free(rb);
+        return NULL;
+    }
     return rb;
 }
 
@@ -29,7 +34,7 @@ Kit_RingBuffer* Kit_CreateRingBuffer(unsigned int size) {
   * @param rb Ringbuffer to be deleted.
   */
 void Kit_DestroyRingBuffer(Kit_RingBuffer* rb) {
-    assert(rb != NULL);
+    if(rb == NULL) return;
     free(rb->data);
     free(rb);
 }

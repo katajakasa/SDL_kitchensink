@@ -3,6 +3,7 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/opt.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,9 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
         Kit_SetError("Unable to open source Url");
         goto exit_0;
     }
+
+    av_opt_set_int(src->format_ctx, "probesize", INT_MAX, 0);
+    av_opt_set_int(src->format_ctx, "analyzeduration", INT_MAX, 0);
 
     // Fetch stream information. This may potentially take a while.
     if(avformat_find_stream_info((AVFormatContext *)src->format_ctx, NULL) < 0) {

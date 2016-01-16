@@ -173,15 +173,25 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.format));
     fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.format));
 
-    // Initialize texture
-    SDL_Texture *tex = SDL_CreateTexture(
+    // Initialize textures
+    SDL_Texture *video_tex = SDL_CreateTexture(
         renderer,
         pinfo.video.format,
         SDL_TEXTUREACCESS_STATIC,
         pinfo.video.width,
         pinfo.video.height);
-    if(tex == NULL) {
-        fprintf(stderr, "Error while attempting to create a texture\n");
+    if(video_tex == NULL) {
+        fprintf(stderr, "Error while attempting to create a video texture\n");
+        return 1;
+    }
+    SDL_Texture *subtitle_tex = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_ABGR8888,
+        SDL_TEXTUREACCESS_STATIC,
+        pinfo.video.width,
+        pinfo.video.height);
+    if(subtitle_tex == NULL) {
+        fprintf(stderr, "Error while attempting to create a subtitle texture\n");
         return 1;
     }
 
@@ -250,6 +260,13 @@ int main(int argc, char *argv[]) {
                         if(Kit_PlayerSeek(player, m_time) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
+                    } else {
+                        // Handle pause
+                        if(Kit_GetPlayerState(player) == KIT_PAUSED) {
+                            Kit_PlayerPlay(player);
+                        } else {
+                            Kit_PlayerPause(player);
+                        }
                     }
                     break;
 
@@ -280,8 +297,10 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
         // Refresh videotexture and render it
-        Kit_RefreshTexture(player, tex);
-        SDL_RenderCopy(renderer, tex, NULL, NULL);
+        Kit_GetVideoData(player, video_tex);
+        Kit_GetSubtitleData(player, subtitle_tex);
+        SDL_RenderCopy(renderer, video_tex, NULL, NULL);
+        //SDL_RenderCopy(renderer, subtitle_tex, NULL, NULL);
 
         // Render GUI
         if(gui_enabled) {
@@ -293,7 +312,8 @@ int main(int argc, char *argv[]) {
         SDL_RenderPresent(renderer);
     }
 
-    SDL_DestroyTexture(tex);
+    SDL_DestroyTexture(video_tex);
+    SDL_DestroyTexture(subtitle_tex);
     SDL_CloseAudioDevice(audio_dev);
 
     Kit_ClosePlayer(player);

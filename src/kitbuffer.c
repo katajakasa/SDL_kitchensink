@@ -3,17 +3,33 @@
 #include <stdlib.h>
 #include <assert.h>
 
-Kit_Buffer* Kit_CreateBuffer(unsigned int size) {
+Kit_Buffer* Kit_CreateBuffer(unsigned int size, Kit_BufferFreeCallback free_cb) {
     Kit_Buffer *b = calloc(1, sizeof(Kit_Buffer));
+    if(b == NULL) {
+        return NULL;
+    }
     b->size = size;
+    b->free_cb = free_cb;
     b->data = calloc(size, sizeof(void*));
+    if(b->data == NULL) {
+        free(b);
+        return NULL;
+    }
     return b;
 }
 
 void Kit_DestroyBuffer(Kit_Buffer *buffer) {
-    assert(buffer != NULL);
+    if(buffer == NULL) return;
+    Kit_ClearBuffer(buffer);
     free(buffer->data);
     free(buffer);
+}
+
+void Kit_ClearBuffer(Kit_Buffer *buffer) {
+    void *data;
+    while((data = Kit_ReadBuffer(buffer)) != NULL) {
+        buffer->free_cb(data);
+    }
 }
 
 void* Kit_ReadBuffer(Kit_Buffer *buffer) {
