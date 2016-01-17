@@ -26,14 +26,6 @@ int Kit_Init(unsigned int flags) {
     // Init libass
     state->libass_handle = ass_library_init();
 
-    // Set up libass font directories
-    if(strcmp(SDL_GetPlatform(), "Windows") == 0) {
-        ass_set_fonts_dir(state->libass_handle, "C:/Windows/Fonts");
-    }
-    else if(strcmp(SDL_GetPlatform(), "Linux") == 0) {
-        ass_set_fonts_dir(state->libass_handle, "/usr/share/fonts");
-    }
-
     // Make libass message spam go away
     ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     
