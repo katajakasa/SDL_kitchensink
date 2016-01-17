@@ -6,6 +6,7 @@
 
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_thread.h>
+#include <SDL2/SDL_surface.h>
 
 #include <stdbool.h>
 
@@ -70,7 +71,6 @@ typedef struct Kit_Player {
     void *vbuffer; ///< Video stream buffer
     void *sbuffer; ///< Subtitle stream buffer
     void *cbuffer; ///< Control stream buffer
-    void *active_subs; ///< Active subtitles buffer
 
     // FFmpeg internal state
     void *vcodec_ctx; ///< FFmpeg: Video codec context
@@ -104,7 +104,7 @@ KIT_API void Kit_ClosePlayer(Kit_Player *player);
 
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
 KIT_API int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture);
-KIT_API int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture);
+KIT_API int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer);
 KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length, int cur_buf_len);
 KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 

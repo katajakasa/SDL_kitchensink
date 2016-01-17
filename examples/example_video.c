@@ -19,7 +19,7 @@ void render_gui(SDL_Renderer *renderer, double percent) {
     SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
 
     // Render progress bar
-    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 192);
+    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
     SDL_Rect progress_border;
     progress_border.x = 28;
     progress_border.y = size_h - 61;
@@ -27,7 +27,7 @@ void render_gui(SDL_Renderer *renderer, double percent) {
     progress_border.h = 22;
     SDL_RenderFillRect(renderer, &progress_border);
 
-    SDL_SetRenderDrawColor(renderer, 155, 155, 155, 128);
+    SDL_SetRenderDrawColor(renderer, 155, 155, 155, 255);
     SDL_Rect progress_bottom;
     progress_bottom.x = 30;
     progress_bottom.y = size_h - 60;
@@ -35,7 +35,7 @@ void render_gui(SDL_Renderer *renderer, double percent) {
     progress_bottom.h = 20;
     SDL_RenderFillRect(renderer, &progress_bottom);
 
-    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 128);
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
     SDL_Rect progress_top;
     progress_top.x = 30;
     progress_top.y = size_h - 60;
@@ -79,6 +79,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Attempt to acquire opengl driver context
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+
     // Create a resizable window.
     window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
@@ -90,6 +93,12 @@ int main(int argc, char *argv[]) {
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a renderer!\n");
+        return 1;
+    }
+
+    // We want to alphablend textures, so switch that on
+    if(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND) < 0) {
+        fprintf(stderr, "Unable to set blendmode!\n");
         return 1;
     }
 
@@ -182,16 +191,6 @@ int main(int argc, char *argv[]) {
         pinfo.video.height);
     if(video_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
-        return 1;
-    }
-    SDL_Texture *subtitle_tex = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_ABGR8888,
-        SDL_TEXTUREACCESS_STATIC,
-        pinfo.video.width,
-        pinfo.video.height);
-    if(subtitle_tex == NULL) {
-        fprintf(stderr, "Error while attempting to create a subtitle texture\n");
         return 1;
     }
 
@@ -298,9 +297,8 @@ int main(int argc, char *argv[]) {
 
         // Refresh videotexture and render it
         Kit_GetVideoData(player, video_tex);
-        Kit_GetSubtitleData(player, subtitle_tex);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
-        //SDL_RenderCopy(renderer, subtitle_tex, NULL, NULL);
+        Kit_GetSubtitleData(player, renderer);
 
         // Render GUI
         if(gui_enabled) {
@@ -313,7 +311,6 @@ int main(int argc, char *argv[]) {
     }
 
     SDL_DestroyTexture(video_tex);
-    SDL_DestroyTexture(subtitle_tex);
     SDL_CloseAudioDevice(audio_dev);
 
     Kit_ClosePlayer(player);

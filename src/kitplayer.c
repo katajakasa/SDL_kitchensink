@@ -30,8 +30,7 @@
 #define KIT_VBUFFERSIZE 3
 #define KIT_ABUFFERSIZE 64
 #define KIT_CBUFFERSIZE 8
-#define KIT_SBUFFERSIZE 32
-#define KIT_SLISTSIZE 16
+#define KIT_SBUFFERSIZE 16
 
 typedef enum Kit_ControlPacketType {
     KIT_CONTROL_SEEK,
@@ -55,8 +54,11 @@ typedef struct Kit_ControlPacket {
 } Kit_ControlPacket;
 
 typedef struct Kit_SubtitlePacket {
-    double pts;
-    AVSubtitle *subtitle;
+    double pts_start;
+    double pts_end;
+    SDL_Rect *rect;
+    SDL_Surface *surface;
+    SDL_Texture *texture;
 } Kit_SubtitlePacket;
 
 static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
@@ -281,16 +283,23 @@ static void _FreeControlPacket(void *ptr) {
 }
 
 
-static Kit_SubtitlePacket* _CreateSubtitlePacket(AVSubtitle *sub, double pts) {
+static Kit_SubtitlePacket* _CreateSubtitlePacket(SDL_Rect *rect, SDL_Surface *surface, double pts_start, double pts_end) {
     Kit_SubtitlePacket *p = calloc(1, sizeof(Kit_SubtitlePacket));
-    p->pts = pts;
-    p->subtitle = sub;
+    p->pts_start = pts_start;
+    p->pts_end = pts_end;
+    p->surface = surface;
+    p->rect = rect;
+    p->texture = NULL; // Cached texture
     return p;
 }
 
 static void _FreeSubtitlePacket(void *ptr) {
     Kit_SubtitlePacket *packet = ptr;
-    avsubtitle_free(packet->subtitle);
+    SDL_FreeSurface(packet->surface);
+    if(packet->texture) {
+        SDL_DestroyTexture(packet->texture);
+    }
+    free(packet->rect);
     free(packet);
 }
 
@@ -442,6 +451,42 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
     }
 }
 
+static Kit_SubtitlePacket* _HandleBitmapSubtitle(Kit_Player *player, double pts, AVSubtitle *sub, AVSubtitleRect *rect) {
+    if(rect->nb_colors == 256) {
+        // Paletted image based subtitles. Convert and set palette.
+        SDL_Surface *s = SDL_CreateRGBSurfaceFrom(
+            rect->pict.data[0],
+            rect->w, rect->h, 8,
+            rect->pict.linesize[0],
+            0, 0, 0, 0);
+
+        SDL_Color a = {255,255,255,255};
+        SDL_Color b = {0,0,0,255};
+        SDL_Color c = {0,0,0,0};
+        SDL_SetPaletteColors(s->format->palette, &a, 0, 1);
+        SDL_SetPaletteColors(s->format->palette, &b, 1, 1);
+        SDL_SetPaletteColors(s->format->palette, &c, 0xff, 1);
+
+        SDL_Surface *tmp = SDL_CreateRGBSurface(
+            0, rect->w, rect->h, 8,
+            0, 0, 0, 0);
+        SDL_BlitSurface(s, NULL, tmp, NULL);
+        SDL_FreeSurface(s);
+
+        SDL_Rect *dst_rect = malloc(sizeof(SDL_Rect));
+        dst_rect->x = rect->x;
+        dst_rect->y = rect->y;
+        dst_rect->w = rect->w;
+        dst_rect->h = rect->h;
+
+        double start = pts + sub->start_display_time / 1000.0;
+        double end = pts + sub->end_display_time / 1000.0;
+
+        return _CreateSubtitlePacket(dst_rect, tmp, start, end);
+    }
+    return NULL;
+}
+
 static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
     assert(player != NULL);
     assert(packet != NULL);
@@ -467,21 +512,33 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
                 pts *= av_q2d(fmt_ctx->streams[player->src->sstream_idx]->time_base);
             }
 
-            // Lock, write to subtitle buffer, unlock
-            Kit_SubtitlePacket *spacket = _CreateSubtitlePacket(sub, pts);
-            bool done = false;
-            if(SDL_LockMutex(player->smutex) == 0) {
-                if(Kit_WriteBuffer((Kit_Buffer*)player->sbuffer, spacket) == 0) {
-                    done = true;
-                } 
-                SDL_UnlockMutex(player->smutex);
+            // Convert subtitles to SDL_Surface and create a packet
+            Kit_SubtitlePacket *spacket;
+            for(int r = 0; r < sub->num_rects; r++) {
+                AVSubtitleRect *rect = sub->rects[r];
+                switch(rect->type) {
+                    case SUBTITLE_BITMAP: spacket = _HandleBitmapSubtitle(player, pts, sub, rect); break;
+                    case SUBTITLE_TEXT: break;
+                    case SUBTITLE_ASS: break;
+                    default: break;
+                }
             }
 
-            // Couldn't write packet, free memory
-            if(!done) {
-                _FreeSubtitlePacket(spacket);
+            // Lock, write to subtitle buffer, unlock
+            if(spacket != NULL) {
+                bool done = false;
+                if(SDL_LockMutex(player->smutex) == 0) {
+                    if(Kit_WriteList((Kit_List*)player->sbuffer, spacket) == 0) {
+                        done = true;
+                    }
+                    SDL_UnlockMutex(player->smutex);
+                }
+
+                // Couldn't write packet, free memory
+                if(!done) {
+                    _FreeSubtitlePacket(spacket);
+                }
             }
-            return;
         }
     }
 
@@ -511,7 +568,7 @@ static void _HandleFlushCommand(Kit_Player *player, Kit_ControlPacket *packet) {
         SDL_UnlockMutex(player->vmutex);
     }
     if(SDL_LockMutex(player->smutex) == 0) {
-        Kit_ClearBuffer((Kit_Buffer*)player->sbuffer);
+        Kit_ClearList((Kit_List*)player->sbuffer);
         SDL_UnlockMutex(player->smutex);
     }
 }
@@ -739,15 +796,9 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->sformat.is_enabled = true;
         player->sformat.stream_idx = src->sstream_idx;
 
-        player->sbuffer = Kit_CreateBuffer(KIT_SBUFFERSIZE, _FreeSubtitlePacket);
+        player->sbuffer = Kit_CreateList(KIT_SBUFFERSIZE, _FreeSubtitlePacket);
         if(player->sbuffer == NULL) {
-            Kit_SetError("Unable to initialize subtitle ringbuffer");
-            goto error;
-        }
-
-        player->active_subs = Kit_CreateList(KIT_SLISTSIZE, _FreeSubtitlePacket);
-        if(player->active_subs == NULL) {
-            Kit_SetError("Unable to initialize subtitle active buffer");
+            Kit_SetError("Unable to initialize active subtitle list");
             goto error;
         }
     }
@@ -812,9 +863,8 @@ error:
 
     Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
     Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
-    Kit_DestroyBuffer((Kit_Buffer*)player->sbuffer);
     Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
-    Kit_DestroyList((Kit_List*)player->active_subs);
+    Kit_DestroyList((Kit_List*)player->sbuffer);
 
     if(player->sws != NULL) {
         sws_freeContext((struct SwsContext *)player->sws);
@@ -866,9 +916,8 @@ void Kit_ClosePlayer(Kit_Player *player) {
     // Free local audio buffers
     Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
     Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
-    Kit_DestroyBuffer((Kit_Buffer*)player->sbuffer);
     Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
-    Kit_DestroyList((Kit_List*)player->active_subs);
+    Kit_DestroyList((Kit_List*)player->sbuffer);
 
     // Free the player structure itself
     free(player);
@@ -956,7 +1005,7 @@ int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
     return 0;
 }
 
-int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
     assert(player != NULL);
 
     // If there is no audio stream, don't bother.
@@ -964,7 +1013,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
-    assert(texture != NULL);
+    assert(renderer != NULL);
 
     // If paused or stopped, do nothing
     if(player->state == KIT_PAUSED) {
@@ -974,50 +1023,33 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
+    unsigned int it;
+    Kit_SubtitlePacket *packet = NULL;
+
     // Current sync timestamp
     double cur_subtitle_ts = _GetSystemTime() - player->clock_sync;
 
     // Read a packet from buffer, if one exists. Stop here if not.
-    Kit_SubtitlePacket *packet = NULL;
-    Kit_SubtitlePacket *n_packet = NULL;
     if(SDL_LockMutex(player->smutex) == 0) {
-        packet = (Kit_SubtitlePacket*)Kit_PeekBuffer((Kit_Buffer*)player->sbuffer);
-        if(packet == NULL) {
-            SDL_UnlockMutex(player->smutex);
-            return 0;
-        }
-
-        // Print some data
-        double start_time = packet->pts;
-        double end_time = packet->pts + (packet->subtitle->end_display_time / 1000.0);
-
-        // Check if we want the packet
-        if(start_time > cur_subtitle_ts + SUBTITLE_SYNC_THRESHOLD) {
-            // Video is ahead, don't show yet.
-            SDL_UnlockMutex(player->smutex);
-            return 0;
-        } else if(end_time < cur_subtitle_ts - SUBTITLE_SYNC_THRESHOLD) {
-
-            // subtitles are lagging, skip until we find a good PTS to continue from.
-            while(packet != NULL) {
-                Kit_AdvanceBuffer((Kit_Buffer*)player->sbuffer);
-                n_packet = (Kit_SubtitlePacket*)Kit_PeekBuffer((Kit_Buffer*)player->sbuffer);
-                if(n_packet == NULL) {
-                    break;
-                }
-                _FreeSubtitlePacket(packet);
-                packet = n_packet;
-                if(packet->pts > cur_subtitle_ts - SUBTITLE_SYNC_THRESHOLD) {
-                    break;
-                }
+        // Check if refresh is required and remove old subtitles
+        it = 0;
+        while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+            if(packet->pts_start - SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
+                Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+            }
+            else if(packet->pts_end + SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
+                Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
             }
         }
 
-        // Advance buffer one subtitle forwards
-        Kit_AdvanceBuffer((Kit_Buffer*)player->sbuffer);
-
-        // Add subtitle to the list of currently active subtitles
-        Kit_WriteList((Kit_List*)player->active_subs, packet);
+        // Render subtitle bitmaps
+        it = 0;
+        while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+            if(packet->texture == NULL) {
+                packet->texture = SDL_CreateTextureFromSurface(renderer, packet->surface);
+            }
+            SDL_RenderCopy(renderer, packet->texture, NULL, packet->rect);
+        }
 
         // Unlock subtitle buffer mutex.
         SDL_UnlockMutex(player->smutex);
@@ -1026,45 +1058,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture) {
         return 1;
     }
 
-    // handle all active subtitles
-    unsigned int it = 0;
-    double start, end;
-    Kit_SubtitlePacket *s_packet = NULL;
-    while((s_packet = Kit_IterateList((Kit_List*)player->active_subs, &it)) != NULL) {
-        start = s_packet->pts + s_packet->subtitle->start_display_time / 1000.0;
-        end = s_packet->pts + s_packet->subtitle->end_display_time / 1000.0;
-
-        // If subtitle is displayed and done, remove it from the list and free the packet.
-        // Otherwise, if subtitle is started, render it.
-        // If subtitle is still waiting to start, do nothing.
-        if(end < cur_subtitle_ts || cur_subtitle_ts < s_packet->pts - SUBTITLE_SYNC_THRESHOLD) {
-            fprintf(stderr, "Subtitle is done: %7.3f\n", end);
-            Kit_RemoveFromList((Kit_List*)player->active_subs, it);
-            _FreeSubtitlePacket(s_packet);
-        }
-        else if(start >= cur_subtitle_ts) {
-            for(int r = 0; r < s_packet->subtitle->num_rects; r++) {
-                AVSubtitleRect *rect = s_packet->subtitle->rects[r];
-                switch(rect->type) {
-                    case SUBTITLE_BITMAP:
-                        fprintf(stderr, "x = %d, y = %d, w = %d, h = %d\n", rect->x, rect->y, rect->w, rect->h);
-                        break;
-                    case SUBTITLE_TEXT:
-                        fprintf(stderr, "text = %s\n", rect->text);
-                        break;
-                    case SUBTITLE_ASS:
-                        fprintf(stderr, "text = %s\n", rect->ass);
-                        break;
-                    default:
-                        break;
-                }
-            }
-            fprintf(stderr, "Subtitle is started: %7.3f\n", s_packet->pts + start);
-        }
-        fflush(stderr);
-    }
-
-    return 1;
+    return 0;
 }
 
 int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length, int cur_buf_len) {
