@@ -1009,7 +1009,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
     assert(player != NULL);
 
     // If there is no audio stream, don't bother.
-    if(player->src->astream_idx == -1) {
+    if(player->src->sstream_idx == -1) {
         return 0;
     }
 
