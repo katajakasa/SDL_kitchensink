@@ -176,6 +176,15 @@ static int reset_libass_track(Kit_Player *player) {
     Kit_LibraryState *state = Kit_GetLibraryState();
     AVCodecContext *scodec_ctx = player->scodec_ctx;
 
+    if(scodec_ctx == NULL) {
+        return 0;
+    }
+
+    // Free old track
+    if(player->ass_track) {
+        ass_free_track(player->ass_track);
+    }
+
     // Initialize libass track
     player->ass_track = ass_new_track(state->libass_handle);
     if(player->ass_track == NULL) {
