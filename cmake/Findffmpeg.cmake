@@ -57,7 +57,7 @@ foreach(comp ${FFMPEG_COMPONENTS})
         else()
             set(FFMPEG_FOUND FALSE)
             set(${comp}_FOUND FALSE)
-            MESSAGE(WARNING "Could not find component: ${comp}")
+            message(WARNING "Could not find component: ${comp}")
         endif()
 
         # Mark the temporary variables as hidden in the ui
@@ -66,9 +66,9 @@ foreach(comp ${FFMPEG_COMPONENTS})
 endforeach()
 
 if(FFMPEG_FOUND)
-    MESSAGE(STATUS "Found FFMPEG: ${FFMPEG_LIBRARIES}")
+    message(STATUS "Found FFMPEG: ${FFMPEG_LIBRARIES}")
 else()
-    MESSAGE(WARNING "Could not find FFMPEG")
+    message(WARNING "Could not find FFMPEG")
 endif()
 
 mark_as_advanced(FFMPEG_COMPONENTS FFMPEG_SEARCH_PATHS)

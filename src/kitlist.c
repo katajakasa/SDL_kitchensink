@@ -34,6 +34,7 @@ void Kit_ClearList(Kit_List *list) {
             list->data[i] = NULL;
         }
     }
+    list->length = 0;
 }
 
 void Kit_RemoveFromList(Kit_List *list, unsigned int iterator) {

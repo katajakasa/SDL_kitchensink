@@ -3,6 +3,7 @@
 #include "kitchensink/internal/kitbuffer.h"
 #include "kitchensink/internal/kitringbuffer.h"
 #include "kitchensink/internal/kitlist.h"
+#include "kitchensink/internal/kitlibstate.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -11,8 +12,10 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/time.h>
 #include <libavutil/samplefmt.h>
+#include "libavutil/avstring.h"
 
 #include <SDL2/SDL.h>
+#include <ass/ass.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +33,7 @@
 #define KIT_VBUFFERSIZE 3
 #define KIT_ABUFFERSIZE 64
 #define KIT_CBUFFERSIZE 8
-#define KIT_SBUFFERSIZE 16
+#define KIT_SBUFFERSIZE 48
 
 typedef enum Kit_ControlPacketType {
     KIT_CONTROL_SEEK,
@@ -168,6 +171,27 @@ exit_1:
     avcodec_free_context(&acodec_ctx);
 exit_0:
     return 1;
+}
+
+static int reset_libass_track(Kit_Player *player) {
+    Kit_LibraryState *state = Kit_GetLibraryState();
+    AVCodecContext *scodec_ctx = player->scodec_ctx;
+
+    // Initialize libass track
+    player->ass_track = ass_new_track(state->libass_handle);
+    if(player->ass_track == NULL) {
+        Kit_SetError("Unable to initialize libass track");
+        return 1;
+    }
+
+    // Set up libass track headers (ffmpeg provides these)
+    if(scodec_ctx->subtitle_header) {
+        ass_process_codec_private(
+            (ASS_Track*)player->ass_track,
+            (char*)scodec_ctx->subtitle_header,
+            scodec_ctx->subtitle_header_size);
+    }
+    return 0;
 }
 
 static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
@@ -451,7 +475,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
     }
 }
 
-static Kit_SubtitlePacket* _HandleBitmapSubtitle(Kit_Player *player, double pts, AVSubtitle *sub, AVSubtitleRect *rect) {
+static void _HandleBitmapSubtitle(Kit_SubtitlePacket** spackets, int *n, Kit_Player *player, double pts, AVSubtitle *sub, AVSubtitleRect *rect) {
     if(rect->nb_colors == 256) {
         // Paletted image based subtitles. Convert and set palette.
         SDL_Surface *s = SDL_CreateRGBSurfaceFrom(
@@ -492,9 +516,85 @@ static Kit_SubtitlePacket* _HandleBitmapSubtitle(Kit_Player *player, double pts,
             end = pts + (sub->end_display_time / 1000.0f);
         }
 
-        return _CreateSubtitlePacket(start, end, dst_rect, tmp);
+        spackets[(*n)++] = _CreateSubtitlePacket(start, end, dst_rect, tmp);
     }
-    return NULL;
+}
+
+static void _ProcessAssSubtitleRect(Kit_Player *player, AVSubtitleRect *rect) {
+    ass_process_data((ASS_Track*)player->ass_track, rect->ass, strlen(rect->ass));
+}
+
+#define _r(c) ((c)  >> 24)
+#define _g(c) (((c) >> 16) & 0xFF)
+#define _b(c) (((c) >> 8)  & 0xFF)
+#define _a(c) ((c) & 0xFF)
+
+static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
+    int x, y;
+    unsigned char opacity = 255 - _a(img->color);
+    unsigned char r = _r(img->color);
+    unsigned char g = _g(img->color);
+    unsigned char b = _b(img->color);
+
+    unsigned char *src;
+    unsigned char *dst;
+
+    src = img->bitmap;
+    dst = (unsigned char*)surface->pixels;
+    for(y = 0; y < img->h; y++) {
+        for(x = 0; x < img->w; x++) {
+            unsigned int k = ((unsigned) src[x]) * opacity / 255;
+            dst[x * 3] = (k * b + (255 - k) * dst[x * 3]) / 255;
+            dst[x * 3 + 1] = (k * g + (255 - k) * dst[x * 3 + 1]) / 255;
+            dst[x * 3 + 2] = (k * r + (255 - k) * dst[x * 3 + 2]) / 255;
+        }
+        src += img->stride;
+        dst += surface->pitch;
+    }
+}
+
+static void _HandleAssSubtitle(Kit_SubtitlePacket** spackets, int *n, Kit_Player *player, double pts, AVSubtitle *sub) {
+    double start = pts + (sub->start_display_time / 1000.0f);
+    double end = pts + (sub->end_display_time / 1000.0f);
+
+    // Process current chunk of data
+    unsigned int now = start * 1000;
+    int change = 0;
+    ASS_Image *images = ass_render_frame((ASS_Renderer*)player->ass_renderer, (ASS_Track*)player->ass_track, now, &change);
+
+    // Convert to SDL_Surfaces
+    if(change > 0) {
+        ASS_Image *now = images;
+        if(now != NULL) {
+            do {
+                Uint32 rmask, gmask, bmask, amask;
+                #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+                    rmask = 0xff000000;
+                    gmask = 0x00ff0000;
+                    bmask = 0x0000ff00;
+                    amask = 0x000000ff;
+                #else
+                    rmask = 0x000000ff;
+                    gmask = 0x0000ff00;
+                    bmask = 0x00ff0000;
+                    amask = 0xff000000;
+                #endif
+                SDL_Surface *tmp = SDL_CreateRGBSurface(
+                    0, now->w, now->h, 32,
+                    rmask, gmask, bmask, amask);
+
+                _ProcessAssImage(tmp, now);
+
+                SDL_Rect *dst_rect = malloc(sizeof(SDL_Rect));
+                dst_rect->x = now->dst_x;
+                dst_rect->y = now->dst_y;
+                dst_rect->w = now->w;
+                dst_rect->h = now->h;
+
+                spackets[(*n)++] = _CreateSubtitlePacket(start, end, dst_rect, tmp);
+            } while((now = now->next) != NULL);
+        }
+    }
 }
 
 static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
@@ -505,6 +605,8 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
     int len;
     AVCodecContext *scodec_ctx = (AVCodecContext*)player->scodec_ctx;
     AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
+    Kit_SubtitlePacket *tmp = NULL;
+    unsigned int it;
     AVSubtitle sub;
     memset(&sub, 0, sizeof(AVSubtitle));
 
@@ -523,33 +625,53 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
             }
 
             // Convert subtitles to SDL_Surface and create a packet
-            Kit_SubtitlePacket *spacket = NULL;
+            Kit_SubtitlePacket *spackets[KIT_SBUFFERSIZE];
+            memset(spackets, 0, sizeof(Kit_SubtitlePacket*) * KIT_SBUFFERSIZE);
+
+            int n = 0;
+            bool has_ass = false;
             for(int r = 0; r < sub.num_rects; r++) {
-                AVSubtitleRect *rect = sub.rects[r];
-                switch(rect->type) {
-                    case SUBTITLE_BITMAP: spacket = _HandleBitmapSubtitle(player, pts, &sub, rect); break;
-                    case SUBTITLE_TEXT: break;
-                    case SUBTITLE_ASS: break;
-                    case SUBTITLE_NONE: break;
+                switch(sub.rects[r]->type) {
+                    case SUBTITLE_BITMAP:
+                        _HandleBitmapSubtitle(spackets, &n, player, pts, &sub, sub.rects[r]);
+                        break;
+                    case SUBTITLE_ASS:
+                        _ProcessAssSubtitleRect(player, sub.rects[r]);
+                        has_ass = true;
+                        break;
+                    case SUBTITLE_TEXT:
+                        break;
+                    case SUBTITLE_NONE:
+                        break;
                 }
             }
 
+            // Process libass content
+            if(has_ass) {
+                _HandleAssSubtitle(spackets, &n, player, pts, &sub);
+            }
+
             // Lock, write to subtitle buffer, unlock
-            bool done = false;
             if(SDL_LockMutex(player->smutex) == 0) {
-                // Clear out old subtitles that should only be valid until next (this) subtitle
-                unsigned int it = 0;
-                Kit_SubtitlePacket *tmp = NULL;
-                while((tmp = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
-                    if(tmp->pts_end < 0) {
-                        Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+                if(has_ass) {
+                    Kit_ClearList((Kit_List*)player->sbuffer);
+                } else {
+                    // Clear out old subtitles that should only be valid until next (this) subtitle
+                    it = 0;
+                    while((tmp = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+                        if(tmp->pts_end < 0) {
+                            Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+                        }
                     }
                 }
 
                 // Add new subtitle
-                if(spacket != NULL) {
-                    if(Kit_WriteList((Kit_List*)player->sbuffer, spacket) == 0) {
-                        done = true;
+                for(int i = 0; i < KIT_SBUFFERSIZE; i++) {
+                    Kit_SubtitlePacket *spacket = spackets[i];
+                    if(spacket != NULL) {
+                        if(Kit_WriteList((Kit_List*)player->sbuffer, spacket) == 0) {
+                            spackets[i] = NULL;
+                        }
                     }
                 }
 
@@ -558,10 +680,11 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
             }
 
             // Couldn't write packet, free memory
-            if(!done && spacket != NULL) {
-                _FreeSubtitlePacket(spacket);
+            for(int i = 0; i < KIT_SBUFFERSIZE; i++) {
+                if(spackets[i] != NULL) {
+                    _FreeSubtitlePacket(spackets[i]);
+                }
             }
-
         }
     }
 }
@@ -598,6 +721,7 @@ static void _HandleFlushCommand(Kit_Player *player, Kit_ControlPacket *packet) {
             SDL_UnlockMutex(player->smutex);
         }
     }
+    reset_libass_track(player);
 }
 
 static void _HandleSeekCommand(Kit_Player *player, Kit_ControlPacket *packet) {
@@ -727,6 +851,25 @@ static int _DecoderThread(void *ptr) {
     return 0;
 }
 
+static const char * const font_mime[] = {
+    "application/x-font-ttf",
+    "application/x-truetype-font",
+    "application/vnd.ms-opentype",
+    NULL
+};
+
+static bool attachment_is_font(AVStream *stream) {
+    AVDictionaryEntry *tag = av_dict_get(stream->metadata, "mimetype", NULL, AV_DICT_MATCH_CASE);
+    if(tag) {
+        for(int n = 0; font_mime[n]; n++) {
+            if(av_strcasecmp(font_mime[n], tag->value) == 0) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     assert(src != NULL);
 
@@ -823,11 +966,46 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->sformat.is_enabled = true;
         player->sformat.stream_idx = src->sstream_idx;
 
+        // subtitle packet buffer
         player->sbuffer = Kit_CreateList(KIT_SBUFFERSIZE, _FreeSubtitlePacket);
         if(player->sbuffer == NULL) {
             Kit_SetError("Unable to initialize active subtitle list");
             goto error;
         }
+
+        // Initialize libass renderer
+        Kit_LibraryState *state = Kit_GetLibraryState();
+        player->ass_renderer = ass_renderer_init(state->libass_handle);
+        if(player->ass_renderer == NULL) {
+            Kit_SetError("Unable to initialize libass renderer");
+            goto error;
+        }
+
+        // Read fonts from attachment streams and give them to libass
+        AVFormatContext *format_ctx = player->src->format_ctx;
+        for (int j = 0; j < format_ctx->nb_streams; j++) {
+            AVStream *st = format_ctx->streams[j];
+            if(st->codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
+                const AVDictionaryEntry *tag = av_dict_get(
+                    st->metadata,
+                    "filename",
+                    NULL,
+                    AV_DICT_MATCH_CASE);
+                if(tag) {
+                    ass_add_font(
+                        state->libass_handle,
+                        tag->value, 
+                        (char*)st->codec->extradata,
+                        st->codec->extradata_size);
+                }
+            }
+        }
+
+        // Init libass fonts and window frame size
+        ass_set_fonts(player->ass_renderer, NULL, NULL, 1, NULL, 1);
+        ass_set_frame_size(player->ass_renderer, vcodec_ctx->width, vcodec_ctx->height);
+        ass_set_font_scale(player->ass_renderer, 1.1f);
+        reset_libass_track(player);
     }
 
     player->cbuffer = Kit_CreateBuffer(KIT_CBUFFERSIZE, _FreeControlPacket);
@@ -899,6 +1077,13 @@ error:
     if(player->swr != NULL) {
         swr_free((struct SwrContext **)player->swr);
     }
+
+    if(player->ass_track != NULL) {
+        ass_free_track((ASS_Track*)player->ass_track);
+    }
+    if(player->ass_renderer != NULL) {
+        ass_renderer_done((ASS_Renderer *)player->ass_renderer);
+    }
     if(player != NULL) {
         free(player);
     }
@@ -945,6 +1130,14 @@ void Kit_ClosePlayer(Kit_Player *player) {
     Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
     Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
     Kit_DestroyList((Kit_List*)player->sbuffer);
+
+    // Free libass context
+    if(player->ass_track != NULL) {
+        ass_free_track((ASS_Track*)player->ass_track);
+    }
+    if(player->ass_renderer != NULL) {
+        ass_renderer_done((ASS_Renderer *)player->ass_renderer);
+    }
 
     // Free the player structure itself
     free(player);
@@ -1061,7 +1254,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
         // Check if refresh is required and remove old subtitles
         it = 0;
         while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
-            if(packet->pts_end >= 0 && packet->pts_end + SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
+            if(packet->pts_end >= 0 && packet->pts_end < cur_subtitle_ts) {
                 Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
             }
         }

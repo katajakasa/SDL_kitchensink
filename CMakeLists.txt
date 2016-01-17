@@ -21,6 +21,7 @@ option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_TESTS "Build unittests" OFF)
 
 find_package(SDL2)
+find_package(ass)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
 
 if(BUILD_TESTS)
@@ -31,6 +32,7 @@ include_directories(
     include/
     ${SDL2_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIRS}
+    ${ASS_INCLUDE_DIRS}
 )
 
 FILE(GLOB SOURCES "src/*.c")
@@ -47,6 +49,7 @@ target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 target_link_libraries(SDL_kitchensink
     ${SDL2_LIBRARIES}
     ${FFMPEG_LIBRARIES}
+    ${ASS_LIBRARIES}
 )
 
 if(BUILD_EXAMPLES)
@@ -62,11 +65,13 @@ if(BUILD_EXAMPLES)
         SDL_kitchensink_static
         ${SDL2_LIBRARIES}
         ${FFMPEG_LIBRARIES}
+        ${ASS_LIBRARIES}
     )
     target_link_libraries(examplevideo
         SDL_kitchensink_static
         ${SDL2_LIBRARIES}
         ${FFMPEG_LIBRARIES}
+        ${ASS_LIBRARIES}
     )
 endif()
 

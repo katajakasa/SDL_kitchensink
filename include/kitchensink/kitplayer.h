@@ -82,6 +82,10 @@ typedef struct Kit_Player {
     void *swr; ///< FFmpeg: Audio resampler
     void *sws; ///< FFmpeg: Video converter
 
+    // libass
+    void *ass_renderer;
+    void *ass_track;
+
     // Other
     uint8_t seek_flag;
     const Kit_Source *src; ///< Reference to Audio/Video source

@@ -24,6 +24,7 @@ Build requirements:
 Library requirements:
 * SDL2 (>=2.0.3) (Note! Examples require 2.0.4!)
 * FFmpeg (>=2.8)
+* libass
 * CUnit (optional, for unittests)
 
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions
