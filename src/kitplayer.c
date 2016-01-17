@@ -283,7 +283,7 @@ static void _FreeControlPacket(void *ptr) {
 }
 
 
-static Kit_SubtitlePacket* _CreateSubtitlePacket(SDL_Rect *rect, SDL_Surface *surface, double pts_start, double pts_end) {
+static Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_Rect *rect, SDL_Surface *surface) {
     Kit_SubtitlePacket *p = calloc(1, sizeof(Kit_SubtitlePacket));
     p->pts_start = pts_start;
     p->pts_end = pts_end;
@@ -460,16 +460,23 @@ static Kit_SubtitlePacket* _HandleBitmapSubtitle(Kit_Player *player, double pts,
             rect->pict.linesize[0],
             0, 0, 0, 0);
 
-        SDL_Color a = {255,255,255,255};
-        SDL_Color b = {0,0,0,255};
-        SDL_Color c = {0,0,0,0};
-        SDL_SetPaletteColors(s->format->palette, &a, 0, 1);
-        SDL_SetPaletteColors(s->format->palette, &b, 1, 1);
-        SDL_SetPaletteColors(s->format->palette, &c, 0xff, 1);
+        SDL_SetPaletteColors(s->format->palette, (SDL_Color*)rect->pict.data[1], 0, 256);
 
+        Uint32 rmask, gmask, bmask, amask;
+        #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+            rmask = 0xff000000;
+            gmask = 0x00ff0000;
+            bmask = 0x0000ff00;
+            amask = 0x000000ff;
+        #else
+            rmask = 0x000000ff;
+            gmask = 0x0000ff00;
+            bmask = 0x00ff0000;
+            amask = 0xff000000;
+        #endif
         SDL_Surface *tmp = SDL_CreateRGBSurface(
-            0, rect->w, rect->h, 8,
-            0, 0, 0, 0);
+            0, rect->w, rect->h, 32,
+            rmask, gmask, bmask, amask);
         SDL_BlitSurface(s, NULL, tmp, NULL);
         SDL_FreeSurface(s);
 
@@ -479,10 +486,13 @@ static Kit_SubtitlePacket* _HandleBitmapSubtitle(Kit_Player *player, double pts,
         dst_rect->w = rect->w;
         dst_rect->h = rect->h;
 
-        double start = pts + sub->start_display_time / 1000.0;
-        double end = pts + sub->end_display_time / 1000.0;
+        double start = pts + (sub->start_display_time / 1000.0f);
+        double end = -1;
+        if(sub->end_display_time < UINT_MAX) {
+            end = pts + (sub->end_display_time / 1000.0f);
+        }
 
-        return _CreateSubtitlePacket(dst_rect, tmp, start, end);
+        return _CreateSubtitlePacket(start, end, dst_rect, tmp);
     }
     return NULL;
 }
@@ -495,11 +505,11 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
     int len;
     AVCodecContext *scodec_ctx = (AVCodecContext*)player->scodec_ctx;
     AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
-    AVSubtitle *sub = av_malloc(sizeof(AVSubtitle));
-    memset(sub, 0, sizeof(AVSubtitle));
+    AVSubtitle sub;
+    memset(&sub, 0, sizeof(AVSubtitle));
 
     if(packet->size > 0) {
-        len = avcodec_decode_subtitle2(scodec_ctx, sub, &frame_finished, packet);
+        len = avcodec_decode_subtitle2(scodec_ctx, &sub, &frame_finished, packet);
         if(len < 0) {
             return;
         }
@@ -513,11 +523,11 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
             }
 
             // Convert subtitles to SDL_Surface and create a packet
-            Kit_SubtitlePacket *spacket;
-            for(int r = 0; r < sub->num_rects; r++) {
-                AVSubtitleRect *rect = sub->rects[r];
+            Kit_SubtitlePacket *spacket = NULL;
+            for(int r = 0; r < sub.num_rects; r++) {
+                AVSubtitleRect *rect = sub.rects[r];
                 switch(rect->type) {
-                    case SUBTITLE_BITMAP: spacket = _HandleBitmapSubtitle(player, pts, sub, rect); break;
+                    case SUBTITLE_BITMAP: spacket = _HandleBitmapSubtitle(player, pts, &sub, rect); break;
                     case SUBTITLE_TEXT: break;
                     case SUBTITLE_ASS: break;
                     default: break;
@@ -528,9 +538,22 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
             if(spacket != NULL) {
                 bool done = false;
                 if(SDL_LockMutex(player->smutex) == 0) {
+
+                    // Clear out old subtitles that should only be valid until next (this) subtitle
+                    unsigned int it = 0;
+                    Kit_SubtitlePacket *tmp = NULL;
+                    while((tmp = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+                        if(tmp->pts_end < 0) {
+                            Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+                        }
+                    }
+
+                    // Add new subtitle
                     if(Kit_WriteList((Kit_List*)player->sbuffer, spacket) == 0) {
                         done = true;
                     }
+
+                    // Unlock subtitle buffer
                     SDL_UnlockMutex(player->smutex);
                 }
 
@@ -541,8 +564,6 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
             }
         }
     }
-
-    avsubtitle_free(sub);
 }
 
 static void _HandlePacket(Kit_Player *player, AVPacket *packet) {
@@ -1040,10 +1061,9 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
         // Check if refresh is required and remove old subtitles
         it = 0;
         while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
-            if(packet->pts_start - SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
-                Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
-            }
-            else if(packet->pts_end + SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
+            fprintf(stderr, "%f -- %f -- %f\n", cur_subtitle_ts, packet->pts_start, packet->pts_end);
+            fflush(stderr);
+            if(packet->pts_end >= 0 && packet->pts_end + SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
                 Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
             }
         }
@@ -1053,6 +1073,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
         while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
             if(packet->texture == NULL) {
                 packet->texture = SDL_CreateTextureFromSurface(renderer, packet->surface);
+                SDL_SetTextureBlendMode(packet->texture, SDL_BLENDMODE_BLEND);
             }
             SDL_RenderCopy(renderer, packet->texture, NULL, packet->rect);
         }
