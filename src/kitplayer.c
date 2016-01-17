@@ -559,17 +559,23 @@ static void _HandlePacket(Kit_Player *player, AVPacket *packet) {
 }
 
 static void _HandleFlushCommand(Kit_Player *player, Kit_ControlPacket *packet) {
-    if(SDL_LockMutex(player->amutex) == 0) {
-        Kit_ClearBuffer((Kit_Buffer*)player->abuffer);
-        SDL_UnlockMutex(player->amutex);
+    if(player->abuffer != NULL) {
+        if(SDL_LockMutex(player->amutex) == 0) {
+            Kit_ClearBuffer((Kit_Buffer*)player->abuffer);
+            SDL_UnlockMutex(player->amutex);
+        }
     }
-    if(SDL_LockMutex(player->vmutex) == 0) {
-        Kit_ClearBuffer((Kit_Buffer*)player->vbuffer);
-        SDL_UnlockMutex(player->vmutex);
+    if(player->vbuffer != NULL) {
+        if(SDL_LockMutex(player->vmutex) == 0) {
+            Kit_ClearBuffer((Kit_Buffer*)player->vbuffer);
+            SDL_UnlockMutex(player->vmutex);
+        }
     }
-    if(SDL_LockMutex(player->smutex) == 0) {
-        Kit_ClearList((Kit_List*)player->sbuffer);
-        SDL_UnlockMutex(player->smutex);
+    if(player->sbuffer != NULL) {
+        if(SDL_LockMutex(player->smutex) == 0) {
+            Kit_ClearList((Kit_List*)player->sbuffer);
+            SDL_UnlockMutex(player->smutex);
+        }
     }
 }
 
