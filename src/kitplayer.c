@@ -2,6 +2,7 @@
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitbuffer.h"
 #include "kitchensink/internal/kitringbuffer.h"
+#include "kitchensink/internal/kitlist.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -23,11 +24,13 @@
 // Threshold is in seconds
 #define VIDEO_SYNC_THRESHOLD 0.01
 #define AUDIO_SYNC_THRESHOLD 0.05
+#define SUBTITLE_SYNC_THRESHOLD 0.05
 
 // Buffersizes
 #define KIT_VBUFFERSIZE 3
 #define KIT_ABUFFERSIZE 64
 #define KIT_CBUFFERSIZE 8
+#define KIT_SBUFFERSIZE 16
 
 typedef enum Kit_ControlPacketType {
     KIT_CONTROL_SEEK,
@@ -50,14 +53,24 @@ typedef struct Kit_ControlPacket {
     double value1;
 } Kit_ControlPacket;
 
+typedef struct Kit_SubtitlePacket {
+    double pts_start;
+    double pts_end;
+    SDL_Rect *rect;
+    SDL_Surface *surface;
+    SDL_Texture *texture;
+} Kit_SubtitlePacket;
+
 static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
     assert(player != NULL);
     assert(src != NULL);
 
     AVCodecContext *acodec_ctx = NULL;
     AVCodecContext *vcodec_ctx = NULL;
+    AVCodecContext *scodec_ctx = NULL;
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
+    AVCodec *scodec = NULL;
     AVFormatContext *format_ctx = (AVFormatContext *)src->format_ctx;
 
     // Make sure index seems correct
@@ -112,11 +125,41 @@ static int _InitCodecs(Kit_Player *player, const Kit_Source *src) {
         }
     }
 
+    if(src->sstream_idx >= (int)format_ctx->nb_streams) {
+        Kit_SetError("Invalid subtitle stream index: %d", src->sstream_idx);
+        goto exit_2;
+    } else if(src->sstream_idx >= 0) {
+        // Find subtitle decoder
+        scodec = avcodec_find_decoder(format_ctx->streams[src->sstream_idx]->codec->codec_id);
+        if(!scodec) {
+            Kit_SetError("No suitable subtitle decoder found");
+            goto exit_4;
+        }
+
+        // Copy the original subtitle codec context
+        scodec_ctx = avcodec_alloc_context3(scodec);
+        if(avcodec_copy_context(scodec_ctx, format_ctx->streams[src->sstream_idx]->codec) != 0) {
+            Kit_SetError("Unable to copy subtitle codec context");
+            goto exit_4;
+        }
+
+        // Create a subtitle decoder context
+        if(avcodec_open2(scodec_ctx, scodec, NULL) < 0) {
+            Kit_SetError("Unable to allocate subtitle codec context");
+            goto exit_5;
+        }
+    }
+
     player->acodec_ctx = acodec_ctx;
     player->vcodec_ctx = vcodec_ctx;
+    player->scodec_ctx = scodec_ctx;
     player->src = src;
     return 0;
 
+exit_5:
+    avcodec_free_context(&scodec_ctx);
+exit_4:
+    avcodec_close(vcodec_ctx);
 exit_3:
     avcodec_free_context(&vcodec_ctx);
 exit_2:
@@ -182,11 +225,11 @@ static enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt) {
     }
 }
 
-static enum AVSampleFormat _FindAVSampleFormat(int bytes) {
-    switch(bytes) {
-        case 1: return AV_SAMPLE_FMT_U8;
-        case 2: return AV_SAMPLE_FMT_S16;
-        case 3: return AV_SAMPLE_FMT_S32;
+static enum AVSampleFormat _FindAVSampleFormat(int format) {
+    switch(format) {
+        case AUDIO_U8: return AV_SAMPLE_FMT_U8;
+        case AUDIO_S16SYS: return AV_SAMPLE_FMT_S16;
+        case AUDIO_S32SYS: return AV_SAMPLE_FMT_S32;
         default:
             return AV_SAMPLE_FMT_NONE;
     }
@@ -199,12 +242,6 @@ static unsigned int _FindAVChannelLayout(int channels) {
     }
 }
 
-static void _FreeVideoPacket(Kit_VideoPacket *packet) {
-    avpicture_free(packet->frame);
-    av_free(packet->frame);
-    free(packet);
-}
-
 static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
     Kit_VideoPacket *p = calloc(1, sizeof(Kit_VideoPacket));
     p->frame = frame;
@@ -212,8 +249,10 @@ static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
     return p;
 }
 
-static void _FreeAudioPacket(Kit_AudioPacket *packet) {
-    Kit_DestroyRingBuffer(packet->rb);
+static void _FreeVideoPacket(void *ptr) {
+    Kit_VideoPacket *packet = ptr;
+    avpicture_free(packet->frame);
+    av_free(packet->frame);
     free(packet);
 }
 
@@ -225,7 +264,9 @@ static Kit_AudioPacket* _CreateAudioPacket(const char* data, size_t len, double 
     return p;
 }
 
-static void _FreeControlPacket(Kit_ControlPacket *packet) {
+static void _FreeAudioPacket(void *ptr) {
+    Kit_AudioPacket *packet = ptr;
+    Kit_DestroyRingBuffer(packet->rb);
     free(packet);
 }
 
@@ -236,27 +277,30 @@ static Kit_ControlPacket* _CreateControlPacket(Kit_ControlPacketType type, doubl
     return p;
 }
 
-static void _FlushVideoBuffer(Kit_Player *player) {
-    Kit_VideoPacket *vp;
-    while((vp = Kit_ReadBuffer(player->vbuffer)) != NULL) {
-        _FreeVideoPacket(vp);
-    }
-    fflush(stderr);
+static void _FreeControlPacket(void *ptr) {
+    Kit_ControlPacket *packet = ptr;
+    free(packet);
 }
 
-static void _FlushAudioBuffer(Kit_Player *player) {
-    Kit_AudioPacket *ap;
-    while((ap = Kit_ReadBuffer(player->abuffer)) != NULL) {
-        _FreeAudioPacket(ap);
-    }
-    fflush(stderr);
+
+static Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_Rect *rect, SDL_Surface *surface) {
+    Kit_SubtitlePacket *p = calloc(1, sizeof(Kit_SubtitlePacket));
+    p->pts_start = pts_start;
+    p->pts_end = pts_end;
+    p->surface = surface;
+    p->rect = rect;
+    p->texture = NULL; // Cached texture
+    return p;
 }
 
-static void _FlushControlBuffer(Kit_Player *player) {
-    Kit_ControlPacket *cp;
-    while((cp = Kit_ReadBuffer(player->cbuffer)) != NULL) {
-        _FreeControlPacket(cp);
+static void _FreeSubtitlePacket(void *ptr) {
+    Kit_SubtitlePacket *packet = ptr;
+    SDL_FreeSurface(packet->surface);
+    if(packet->texture) {
+        SDL_DestroyTexture(packet->texture);
     }
+    free(packet->rect);
+    free(packet);
 }
 
 static double _GetSystemTime() {
@@ -309,9 +353,17 @@ static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
 
         // Lock, write to audio buffer, unlock
         Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, pts);
+        bool done = false;
         if(SDL_LockMutex(player->vmutex) == 0) {
-            Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket);
+            if(Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket) == 0) {
+                done = true;
+            }
             SDL_UnlockMutex(player->vmutex);
+        }
+
+        // Unable to write packet, free it.
+        if(!done) {
+            _FreeVideoPacket(vpacket);
         }
     }
 }
@@ -348,7 +400,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
                 &dst_linesize,
                 player->aformat.channels,
                 dst_nb_samples,
-                _FindAVSampleFormat(player->aformat.bytes),
+                _FindAVSampleFormat(player->aformat.format),
                 0);
 
             len2 = swr_convert(
@@ -362,7 +414,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
                 &dst_linesize,
                 player->aformat.channels,
                 len2,
-                _FindAVSampleFormat(player->aformat.bytes), 1);
+                _FindAVSampleFormat(player->aformat.format), 1);
 
             // Get pts
             double pts = 0;
@@ -380,13 +432,136 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
 
             // Lock, write to audio buffer, unlock
             Kit_AudioPacket *apacket = _CreateAudioPacket((char*)dst_data[0], (size_t)dst_bufsize, pts);
+            bool done = false;
             if(SDL_LockMutex(player->amutex) == 0) {
-                Kit_WriteBuffer((Kit_Buffer*)player->abuffer, apacket);
+                if(Kit_WriteBuffer((Kit_Buffer*)player->abuffer, apacket) == 0) {
+                    done = true;
+                } 
                 SDL_UnlockMutex(player->amutex);
+            }
+
+            // Couldn't write packet, free memory
+            if(!done) {
+                _FreeAudioPacket(apacket);
             }
 
             av_freep(&dst_data[0]);
             av_freep(&dst_data);
+        }
+    }
+}
+
+static Kit_SubtitlePacket* _HandleBitmapSubtitle(Kit_Player *player, double pts, AVSubtitle *sub, AVSubtitleRect *rect) {
+    if(rect->nb_colors == 256) {
+        // Paletted image based subtitles. Convert and set palette.
+        SDL_Surface *s = SDL_CreateRGBSurfaceFrom(
+            rect->pict.data[0],
+            rect->w, rect->h, 8,
+            rect->pict.linesize[0],
+            0, 0, 0, 0);
+
+        SDL_SetPaletteColors(s->format->palette, (SDL_Color*)rect->pict.data[1], 0, 256);
+
+        Uint32 rmask, gmask, bmask, amask;
+        #if SDL_BYTEORDER == SDL_BIG_ENDIAN
+            rmask = 0xff000000;
+            gmask = 0x00ff0000;
+            bmask = 0x0000ff00;
+            amask = 0x000000ff;
+        #else
+            rmask = 0x000000ff;
+            gmask = 0x0000ff00;
+            bmask = 0x00ff0000;
+            amask = 0xff000000;
+        #endif
+        SDL_Surface *tmp = SDL_CreateRGBSurface(
+            0, rect->w, rect->h, 32,
+            rmask, gmask, bmask, amask);
+        SDL_BlitSurface(s, NULL, tmp, NULL);
+        SDL_FreeSurface(s);
+
+        SDL_Rect *dst_rect = malloc(sizeof(SDL_Rect));
+        dst_rect->x = rect->x;
+        dst_rect->y = rect->y;
+        dst_rect->w = rect->w;
+        dst_rect->h = rect->h;
+
+        double start = pts + (sub->start_display_time / 1000.0f);
+        double end = -1;
+        if(sub->end_display_time < UINT_MAX) {
+            end = pts + (sub->end_display_time / 1000.0f);
+        }
+
+        return _CreateSubtitlePacket(start, end, dst_rect, tmp);
+    }
+    return NULL;
+}
+
+static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
+    assert(player != NULL);
+    assert(packet != NULL);
+
+    int frame_finished;
+    int len;
+    AVCodecContext *scodec_ctx = (AVCodecContext*)player->scodec_ctx;
+    AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
+    AVSubtitle sub;
+    memset(&sub, 0, sizeof(AVSubtitle));
+
+    if(packet->size > 0) {
+        len = avcodec_decode_subtitle2(scodec_ctx, &sub, &frame_finished, packet);
+        if(len < 0) {
+            return;
+        }
+
+        if(frame_finished) {
+            // Get pts
+            double pts = 0;
+            if(packet->dts != AV_NOPTS_VALUE) {
+                pts = packet->pts;
+                pts *= av_q2d(fmt_ctx->streams[player->src->sstream_idx]->time_base);
+            }
+
+            // Convert subtitles to SDL_Surface and create a packet
+            Kit_SubtitlePacket *spacket = NULL;
+            for(int r = 0; r < sub.num_rects; r++) {
+                AVSubtitleRect *rect = sub.rects[r];
+                switch(rect->type) {
+                    case SUBTITLE_BITMAP: spacket = _HandleBitmapSubtitle(player, pts, &sub, rect); break;
+                    case SUBTITLE_TEXT: break;
+                    case SUBTITLE_ASS: break;
+                    default: break;
+                }
+            }
+
+            // Lock, write to subtitle buffer, unlock
+            if(spacket != NULL) {
+                bool done = false;
+                if(SDL_LockMutex(player->smutex) == 0) {
+
+                    // Clear out old subtitles that should only be valid until next (this) subtitle
+                    unsigned int it = 0;
+                    Kit_SubtitlePacket *tmp = NULL;
+                    while((tmp = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+                        if(tmp->pts_end < 0) {
+                            Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+                        }
+                    }
+
+                    // Add new subtitle
+                    if(Kit_WriteList((Kit_List*)player->sbuffer, spacket) == 0) {
+                        done = true;
+                    }
+
+                    // Unlock subtitle buffer
+                    SDL_UnlockMutex(player->smutex);
+                }
+
+                // Couldn't write packet, free memory
+                if(!done) {
+                    _FreeSubtitlePacket(spacket);
+                }
+            }
         }
     }
 }
@@ -396,19 +571,32 @@ static void _HandlePacket(Kit_Player *player, AVPacket *packet) {
     if(player->vcodec_ctx != NULL && packet->stream_index == player->src->vstream_idx) {
         _HandleVideoPacket(player, packet);
     }
-    if(player->acodec_ctx != NULL && packet->stream_index == player->src->astream_idx) {
+    else if(player->acodec_ctx != NULL && packet->stream_index == player->src->astream_idx) {
         _HandleAudioPacket(player, packet);
+    }
+    else if(player->scodec_ctx != NULL && packet->stream_index == player->src->sstream_idx) {
+        _HandleSubtitlePacket(player, packet);
     }
 }
 
 static void _HandleFlushCommand(Kit_Player *player, Kit_ControlPacket *packet) {
-    if(SDL_LockMutex(player->amutex) == 0) {
-        _FlushAudioBuffer(player);
-        SDL_UnlockMutex(player->amutex);
+    if(player->abuffer != NULL) {
+        if(SDL_LockMutex(player->amutex) == 0) {
+            Kit_ClearBuffer((Kit_Buffer*)player->abuffer);
+            SDL_UnlockMutex(player->amutex);
+        }
     }
-    if(SDL_LockMutex(player->vmutex) == 0) {
-        _FlushVideoBuffer(player);
-        SDL_UnlockMutex(player->vmutex);
+    if(player->vbuffer != NULL) {
+        if(SDL_LockMutex(player->vmutex) == 0) {
+            Kit_ClearBuffer((Kit_Buffer*)player->vbuffer);
+            SDL_UnlockMutex(player->vmutex);
+        }
+    }
+    if(player->sbuffer != NULL) {
+        if(SDL_LockMutex(player->smutex) == 0) {
+            Kit_ClearList((Kit_List*)player->sbuffer);
+            SDL_UnlockMutex(player->smutex);
+        }
     }
 }
 
@@ -550,6 +738,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
 
     AVCodecContext *acodec_ctx = NULL;
     AVCodecContext *vcodec_ctx = NULL;
+    AVCodecContext *scodec_ctx = NULL;
 
     // Initialize codecs
     if(_InitCodecs(player, src) != 0) {
@@ -562,12 +751,13 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->aformat.samplerate = acodec_ctx->sample_rate;
         player->aformat.channels = acodec_ctx->channels;
         player->aformat.is_enabled = true;
+        player->aformat.stream_idx = src->astream_idx;
         _FindAudioFormat(acodec_ctx->sample_fmt, &player->aformat.bytes, &player->aformat.is_signed, &player->aformat.format);
 
         player->swr = swr_alloc_set_opts(
             NULL,
             _FindAVChannelLayout(player->aformat.channels), // Target channel layout
-            _FindAVSampleFormat(player->aformat.bytes), // Target fmt
+            _FindAVSampleFormat(player->aformat.format), // Target fmt
             player->aformat.samplerate, // Target samplerate
             acodec_ctx->channel_layout, // Source channel layout
             acodec_ctx->sample_fmt, // Source fmt
@@ -578,7 +768,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
             goto error;
         }
 
-        player->abuffer = Kit_CreateBuffer(KIT_ABUFFERSIZE);
+        player->abuffer = Kit_CreateBuffer(KIT_ABUFFERSIZE, _FreeAudioPacket);
         if(player->abuffer == NULL) {
             Kit_SetError("Unable to initialize audio ringbuffer");
             goto error;
@@ -597,6 +787,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         player->vformat.is_enabled = true;
         player->vformat.width = vcodec_ctx->width;
         player->vformat.height = vcodec_ctx->height;
+        player->vformat.stream_idx = src->vstream_idx;
         _FindPixelFormat(vcodec_ctx->pix_fmt, &player->vformat.format);
 
         player->sws = sws_getContext(
@@ -613,7 +804,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
             goto error;
         }
 
-        player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE);
+        player->vbuffer = Kit_CreateBuffer(KIT_VBUFFERSIZE, _FreeVideoPacket);
         if(player->vbuffer == NULL) {
             Kit_SetError("Unable to initialize video ringbuffer");
             goto error;
@@ -626,7 +817,20 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         }
     }
 
-    player->cbuffer = Kit_CreateBuffer(KIT_CBUFFERSIZE);
+    // Initialize subtitle codec
+    scodec_ctx = (AVCodecContext*)player->scodec_ctx;
+    if(scodec_ctx != NULL) {
+        player->sformat.is_enabled = true;
+        player->sformat.stream_idx = src->sstream_idx;
+
+        player->sbuffer = Kit_CreateList(KIT_SBUFFERSIZE, _FreeSubtitlePacket);
+        if(player->sbuffer == NULL) {
+            Kit_SetError("Unable to initialize active subtitle list");
+            goto error;
+        }
+    }
+
+    player->cbuffer = Kit_CreateBuffer(KIT_CBUFFERSIZE, _FreeControlPacket);
     if(player->cbuffer == NULL) {
         Kit_SetError("Unable to initialize control ringbuffer");
         goto error;
@@ -650,6 +854,12 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         goto error;
     }
 
+    player->smutex = SDL_CreateMutex();
+    if(player->smutex == NULL) {
+        Kit_SetError("Unable to allocate subtitle buffer mutex");
+        goto error;
+    }
+
     player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
     if(player->dec_thread == NULL) {
         Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
@@ -668,21 +878,21 @@ error:
     if(player->cmutex != NULL) {
         SDL_DestroyMutex(player->cmutex);
     }
+    if(player->smutex != NULL) {
+        SDL_DestroyMutex(player->smutex);
+    }
     if(player->tmp_aframe != NULL) {
         av_frame_free((AVFrame**)&player->tmp_aframe);
     }
     if(player->tmp_vframe != NULL) {
         av_frame_free((AVFrame**)&player->tmp_vframe);
     }
-    if(player->vbuffer != NULL) {
-        Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
-    }
-    if(player->abuffer != NULL) {
-        Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
-    }
-    if(player->cbuffer != NULL) {
-        Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
-    }
+
+    Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
+    Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
+    Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
+    Kit_DestroyList((Kit_List*)player->sbuffer);
+
     if(player->sws != NULL) {
         sws_freeContext((struct SwsContext *)player->sws);
     }
@@ -704,48 +914,43 @@ void Kit_ClosePlayer(Kit_Player *player) {
     SDL_DestroyMutex(player->vmutex);
     SDL_DestroyMutex(player->amutex);
     SDL_DestroyMutex(player->cmutex);
+    SDL_DestroyMutex(player->smutex);
 
-    // Free up the ffmpeg context
+    // Free up converters
     if(player->sws != NULL) {
         sws_freeContext((struct SwsContext *)player->sws);
     }
     if(player->swr != NULL) {
         swr_free((struct SwrContext **)&player->swr);
     }
+
+    // Free temporary frames
     if(player->tmp_vframe != NULL) {
         av_frame_free((AVFrame**)&player->tmp_vframe);
     }
     if(player->tmp_aframe != NULL) {
         av_frame_free((AVFrame**)&player->tmp_aframe);
     }
+
+    // Free contexts
     avcodec_close((AVCodecContext*)player->acodec_ctx);
     avcodec_close((AVCodecContext*)player->vcodec_ctx);
+    avcodec_close((AVCodecContext*)player->scodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->acodec_ctx);
     avcodec_free_context((AVCodecContext**)&player->vcodec_ctx);
+    avcodec_free_context((AVCodecContext**)&player->scodec_ctx);
 
     // Free local audio buffers
-    if(player->cbuffer != NULL) {
-        _FlushControlBuffer(player);
-        Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
-    }
-
-    // Free local audio buffers
-    if(player->abuffer != NULL) {
-        _FlushAudioBuffer(player);
-        Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
-    }
-
-    // Free local video buffers
-    if(player->vbuffer != NULL) {
-        _FlushVideoBuffer(player);
-        Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
-    }
+    Kit_DestroyBuffer((Kit_Buffer*)player->cbuffer);
+    Kit_DestroyBuffer((Kit_Buffer*)player->abuffer);
+    Kit_DestroyBuffer((Kit_Buffer*)player->vbuffer);
+    Kit_DestroyList((Kit_List*)player->sbuffer);
 
     // Free the player structure itself
     free(player);
 }
 
-int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
 
     if(player->src->vstream_idx == -1) {
@@ -821,6 +1026,62 @@ int Kit_RefreshTexture(Kit_Player *player, SDL_Texture *texture) {
         SDL_UnlockMutex(player->vmutex);
     } else {
         Kit_SetError("Unable to lock video buffer mutex");
+        return 1;
+    }
+
+    return 0;
+}
+
+int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
+    assert(player != NULL);
+
+    // If there is no audio stream, don't bother.
+    if(player->src->sstream_idx == -1) {
+        return 0;
+    }
+
+    assert(renderer != NULL);
+
+    // If paused or stopped, do nothing
+    if(player->state == KIT_PAUSED) {
+        return 0;
+    }
+    if(player->state == KIT_STOPPED) {
+        return 0;
+    }
+
+    unsigned int it;
+    Kit_SubtitlePacket *packet = NULL;
+
+    // Current sync timestamp
+    double cur_subtitle_ts = _GetSystemTime() - player->clock_sync;
+
+    // Read a packet from buffer, if one exists. Stop here if not.
+    if(SDL_LockMutex(player->smutex) == 0) {
+        // Check if refresh is required and remove old subtitles
+        it = 0;
+        while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+            fprintf(stderr, "%f -- %f -- %f\n", cur_subtitle_ts, packet->pts_start, packet->pts_end);
+            fflush(stderr);
+            if(packet->pts_end >= 0 && packet->pts_end + SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
+                Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+            }
+        }
+
+        // Render subtitle bitmaps
+        it = 0;
+        while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+            if(packet->texture == NULL) {
+                packet->texture = SDL_CreateTextureFromSurface(renderer, packet->surface);
+                SDL_SetTextureBlendMode(packet->texture, SDL_BLENDMODE_BLEND);
+            }
+            SDL_RenderCopy(renderer, packet->texture, NULL, packet->rect);
+        }
+
+        // Unlock subtitle buffer mutex.
+        SDL_UnlockMutex(player->smutex);
+    } else {
+        Kit_SetError("Unable to lock subtitle buffer mutex");
         return 1;
     }
 
@@ -928,6 +1189,7 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
 
     AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
+    AVCodecContext *scodec_ctx = (AVCodecContext*)player->scodec_ctx;
 
     // Reset everything to 0. We might not fill all fields.
     memset(info, 0, sizeof(Kit_PlayerInfo));
@@ -941,6 +1203,11 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
         strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX-1);
         strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
         memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
+    }
+    if(scodec_ctx != NULL) {
+        strncpy(info->scodec, scodec_ctx->codec->name, KIT_CODECMAX-1);
+        strncpy(info->scodec_name, scodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
+        memcpy(&info->subtitle, &player->sformat, sizeof(Kit_SubtitleFormat));
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/opt.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +24,9 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
         goto exit_0;
     }
 
+    av_opt_set_int(src->format_ctx, "probesize", INT_MAX, 0);
+    av_opt_set_int(src->format_ctx, "analyzeduration", INT_MAX, 0);
+
     // Fetch stream information. This may potentially take a while.
     if(avformat_find_stream_info((AVFormatContext *)src->format_ctx, NULL) < 0) {
         Kit_SetError("Unable to fetch source information");
@@ -32,6 +36,7 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
     // Find best streams for defaults
     src->astream_idx = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
     src->vstream_idx = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO);
+    src->sstream_idx = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE);
     return src;
 
 exit_1:
@@ -80,6 +85,7 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     switch(type) {
         case KIT_STREAMTYPE_VIDEO: avmedia_type = AVMEDIA_TYPE_VIDEO; break;
         case KIT_STREAMTYPE_AUDIO: avmedia_type = AVMEDIA_TYPE_AUDIO; break;
+        case KIT_STREAMTYPE_SUBTITLE: avmedia_type = AVMEDIA_TYPE_SUBTITLE; break;
         default: return -1;
     }
     int ret = av_find_best_stream((AVFormatContext *)src->format_ctx, avmedia_type, -1, -1, NULL, 0);
@@ -98,6 +104,7 @@ int Kit_SetSourceStream(Kit_Source *src, const Kit_StreamType type, int index) {
     switch(type) {
         case KIT_STREAMTYPE_AUDIO: src->astream_idx = index; break;
         case KIT_STREAMTYPE_VIDEO: src->vstream_idx = index; break;
+        case KIT_STREAMTYPE_SUBTITLE: src->sstream_idx = index; break;
         default:
             Kit_SetError("Invalid stream type");
             return 1;
@@ -110,6 +117,7 @@ int Kit_GetSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     switch(type) {
         case KIT_STREAMTYPE_AUDIO: return src->astream_idx;
         case KIT_STREAMTYPE_VIDEO: return src->vstream_idx;
+        case KIT_STREAMTYPE_SUBTITLE: return src->sstream_idx;
         default:
             break;
     }
