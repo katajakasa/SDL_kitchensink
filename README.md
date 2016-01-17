@@ -14,6 +14,7 @@ Features:
 * Automatic audio and video conversion to SDL2 friendly formats
 * Synchronizing video & audio to clock
 * Seeking forwards and backwards
+* Bitmap & libass subtitle support. No text (srt, sub) support yet.
 
 ## 1. Library requirements
 
