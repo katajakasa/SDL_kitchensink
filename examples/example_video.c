@@ -10,7 +10,7 @@
 * It is for example use only!
 */
 
-#define AUDIOBUFFER_SIZE (16384)
+#define AUDIOBUFFER_SIZE (32768)
 
 
 void render_gui(SDL_Renderer *renderer, double percent) {
@@ -207,6 +207,7 @@ int main(int argc, char *argv[]) {
     int size_w = 0, size_h = 0;
     SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
     bool gui_enabled = false;
+    bool fullscreen = false;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -214,6 +215,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Check for events
+        const Uint8 *state;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
                 case SDL_KEYUP:
@@ -243,6 +245,19 @@ int main(int argc, char *argv[]) {
                         if(Kit_PlayerSeek(player, -10.0) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
+                    }
+                    break;
+
+                case SDL_KEYDOWN:
+                    // Find alt+enter
+                    state = SDL_GetKeyboardState(NULL);
+                    if(state[SDL_SCANCODE_RETURN] && state[SDL_SCANCODE_LALT]) {
+                        if(!fullscreen) {
+                            SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        } else {
+                            SDL_SetWindowFullscreen(window, 0);
+                        }
+                        fullscreen = !fullscreen;
                     }
                     break;
 

@@ -27,7 +27,6 @@
 // Threshold is in seconds
 #define VIDEO_SYNC_THRESHOLD 0.01
 #define AUDIO_SYNC_THRESHOLD 0.05
-#define SUBTITLE_SYNC_THRESHOLD 0.05
 
 // Buffersizes
 #define KIT_VBUFFERSIZE 3

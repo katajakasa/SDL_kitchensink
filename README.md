@@ -36,15 +36,14 @@ may or may not work; versions noted here are the only ones tested.
 ```
 sudo apt-get install libsdl2-dev libavcodec-dev libavdevice-dev libavfilter-dev \
 libavformat-dev libavresample-dev libavutil-dev libswresample-dev libswscale-dev \
-libpostproc-dev
+libpostproc-dev libass-dev
 ```
 
 ### 1.2. MSYS2 64bit
 
 These are for x86_64. For 32bit installation, just change the package names a bit .
 ```
-pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg
-
+pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ```
 
 ## 2. Compiling
