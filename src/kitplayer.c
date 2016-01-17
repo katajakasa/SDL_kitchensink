@@ -1061,8 +1061,6 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
         // Check if refresh is required and remove old subtitles
         it = 0;
         while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
-            fprintf(stderr, "%f -- %f -- %f\n", cur_subtitle_ts, packet->pts_start, packet->pts_end);
-            fflush(stderr);
             if(packet->pts_end >= 0 && packet->pts_end + SUBTITLE_SYNC_THRESHOLD < cur_subtitle_ts) {
                 Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
             }
