@@ -56,3 +56,4 @@ addons:
     - libudev-dev
     - cmake
     - cmake-data
+    - libass-dev
