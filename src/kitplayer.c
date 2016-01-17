@@ -530,38 +530,38 @@ static void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
                     case SUBTITLE_BITMAP: spacket = _HandleBitmapSubtitle(player, pts, &sub, rect); break;
                     case SUBTITLE_TEXT: break;
                     case SUBTITLE_ASS: break;
-                    default: break;
+                    case SUBTITLE_NONE: break;
                 }
             }
 
             // Lock, write to subtitle buffer, unlock
-            if(spacket != NULL) {
-                bool done = false;
-                if(SDL_LockMutex(player->smutex) == 0) {
-
-                    // Clear out old subtitles that should only be valid until next (this) subtitle
-                    unsigned int it = 0;
-                    Kit_SubtitlePacket *tmp = NULL;
-                    while((tmp = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
-                        if(tmp->pts_end < 0) {
-                            Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
-                        }
+            bool done = false;
+            if(SDL_LockMutex(player->smutex) == 0) {
+                // Clear out old subtitles that should only be valid until next (this) subtitle
+                unsigned int it = 0;
+                Kit_SubtitlePacket *tmp = NULL;
+                while((tmp = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+                    if(tmp->pts_end < 0) {
+                        Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
                     }
+                }
 
-                    // Add new subtitle
+                // Add new subtitle
+                if(spacket != NULL) {
                     if(Kit_WriteList((Kit_List*)player->sbuffer, spacket) == 0) {
                         done = true;
                     }
-
-                    // Unlock subtitle buffer
-                    SDL_UnlockMutex(player->smutex);
                 }
 
-                // Couldn't write packet, free memory
-                if(!done) {
-                    _FreeSubtitlePacket(spacket);
-                }
+                // Unlock subtitle buffer
+                SDL_UnlockMutex(player->smutex);
             }
+
+            // Couldn't write packet, free memory
+            if(!done && spacket != NULL) {
+                _FreeSubtitlePacket(spacket);
+            }
+
         }
     }
 }
