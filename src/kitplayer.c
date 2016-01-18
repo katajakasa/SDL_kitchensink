@@ -173,32 +173,14 @@ exit_0:
 }
 
 static int reset_libass_track(Kit_Player *player) {
-    Kit_LibraryState *state = Kit_GetLibraryState();
     AVCodecContext *scodec_ctx = player->scodec_ctx;
 
     if(scodec_ctx == NULL) {
         return 0;
     }
 
-    // Free old track
-    if(player->ass_track) {
-        ass_free_track(player->ass_track);
-    }
-
-    // Initialize libass track
-    player->ass_track = ass_new_track(state->libass_handle);
-    if(player->ass_track == NULL) {
-        Kit_SetError("Unable to initialize libass track");
-        return 1;
-    }
-
-    // Set up libass track headers (ffmpeg provides these)
-    if(scodec_ctx->subtitle_header) {
-        ass_process_codec_private(
-            (ASS_Track*)player->ass_track,
-            (char*)scodec_ctx->subtitle_header,
-            scodec_ctx->subtitle_header_size);
-    }
+    // Flush libass track events
+    ass_flush_events(player->ass_track);
     return 0;
 }
 
@@ -1012,8 +994,25 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         // Init libass fonts and window frame size
         ass_set_fonts(player->ass_renderer, NULL, NULL, 1, NULL, 1);
         ass_set_frame_size(player->ass_renderer, vcodec_ctx->width, vcodec_ctx->height);
+        ass_set_storage_size(player->ass_renderer, vcodec_ctx->width, vcodec_ctx->height);
         ass_set_font_scale(player->ass_renderer, 1.1f);
-        reset_libass_track(player);
+        ass_set_hinting(player->ass_renderer, ASS_HINTING_NATIVE);
+        ass_set_pixel_aspect(player->ass_renderer, 16/9);
+
+        // Initialize libass track
+        player->ass_track = ass_new_track(state->libass_handle);
+        if(player->ass_track == NULL) {
+            Kit_SetError("Unable to initialize libass track");
+            goto error;
+        }
+
+        // Set up libass track headers (ffmpeg provides these)
+        if(scodec_ctx->subtitle_header) {
+            ass_process_codec_private(
+                (ASS_Track*)player->ass_track,
+                (char*)scodec_ctx->subtitle_header,
+                scodec_ctx->subtitle_header_size);
+        }
     }
 
     player->cbuffer = Kit_CreateBuffer(KIT_CBUFFERSIZE, _FreeControlPacket);
