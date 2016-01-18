@@ -514,29 +514,21 @@ static void _ProcessAssSubtitleRect(Kit_Player *player, AVSubtitleRect *rect) {
     ass_process_data((ASS_Track*)player->ass_track, rect->ass, strlen(rect->ass));
 }
 
-#define _r(c) ((c)  >> 24)
-#define _g(c) (((c) >> 16) & 0xFF)
-#define _b(c) (((c) >> 8)  & 0xFF)
-#define _a(c) ((c) & 0xFF)
-
 static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     int x, y;
-    unsigned char opacity = 255 - _a(img->color);
-    unsigned char r = _r(img->color);
-    unsigned char g = _g(img->color);
-    unsigned char b = _b(img->color);
+    unsigned char a = ((img->color) & 0xFF);
+    unsigned char r = ((img->color)  >> 24);
+    unsigned char g = (((img->color) >> 16) & 0xFF);
+    unsigned char b = (((img->color) >> 8)  & 0xFF);
+    unsigned char *src = img->bitmap;
+    unsigned char *dst = (unsigned char*)surface->pixels;
 
-    unsigned char *src;
-    unsigned char *dst;
-
-    src = img->bitmap;
-    dst = (unsigned char*)surface->pixels;
     for(y = 0; y < img->h; y++) {
         for(x = 0; x < img->w; x++) {
-            unsigned int k = ((unsigned) src[x]) * opacity / 255;
-            dst[x * 3] = (k * b + (255 - k) * dst[x * 3]) / 255;
-            dst[x * 3 + 1] = (k * g + (255 - k) * dst[x * 3 + 1]) / 255;
-            dst[x * 3 + 2] = (k * r + (255 - k) * dst[x * 3 + 2]) / 255;
+            dst[x * 4 + 0] = src[x] * b / 255.0f;
+            dst[x * 4 + 1] = src[x] * g / 255.0f;
+            dst[x * 4 + 2] = src[x] * r / 255.0f;
+            dst[x * 4 + 3] = src[x] == 255 ? 255 : a / 255.0f;
         }
         src += img->stride;
         dst += surface->pitch;
@@ -992,12 +984,9 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
         }
 
         // Init libass fonts and window frame size
-        ass_set_fonts(player->ass_renderer, NULL, NULL, 1, NULL, 1);
+        ass_set_fonts(player->ass_renderer, NULL, "sans-serif", ASS_FONTPROVIDER_AUTODETECT, NULL, 1);
         ass_set_frame_size(player->ass_renderer, vcodec_ctx->width, vcodec_ctx->height);
-        ass_set_storage_size(player->ass_renderer, vcodec_ctx->width, vcodec_ctx->height);
-        ass_set_font_scale(player->ass_renderer, 1.1f);
-        ass_set_hinting(player->ass_renderer, ASS_HINTING_NATIVE);
-        ass_set_pixel_aspect(player->ass_renderer, 16/9);
+        ass_set_hinting(player->ass_renderer, ASS_HINTING_NONE);
 
         // Initialize libass track
         player->ass_track = ass_new_track(state->libass_handle);
