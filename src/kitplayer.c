@@ -24,6 +24,11 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
+// For compatibility
+#ifndef ASS_FONTPROVIDER_AUTODETECT
+#define ASS_FONTPROVIDER_AUTODETECT 1
+#endif
+
 // Threshold is in seconds
 #define VIDEO_SYNC_THRESHOLD 0.01
 #define AUDIO_SYNC_THRESHOLD 0.05
