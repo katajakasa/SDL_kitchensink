@@ -257,7 +257,10 @@ static enum AVSampleFormat _FindAVSampleFormat(int format) {
 static unsigned int _FindAVChannelLayout(int channels) {
     switch(channels) {
         case 1: return AV_CH_LAYOUT_MONO;
-        default: return AV_CH_LAYOUT_STEREO;
+        case 2: return AV_CH_LAYOUT_STEREO;
+        case 4: return AV_CH_LAYOUT_QUAD;
+        case 6: return AV_CH_LAYOUT_5POINT1;
+        default: return AV_CH_LAYOUT_STEREO_DOWNMIX;
     }
 }
 
@@ -879,7 +882,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     acodec_ctx = (AVCodecContext*)player->acodec_ctx;
     if(acodec_ctx != NULL) {
         player->aformat.samplerate = acodec_ctx->sample_rate;
-        player->aformat.channels = acodec_ctx->channels;
+        player->aformat.channels = acodec_ctx->channels > 2 ? 2 : acodec_ctx->channels;
         player->aformat.is_enabled = true;
         player->aformat.stream_idx = src->astream_idx;
         _FindAudioFormat(acodec_ctx->sample_fmt, &player->aformat.bytes, &player->aformat.is_signed, &player->aformat.format);
