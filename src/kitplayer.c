@@ -853,8 +853,11 @@ static int _DecoderThread(void *ptr) {
 
 static const char * const font_mime[] = {
     "application/x-font-ttf",
+    "application/x-font-truetype",
     "application/x-truetype-font",
+    "application/x-font-opentype",
     "application/vnd.ms-opentype",
+    "application/font-sfnt"
     NULL
 };
 
