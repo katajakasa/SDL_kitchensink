@@ -37,7 +37,7 @@
 #define KIT_VBUFFERSIZE 3
 #define KIT_ABUFFERSIZE 64
 #define KIT_CBUFFERSIZE 8
-#define KIT_SBUFFERSIZE 48
+#define KIT_SBUFFERSIZE 512
 
 typedef enum Kit_ControlPacketType {
     KIT_CONTROL_SEEK,
