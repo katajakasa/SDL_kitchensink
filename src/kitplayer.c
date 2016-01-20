@@ -338,55 +338,62 @@ static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
     AVPicture *iframe = (AVPicture*)player->tmp_vframe;
 
-    avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
-
-    if(frame_finished) {
-        // Target frame
-        AVPicture *oframe = av_malloc(sizeof(AVPicture));
-        avpicture_alloc(
-            oframe,
-            _FindAVPixelFormat(player->vformat.format),
-            vcodec_ctx->width,
-            vcodec_ctx->height);
-
-        // Scale from source format to target format, don't touch the size
-        sws_scale(
-            (struct SwsContext *)player->sws,
-            (const unsigned char * const *)iframe->data,
-            iframe->linesize,
-            0,
-            vcodec_ctx->height,
-            oframe->data,
-            oframe->linesize);
-
-        // Get pts
-        double pts = 0;
-        if(packet->dts != AV_NOPTS_VALUE) {
-            pts = av_frame_get_best_effort_timestamp(player->tmp_vframe);
-            pts *= av_q2d(fmt_ctx->streams[player->src->vstream_idx]->time_base);
+    while(packet->size > 0) {
+        int len = avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
+        if(len < 0) {
+            return;
         }
 
-        // Just seeked, set sync clock & pos.
-        if(player->seek_flag == 1) {
-            player->vclock_pos = pts;
-            player->clock_sync = _GetSystemTime() - pts;
-            player->seek_flag = 0;
-        }
+        if(frame_finished) {
+            // Target frame
+            AVPicture *oframe = av_malloc(sizeof(AVPicture));
+            avpicture_alloc(
+                oframe,
+                _FindAVPixelFormat(player->vformat.format),
+                vcodec_ctx->width,
+                vcodec_ctx->height);
 
-        // Lock, write to audio buffer, unlock
-        Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, pts);
-        bool done = false;
-        if(SDL_LockMutex(player->vmutex) == 0) {
-            if(Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket) == 0) {
-                done = true;
+            // Scale from source format to target format, don't touch the size
+            sws_scale(
+                (struct SwsContext *)player->sws,
+                (const unsigned char * const *)iframe->data,
+                iframe->linesize,
+                0,
+                vcodec_ctx->height,
+                oframe->data,
+                oframe->linesize);
+
+            // Get pts
+            double pts = 0;
+            if(packet->dts != AV_NOPTS_VALUE) {
+                pts = av_frame_get_best_effort_timestamp(player->tmp_vframe);
+                pts *= av_q2d(fmt_ctx->streams[player->src->vstream_idx]->time_base);
             }
-            SDL_UnlockMutex(player->vmutex);
-        }
 
-        // Unable to write packet, free it.
-        if(!done) {
-            _FreeVideoPacket(vpacket);
+            // Just seeked, set sync clock & pos.
+            if(player->seek_flag == 1) {
+                player->vclock_pos = pts;
+                player->clock_sync = _GetSystemTime() - pts;
+                player->seek_flag = 0;
+            }
+
+            // Lock, write to audio buffer, unlock
+            Kit_VideoPacket *vpacket = _CreateVideoPacket(oframe, pts);
+            bool done = false;
+            if(SDL_LockMutex(player->vmutex) == 0) {
+                if(Kit_WriteBuffer((Kit_Buffer*)player->vbuffer, vpacket) == 0) {
+                    done = true;
+                }
+                SDL_UnlockMutex(player->vmutex);
+            }
+
+            // Unable to write packet, free it.
+            if(!done) {
+                _FreeVideoPacket(vpacket);
+            }
         }
+        packet->size -= len;
+        packet->data += len;
     }
 }
 
@@ -404,7 +411,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
     struct SwrContext *swr = (struct SwrContext *)player->swr;
     AVFrame *aframe = (AVFrame*)player->tmp_aframe;
 
-    if(packet->size > 0) {
+    while(packet->size > 0) {
         len = avcodec_decode_audio4(acodec_ctx, aframe, &frame_finished, packet);
         if(len < 0) {
             return;
@@ -470,6 +477,9 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
             av_freep(&dst_data[0]);
             av_freep(&dst_data);
         }
+
+        packet->size -= len;
+        packet->data += len;
     }
 }
 
