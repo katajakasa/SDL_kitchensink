@@ -191,6 +191,11 @@ static int reset_libass_track(Kit_Player *player) {
 
 static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
     switch(fmt) {
+        case AV_PIX_FMT_YUV420P9:
+        case AV_PIX_FMT_YUV420P10:
+        case AV_PIX_FMT_YUV420P12:
+        case AV_PIX_FMT_YUV420P14:
+        case AV_PIX_FMT_YUV420P16:
         case AV_PIX_FMT_YUV420P:
             *out_fmt = SDL_PIXELFORMAT_YV12;
             break;
@@ -857,7 +862,7 @@ static const char * const font_mime[] = {
     "application/x-truetype-font",
     "application/x-font-opentype",
     "application/vnd.ms-opentype",
-    "application/font-sfnt"
+    "application/font-sfnt",
     NULL
 };
 
