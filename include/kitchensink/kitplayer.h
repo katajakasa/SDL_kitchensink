@@ -67,7 +67,7 @@ typedef struct Kit_Player {
     SDL_mutex *cmutex; ///< Control stream buffer lock
 
     // Buffers
-    void *abuffer; ///<Audio stream buffer
+    void *abuffer; ///< Audio stream buffer
     void *vbuffer; ///< Video stream buffer
     void *sbuffer; ///< Subtitle stream buffer
     void *cbuffer; ///< Control stream buffer
