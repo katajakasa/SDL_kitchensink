@@ -61,14 +61,14 @@ Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The fi
 ### 2.1. Building the libraries on Debian/Ubuntu
 
 1. ```mkdir build && cd build```
-2. ```cmake -DCMAKE_BULD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
+2. ```cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
 3. ```make -j```
 4. ```sudo make install```
 
 ### 2.2. Building the libraries on MSYS2
 
 1. ```mkdir build && cd build```
-2. ```cmake -G "MSYS Makefiles" -DCMAKE_BULD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
+2. ```cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
 3. ```make```
 4. ```make install```
 
