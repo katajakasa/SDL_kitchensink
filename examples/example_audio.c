@@ -64,6 +64,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Disable any video and subtitle streams. If we leave these enabled and then don't
+    // clear the buffers for these sometimes, decoding will block.
+    Kit_SetSourceStream(src, KIT_STREAMTYPE_SUBTITLE, -1);
+    Kit_SetSourceStream(src, KIT_STREAMTYPE_VIDEO, -1);
+
     // Print stream information
     Kit_StreamInfo sinfo;
     fprintf(stderr, "Source streams:\n");
@@ -108,6 +113,9 @@ int main(int argc, char *argv[]) {
     wanted_spec.channels = pinfo.audio.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
+
+    // Flush output just in case
+    fflush(stderr);
 
     // Start playback
     Kit_PlayerPlay(player);
