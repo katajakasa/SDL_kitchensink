@@ -470,7 +470,7 @@ static void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
             if(SDL_LockMutex(player->amutex) == 0) {
                 if(Kit_WriteBuffer((Kit_Buffer*)player->abuffer, apacket) == 0) {
                     done = true;
-                } 
+                }
                 SDL_UnlockMutex(player->amutex);
             }
 
@@ -539,19 +539,19 @@ static void _ProcessAssSubtitleRect(Kit_Player *player, AVSubtitleRect *rect) {
 
 static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     int x, y;
-    unsigned char a = ((img->color) & 0xFF);
-    unsigned char r = ((img->color)  >> 24);
-    unsigned char g = (((img->color) >> 16) & 0xFF);
-    unsigned char b = (((img->color) >> 8)  & 0xFF);
+    // libass headers claim img->color is RGBA, but the alpha is 0.
+    unsigned char r = ((img->color) >> 24) & 0xFF;
+    unsigned char g = ((img->color) >> 16) & 0xFF;
+    unsigned char b = ((img->color) >>  8) & 0xFF;
     unsigned char *src = img->bitmap;
     unsigned char *dst = (unsigned char*)surface->pixels;
 
     for(y = 0; y < img->h; y++) {
         for(x = 0; x < img->w; x++) {
-            dst[x * 4 + 0] = src[x] * b / 255.0f;
-            dst[x * 4 + 1] = src[x] * g / 255.0f;
-            dst[x * 4 + 2] = src[x] * r / 255.0f;
-            dst[x * 4 + 3] = src[x] == 255 ? 255 : a / 255.0f;
+            dst[x * 4 + 0] = r;
+            dst[x * 4 + 1] = g;
+            dst[x * 4 + 2] = b;
+            dst[x * 4 + 3] = src[x];
         }
         src += img->stride;
         dst += surface->pitch;
