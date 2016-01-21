@@ -19,7 +19,7 @@ Features:
 ## 1. Library requirements
 
 Build requirements:
-* CMake (>=2.8)
+* CMake (>=3.0)
 * GCC (C99 support required)
 
 Library requirements:
