@@ -295,15 +295,21 @@ int main(int argc, char *argv[]) {
         gui_enabled = (mouse_y >= limit);
 
         // Refresh audio
-        ret = SDL_GetQueuedAudioSize(audio_dev);
-        if(ret < AUDIOBUFFER_SIZE) {
-            ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE, (size_t)ret);
-            if(ret > 0) {
-                SDL_LockAudio();
-                SDL_QueueAudio(audio_dev, audiobuf, ret);
-                SDL_UnlockAudio();
-                SDL_PauseAudioDevice(audio_dev, 0);
+        if(SDL_GetQueuedAudioSize(audio_dev) < AUDIOBUFFER_SIZE) {
+            int need = AUDIOBUFFER_SIZE - ret;
+
+            SDL_LockAudio();
+            while(need > 0) {
+                ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE, (size_t)SDL_GetQueuedAudioSize(audio_dev));
+                need -= ret;
+                if(ret > 0) {
+                    SDL_QueueAudio(audio_dev, audiobuf, ret);
+                } else {
+                    break;
+                }
             }
+            SDL_UnlockAudio();
+            SDL_PauseAudioDevice(audio_dev, 0);
         }
 
         // Clear screen with black

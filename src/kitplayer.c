@@ -1295,7 +1295,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer) {
         SDL_UnlockMutex(player->smutex);
     } else {
         Kit_SetError("Unable to lock subtitle buffer mutex");
-        return 1;
+        return 0;
     }
 
     return 0;
@@ -1376,7 +1376,7 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length, int 
         }
 
         if(length > 0) {
-            ret += Kit_ReadRingBuffer(packet->rb, (char*)buffer, length);
+            ret = Kit_ReadRingBuffer(packet->rb, (char*)buffer, length);
         }
 
         if(Kit_GetRingBufferLength(packet->rb) == 0) {
@@ -1390,7 +1390,7 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length, int 
         SDL_UnlockMutex(player->amutex);
     } else {
         Kit_SetError("Unable to lock audio buffer mutex");
-        ret = 1;
+        return 0;
     }
 
     return ret;
