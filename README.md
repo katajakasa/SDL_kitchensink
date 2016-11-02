@@ -24,7 +24,7 @@ Build requirements:
 
 Library requirements:
 * SDL2 (>=2.0.3) (Note! Examples require 2.0.4!)
-* FFmpeg (>=2.8)
+* FFmpeg (>=3.0)
 * libass
 * CUnit (optional, for unittests)
 
