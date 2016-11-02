@@ -20,7 +20,7 @@ install:
   - ${TRAVIS_BUILD_DIR}/travis/sdl2.sh
   - ${TRAVIS_BUILD_DIR}/travis/ffmpeg.sh
 
-script: if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then cd $TRAVIS_BUILD_DIR && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=On -DBUILD_TESTS=Off . && make; fi
+script: if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then cd $TRAVIS_BUILD_DIR && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/bin/gcc-5 -DBUILD_EXAMPLES=On -DBUILD_TESTS=Off . && make; fi
 
 notifications:
   email: false
@@ -31,7 +31,7 @@ addons:
       name: "katajakasa/SDL_kitchensink"
       description: "A Simple SDL2 / FFmpeg library for audio/video playback written in C99"
     notification_email: katajakasa@gmail.com
-    build_command_prepend: "cov-configure --gcc && cmake -DCMAKE_BUILD_TYPE=Debug ."
+    build_command_prepend: "cov-configure --comptype gcc --compiler /usr/bin/gcc-5 --template && cmake -DCMAKE_C_COMPILER=/usr/bin/gcc-5 -DCMAKE_BUILD_TYPE=Debug ."
     build_command: "make"
     branch_pattern: coverity_scan
   apt:
