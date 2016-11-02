@@ -12,7 +12,8 @@
 #include <libavutil/pixfmt.h>
 #include <libavutil/time.h>
 #include <libavutil/samplefmt.h>
-#include "libavutil/avstring.h"
+#include <libavutil/avstring.h>
+#include <libavutil/imgutils.h>
 
 #include <SDL2/SDL.h>
 #include <ass/ass.h>
@@ -46,7 +47,7 @@ typedef enum Kit_ControlPacketType {
 
 typedef struct Kit_VideoPacket {
     double pts;
-    AVPicture *frame;
+    AVFrame *frame;
 } Kit_VideoPacket;
 
 typedef struct Kit_AudioPacket {
@@ -269,7 +270,7 @@ static unsigned int _FindAVChannelLayout(int channels) {
     }
 }
 
-static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
+static Kit_VideoPacket* _CreateVideoPacket(AVFrame *frame, double pts) {
     Kit_VideoPacket *p = calloc(1, sizeof(Kit_VideoPacket));
     p->frame = frame;
     p->pts = pts;
@@ -278,8 +279,8 @@ static Kit_VideoPacket* _CreateVideoPacket(AVPicture *frame, double pts) {
 
 static void _FreeVideoPacket(void *ptr) {
     Kit_VideoPacket *packet = ptr;
-    avpicture_free(packet->frame);
-    av_free(packet->frame);
+    av_freep(&packet->frame->data[0]);
+    av_frame_free(&packet->frame);
     free(packet);
 }
 
@@ -341,22 +342,24 @@ static void _HandleVideoPacket(Kit_Player *player, AVPacket *packet) {
     int frame_finished;
     AVCodecContext *vcodec_ctx = (AVCodecContext*)player->vcodec_ctx;
     AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
-    AVPicture *iframe = (AVPicture*)player->tmp_vframe;
+    AVFrame *iframe = player->tmp_vframe;
 
     while(packet->size > 0) {
-        int len = avcodec_decode_video2(vcodec_ctx, (AVFrame*)player->tmp_vframe, &frame_finished, packet);
+        int len = avcodec_decode_video2(vcodec_ctx, player->tmp_vframe, &frame_finished, packet);
         if(len < 0) {
             return;
         }
 
         if(frame_finished) {
             // Target frame
-            AVPicture *oframe = av_malloc(sizeof(AVPicture));
-            avpicture_alloc(
-                oframe,
-                _FindAVPixelFormat(player->vformat.format),
+            AVFrame *oframe = av_frame_alloc();
+            av_image_alloc(
+                oframe->data,
+                oframe->linesize,
                 vcodec_ctx->width,
-                vcodec_ctx->height);
+                vcodec_ctx->height,
+                _FindAVPixelFormat(player->vformat.format),
+                1);
 
             // Scale from source format to target format, don't touch the size
             sws_scale(
@@ -492,12 +495,12 @@ static void _HandleBitmapSubtitle(Kit_SubtitlePacket** spackets, int *n, Kit_Pla
     if(rect->nb_colors == 256) {
         // Paletted image based subtitles. Convert and set palette.
         SDL_Surface *s = SDL_CreateRGBSurfaceFrom(
-            rect->pict.data[0],
+            rect->data[0],
             rect->w, rect->h, 8,
-            rect->pict.linesize[0],
+            rect->linesize[0],
             0, 0, 0, 0);
 
-        SDL_SetPaletteColors(s->format->palette, (SDL_Color*)rect->pict.data[1], 0, 256);
+        SDL_SetPaletteColors(s->format->palette, (SDL_Color*)rect->data[1], 0, 256);
 
         Uint32 rmask, gmask, bmask, amask;
         #if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -812,7 +815,7 @@ static int _UpdatePlayer(Kit_Player *player) {
         return 1;
     }
     _HandlePacket(player, &packet);
-    av_free_packet(&packet);
+    av_packet_unref(&packet);
     return -1;
 }
 
