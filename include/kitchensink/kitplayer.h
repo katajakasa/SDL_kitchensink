@@ -3,6 +3,7 @@
 
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kitconfig.h"
+#include "kitchensink/kitformats.h"
 
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_thread.h>
@@ -23,29 +24,6 @@ typedef enum Kit_PlayerState {
     KIT_PAUSED, ///< Playback paused; player is actively decoding but no new data is given out.
     KIT_CLOSED ///< Playback is stopped and player is closing.
 } Kit_PlayerState;
-
-typedef struct Kit_AudioFormat {
-    int stream_idx; ///< Stream index
-    bool is_enabled; ///< Is stream enabled
-    unsigned int format; ///< SDL Audio Format
-    bool is_signed; ///< Signedness
-    int bytes; ///< Bytes per sample per channel
-    int samplerate; ///< Sampling rate
-    int channels; ///< Channels
-} Kit_AudioFormat;
-
-typedef struct Kit_VideoFormat {
-    int stream_idx; ///< Stream index
-    bool is_enabled; ///< Is stream enabled
-    unsigned int format; ///< SDL Pixel Format
-    int width; ///< Width in pixels
-    int height; ///< Height in pixels
-} Kit_VideoFormat;
-
-typedef struct Kit_SubtitleFormat {
-    int stream_idx; ///< Stream index
-    bool is_enabled; ///< Is stream enabled
-} Kit_SubtitleFormat;
 
 typedef struct Kit_Player {
     // Local state
