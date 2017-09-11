@@ -2,13 +2,14 @@ cmake_minimum_required(VERSION 3.0)
 project(SDL_kitchensink C)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-set(VERSION_MAJOR "0")
-set(VERSION_MINOR "0")
-set(VERSION_PATCH "6")
+set(KIT_VERSION_MAJOR "0")
+set(KIT_VERSION_MINOR "0")
+set(KIT_VERSION_PATCH "6")
+set(KIT_VERSION ${KIT_VERSION_MAJOR}.${KIT_VERSION_MINOR}.${KIT_VERSION_PATCH})
 add_definitions(
-    -DKIT_VERSION_MAJOR=${VERSION_MAJOR}
-    -DKIT_VERSION_MINOR=${VERSION_MINOR}
-    -DKIT_VERSION_PATCH=${VERSION_PATCH}
+    -DKIT_VERSION_MAJOR=${KIT_VERSION_MAJOR}
+    -DKIT_VERSION_MINOR=${KIT_VERSION_MINOR}
+    -DKIT_VERSION_PATCH=${KIT_VERSION_PATCH}
 )
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
@@ -41,6 +42,8 @@ FILE(GLOB HEADERS "include/kitchensink/*.h")
 add_library(SDL_kitchensink SHARED ${SOURCES})
 add_library(SDL_kitchensink_static STATIC ${SOURCES})
 
+set_target_properties(SDL_kitchensink PROPERTIES VERSION ${KIT_VERSION})
+set_target_properties(SDL_kitchensink PROPERTIES SOVERSION ${KIT_VERSION_MAJOR})
 set_target_properties(SDL_kitchensink PROPERTIES DEBUG_POSTFIX "d")
 set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
 target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
