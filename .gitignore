@@ -31,6 +31,9 @@
 # Debug files
 *.dSYM/
 
+# VSCode
+.vscode
+
 # Other
 build/
 doc/doxygen_sqlite3.db
