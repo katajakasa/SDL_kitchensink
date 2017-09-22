@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.1)
 project(SDL_kitchensink C)
 include(GNUInstallDirs)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -47,8 +47,8 @@ if(USE_ASS)
     set(INCLUDES ${INCLUDES} ${ASS_INCLUDE_DIRS})
 endif()
 
-FILE(GLOB SOURCES "src/*.c")
-FILE(GLOB HEADERS "include/kitchensink/*.h")
+FILE(GLOB_RECURSE SOURCES "src/*.c")
+FILE(GLOB INSTALL_HEADERS "include/kitchensink/*.h")
 
 add_library(SDL_kitchensink SHARED ${SOURCES})
 add_library(SDL_kitchensink_static STATIC ${SOURCES})
@@ -100,7 +100,7 @@ endif()
 
 # Installation
 install(FILES ${PKG_CONFIG_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
-install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitchensink)
+install(FILES ${INSTALL_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitchensink)
 INSTALL(TARGETS SDL_kitchensink SDL_kitchensink_static
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

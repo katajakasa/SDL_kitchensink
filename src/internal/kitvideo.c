@@ -11,7 +11,6 @@
 #include "kitchensink/internal/kitvideo.h"
 #include "kitchensink/internal/kitlog.h"
 
-#define KIT_VIDEO_IN_SIZE 32
 #define KIT_VIDEO_OUT_SIZE 1
 #define VIDEO_SYNC_THRESHOLD 0.01
 
@@ -152,7 +151,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *form
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
         src, src->video_stream_index,
-        KIT_VIDEO_IN_SIZE, KIT_VIDEO_OUT_SIZE,
+        KIT_VIDEO_OUT_SIZE,
         free_out_video_packet_cb);
     if(dec == NULL) {
         goto exit_0;

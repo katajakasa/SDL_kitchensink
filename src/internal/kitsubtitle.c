@@ -15,8 +15,7 @@
 #define ASS_FONTPROVIDER_AUTODETECT 1
 #endif
 
-#define KIT_SUBTITLE_IN_SIZE 64
-#define KIT_SUBTITLE_OUT_SIZE 64
+#define KIT_SUBTITLE_OUT_SIZE 512
 
 typedef struct Kit_SubtitleDecoder {
     Kit_SubtitleFormat *format;
@@ -317,7 +316,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
         src, src->subtitle_stream_index,
-        KIT_SUBTITLE_IN_SIZE, KIT_SUBTITLE_OUT_SIZE,
+        KIT_SUBTITLE_OUT_SIZE,
         free_out_subtitle_packet_cb);
     if(dec == NULL) {
         goto exit_0;

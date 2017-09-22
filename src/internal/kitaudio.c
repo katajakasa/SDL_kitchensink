@@ -14,7 +14,6 @@
 #include "kitchensink/internal/kitringbuffer.h"
 #include "kitchensink/internal/kitlog.h"
 
-#define KIT_AUDIO_IN_SIZE 32
 #define KIT_AUDIO_OUT_SIZE 16
 #define AUDIO_SYNC_THRESHOLD 0.05
 
@@ -37,12 +36,6 @@ Kit_AudioPacket* _CreateAudioPacket(const char* data, size_t len, double pts) {
     Kit_WriteRingBuffer(p->rb, data, len);
     p->pts = pts;
     return p;
-}
-
-void _FreeAudioPacket(void *ptr) {
-    Kit_AudioPacket *packet = ptr;
-    Kit_DestroyRingBuffer(packet->rb);
-    free(packet);
 }
 
 enum AVSampleFormat _FindAVSampleFormat(int format) {
@@ -190,7 +183,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_AudioFormat *form
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
         src, src->audio_stream_index,
-        KIT_AUDIO_IN_SIZE, KIT_AUDIO_OUT_SIZE,
+        KIT_AUDIO_OUT_SIZE,
         free_out_audio_packet_cb);
     if(dec == NULL) {
         goto exit_0;

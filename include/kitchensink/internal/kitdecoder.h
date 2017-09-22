@@ -37,8 +37,7 @@ KIT_LOCAL struct Kit_Decoder {
 };
 
 KIT_LOCAL Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
-                                         int in_b_size, int out_b_size,
-                                         dec_free_packet_cb free_out_cb);
+                                         int out_b_size, dec_free_packet_cb free_out_cb);
 KIT_LOCAL void Kit_SetDecoderClockSync(Kit_Decoder *dec, double sync);
 KIT_LOCAL void Kit_ChangeDecoderClockSync(Kit_Decoder *dec, double sync);
 KIT_LOCAL bool Kit_CanWriteDecoderInput(Kit_Decoder *dec);
