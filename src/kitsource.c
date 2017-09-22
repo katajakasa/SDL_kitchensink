@@ -34,9 +34,9 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
     }
 
     // Find best streams for defaults
-    src->astream_idx = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
-    src->vstream_idx = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO);
-    src->sstream_idx = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE);
+    src->audio_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
+    src->video_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO);
+    src->subtitle_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE);
     return src;
 
 exit_1:
@@ -102,9 +102,9 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
 int Kit_SetSourceStream(Kit_Source *src, const Kit_StreamType type, int index) {
     assert(src != NULL);
     switch(type) {
-        case KIT_STREAMTYPE_AUDIO: src->astream_idx = index; break;
-        case KIT_STREAMTYPE_VIDEO: src->vstream_idx = index; break;
-        case KIT_STREAMTYPE_SUBTITLE: src->sstream_idx = index; break;
+        case KIT_STREAMTYPE_AUDIO: src->audio_stream_index = index; break;
+        case KIT_STREAMTYPE_VIDEO: src->video_stream_index = index; break;
+        case KIT_STREAMTYPE_SUBTITLE: src->subtitle_stream_index = index; break;
         default:
             Kit_SetError("Invalid stream type");
             return 1;
@@ -115,9 +115,9 @@ int Kit_SetSourceStream(Kit_Source *src, const Kit_StreamType type, int index) {
 int Kit_GetSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     assert(src != NULL);
     switch(type) {
-        case KIT_STREAMTYPE_AUDIO: return src->astream_idx;
-        case KIT_STREAMTYPE_VIDEO: return src->vstream_idx;
-        case KIT_STREAMTYPE_SUBTITLE: return src->sstream_idx;
+        case KIT_STREAMTYPE_AUDIO: return src->audio_stream_index;
+        case KIT_STREAMTYPE_VIDEO: return src->video_stream_index;
+        case KIT_STREAMTYPE_SUBTITLE: return src->subtitle_stream_index;
         default:
             break;
     }

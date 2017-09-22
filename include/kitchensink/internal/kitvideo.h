@@ -1,22 +1,12 @@
 #ifndef KITVIDEO_H
 #define KITVIDEO_H
 
-#include <libavformat/avformat.h>
-
 #include "kitchensink/kitconfig.h"
+#include "kitchensink/kitformats.h"
 #include "kitchensink/kitplayer.h"
+#include "kitchensink/internal/kitdecoder.h"
 
-#define KIT_VBUFFERSIZE 3
-
-typedef struct Kit_VideoPacket {
-    double pts;
-    AVFrame *frame;
-} Kit_VideoPacket;
-
-KIT_LOCAL Kit_VideoPacket* _CreateVideoPacket(AVFrame *frame, double pts);
-KIT_LOCAL void _FreeVideoPacket(void *ptr);
-KIT_LOCAL void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt);
-KIT_LOCAL enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt);
-KIT_LOCAL void _HandleVideoPacket(Kit_Player *player, AVPacket *packet);
+KIT_LOCAL Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *format);
+KIT_LOCAL int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture);
 
 #endif // KITVIDEO_H

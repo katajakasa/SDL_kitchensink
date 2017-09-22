@@ -2,12 +2,38 @@
 
 #include <SDL2/SDL.h>
 #include <ass/ass.h>
+#include <libavformat/avformat.h>
 
+#include "kitchensink/kiterror.h"
+#include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/kitsubtitle.h"
 #include "kitchensink/internal/kitlist.h"
+#include "kitchensink/internal/kithelpers.h"
 
+// For compatibility
+#ifndef ASS_FONTPROVIDER_AUTODETECT
+#define ASS_FONTPROVIDER_AUTODETECT 1
+#endif
 
-Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_Rect *rect, SDL_Surface *surface) {
+#define KIT_SUBTITLE_IN_SIZE 64
+#define KIT_SUBTITLE_OUT_SIZE 64
+
+typedef struct Kit_SubtitleDecoder {
+    Kit_SubtitleFormat *format;
+    ASS_Renderer *ass_renderer;
+    ASS_Track *ass_track;
+} Kit_SubtitleDecoder;
+
+typedef struct Kit_SubtitlePacket {
+    double pts_start;
+    double pts_end;
+    SDL_Rect *rect;
+    SDL_Surface *surface;
+    SDL_Texture *texture;
+} Kit_SubtitlePacket;
+
+/*
+static Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_Rect *rect, SDL_Surface *surface) {
     Kit_SubtitlePacket *p = calloc(1, sizeof(Kit_SubtitlePacket));
     p->pts_start = pts_start;
     p->pts_end = pts_end;
@@ -17,15 +43,6 @@ Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_
     return p;
 }
 
-void _FreeSubtitlePacket(void *ptr) {
-    Kit_SubtitlePacket *packet = ptr;
-    SDL_FreeSurface(packet->surface);
-    if(packet->texture) {
-        SDL_DestroyTexture(packet->texture);
-    }
-    free(packet->rect);
-    free(packet);
-}
 
 void _HandleBitmapSubtitle(Kit_SubtitlePacket** spackets, int *n, Kit_Player *player, double pts, AVSubtitle *sub, AVSubtitleRect *rect) {
     if(rect->nb_colors == 256) {
@@ -163,7 +180,7 @@ void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
         if(frame_finished) {
             // Get pts
             double pts = 0;
-            if(packet->dts != AV_NOPTS_VALUE) {
+            if(packet->pts != AV_NOPTS_VALUE) {
                 pts = packet->pts;
                 pts *= av_q2d(fmt_ctx->streams[player->src->sstream_idx]->time_base);
             }
@@ -231,4 +248,199 @@ void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet) {
             }
         }
     }
+}
+*/
+
+static void free_out_subtitle_packet_cb(void *packet) {
+    Kit_SubtitlePacket *p = packet;
+    SDL_FreeSurface(p->surface);
+    if(p->texture) {
+        SDL_DestroyTexture(p->texture);
+    }
+    free(p->rect);
+    free(p);
+}
+
+static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+    assert(dec != NULL);
+    assert(in_packet != NULL);
+
+    int frame_finished;
+    int len;
+
+    AVSubtitle sub;
+    memset(&sub, 0, sizeof(AVSubtitle));
+
+    if(in_packet->size > 0) {
+        len = avcodec_decode_subtitle2(dec->codec_ctx, &sub, &frame_finished, in_packet);
+        if(len < 0) {
+            return 1;
+        }
+
+        if(frame_finished) {
+            // Get pts
+            double pts = 0;
+            if(in_packet->dts != AV_NOPTS_VALUE) {
+                pts = in_packet->pts;
+                pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
+            }
+
+
+            // TODO: Implement more stuff
+        }
+    }
+
+    return 1;
+}
+
+static void dec_close_subtitle_cb(Kit_Decoder *dec) {
+    if(dec == NULL) return;
+
+    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    /*
+    if(subtitle_dec->ass_track != NULL) {
+        ass_free_track(subtitle_dec->ass_track);
+    }
+    if(subtitle_dec->ass_renderer != NULL) {
+        ass_renderer_done(subtitle_dec->ass_renderer);
+    }*/
+    free(subtitle_dec);
+}
+
+Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat *format, int w, int h) {
+    assert(src != NULL);
+    assert(format != NULL);
+    if(src->subtitle_stream_index < 0) {
+        return NULL;
+    }
+
+    // First the generic decoder component ...
+    Kit_Decoder *dec = Kit_CreateDecoder(
+        src, src->subtitle_stream_index,
+        KIT_SUBTITLE_IN_SIZE, KIT_SUBTITLE_OUT_SIZE,
+        free_out_subtitle_packet_cb);
+    if(dec == NULL) {
+        goto exit_0;
+    }
+
+    // Find formats
+    format->is_enabled = true;
+    format->stream_index = src->subtitle_stream_index;
+
+    // ... then allocate the subtitle decoder
+    Kit_SubtitleDecoder *subtitle_dec = calloc(1, sizeof(Kit_SubtitleDecoder));
+    if(subtitle_dec == NULL) {
+        goto exit_1;
+    }
+
+    /*
+    // Initialize libass renderer
+    Kit_LibraryState *state = Kit_GetLibraryState();
+    subtitle_dec->ass_renderer = ass_renderer_init(state->libass_handle);
+    if(subtitle_dec->ass_renderer == NULL) {
+        Kit_SetError("Unable to initialize libass renderer");
+        goto exit_2;
+    }
+
+    // Read fonts from attachment streams and give them to libass
+    AVFormatContext *format_ctx = src->format_ctx;
+    for (int j = 0; j < format_ctx->nb_streams; j++) {
+        AVStream *st = format_ctx->streams[j];
+        if(st->codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
+            const AVDictionaryEntry *tag = av_dict_get(
+                st->metadata,
+                "filename",
+                NULL,
+                AV_DICT_MATCH_CASE);
+            if(tag) {
+                ass_add_font(
+                    state->libass_handle,
+                    tag->value, 
+                    (char*)st->codec->extradata,
+                    st->codec->extradata_size);
+            }
+        }
+    }
+
+    // Init libass fonts and window frame size
+    ass_set_fonts(
+        subtitle_dec->ass_renderer,
+        NULL, "sans-serif",
+        ASS_FONTPROVIDER_AUTODETECT,
+        NULL, 1);
+    ass_set_frame_size(subtitle_dec->ass_renderer, w, h);
+    ass_set_hinting(subtitle_dec->ass_renderer, ASS_HINTING_NONE);
+
+    // Initialize libass track
+    subtitle_dec->ass_track = ass_new_track(state->libass_handle);
+    if(subtitle_dec->ass_track == NULL) {
+        Kit_SetError("Unable to initialize libass track");
+        goto exit_3;
+    }
+
+    // Set up libass track headers (ffmpeg provides these)
+    if(dec->codec_ctx->subtitle_header) {
+        ass_process_codec_private(
+            subtitle_dec->ass_track,
+            (char*)dec->codec_ctx->subtitle_header,
+            dec->codec_ctx->subtitle_header_size);
+    }*/
+
+    // Set callbacks and userdata, and we're go
+    subtitle_dec->format = format;
+    dec->dec_decode = dec_decode_subtitle_cb;
+    dec->dec_close = dec_close_subtitle_cb;
+    dec->userdata = subtitle_dec;
+    return dec;
+
+//exit_3:
+    //ass_renderer_done(subtitle_dec->ass_renderer);
+//exit_2:
+    //free(subtitle_dec);
+exit_1:
+    Kit_CloseDecoder(dec);
+exit_0:
+    return NULL;
+}
+
+int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Renderer *renderer) {
+    assert(dec != NULL);
+    assert(renderer != NULL);
+
+
+/*
+    unsigned int it;
+    Kit_SubtitlePacket *packet = NULL;
+
+    // Current sync timestamp
+    double cur_subtitle_ts = _GetSystemTime() - player->clock_sync;
+
+    // Read a packet from buffer, if one exists. Stop here if not.
+    if(SDL_LockMutex(player->smutex) == 0) {
+        // Check if refresh is required and remove old subtitles
+        it = 0;
+        while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+            if(packet->pts_end >= 0 && packet->pts_end < cur_subtitle_ts) {
+                Kit_RemoveFromList((Kit_List*)player->sbuffer, it);
+            }
+        }
+
+        // Render subtitle bitmaps
+        it = 0;
+        while((packet = Kit_IterateList((Kit_List*)player->sbuffer, &it)) != NULL) {
+            if(packet->texture == NULL) {
+                packet->texture = SDL_CreateTextureFromSurface(renderer, packet->surface);
+                SDL_SetTextureBlendMode(packet->texture, SDL_BLENDMODE_BLEND);
+            }
+            SDL_RenderCopy(renderer, packet->texture, NULL, packet->rect);
+        }
+
+        // Unlock subtitle buffer mutex.
+        SDL_UnlockMutex(player->smutex);
+    } else {
+        Kit_SetError("Unable to lock subtitle buffer mutex");
+        return 0;
+    }
+*/
+    return 0;
 }

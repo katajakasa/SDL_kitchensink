@@ -1,24 +1,14 @@
 #ifndef KITSUBTITLE_H
 #define KITSUBTITLE_H
 
-#include <libavformat/avformat.h>
+#include <SDL2/SDL_render.h>
 
 #include "kitchensink/kitconfig.h"
+#include "kitchensink/kitformats.h"
 #include "kitchensink/kitplayer.h"
+#include "kitchensink/internal/kitdecoder.h"
 
-#define KIT_SBUFFERSIZE 512
-
-typedef struct Kit_SubtitlePacket {
-    double pts_start;
-    double pts_end;
-    SDL_Rect *rect;
-    SDL_Surface *surface;
-    SDL_Texture *texture;
-} Kit_SubtitlePacket;
-
-KIT_LOCAL Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_Rect *rect, SDL_Surface *surface);
-KIT_LOCAL void _FreeSubtitlePacket(void *ptr);
-KIT_LOCAL void _HandleBitmapSubtitle(Kit_SubtitlePacket** spackets, int *n, Kit_Player *player, double pts, AVSubtitle *sub, AVSubtitleRect *rect);
-KIT_LOCAL void _HandleSubtitlePacket(Kit_Player *player, AVPacket *packet);
+KIT_LOCAL Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat *format, int w, int h);
+KIT_LOCAL int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Renderer *renderer);
 
 #endif // KITSUBTITLE_H

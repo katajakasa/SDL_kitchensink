@@ -20,21 +20,31 @@ set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_TESTS "Build unittests" OFF)
+option(USE_ASS "Use libass" ON)
 
 find_package(SDL2)
-find_package(ass)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
+
+set(LIBRARIES
+    ${SDL2_LIBRARIES}
+    ${FFMPEG_LIBRARIES}
+)
+set(INCLUDES
+    include/
+    ${SDL2_INCLUDE_DIRS}
+    ${FFMPEG_INCLUDE_DIRS}
+)
 
 if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-include_directories(
-    include/
-    ${SDL2_INCLUDE_DIRS}
-    ${FFMPEG_INCLUDE_DIRS}
-    ${ASS_INCLUDE_DIRS}
-)
+if(USE_ASS)
+    find_package(ass)
+    add_definitions(-DUSE_ASS)
+    set(LIBRARIES ${LIBRARIES} ${ASS_LIBRARIES})
+    set(INCLUDES ${INCLUDES} ${ASS_INCLUDE_DIRS})
+endif()
 
 FILE(GLOB SOURCES "src/*.c")
 FILE(GLOB HEADERS "include/kitchensink/*.h")
@@ -44,16 +54,15 @@ add_library(SDL_kitchensink_static STATIC ${SOURCES})
 
 set_target_properties(SDL_kitchensink PROPERTIES VERSION ${KIT_VERSION})
 set_target_properties(SDL_kitchensink PROPERTIES SOVERSION ${KIT_VERSION_MAJOR})
+
 set_target_properties(SDL_kitchensink PROPERTIES DEBUG_POSTFIX "d")
 set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
+
 target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
 target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 
-target_link_libraries(SDL_kitchensink
-    ${SDL2_LIBRARIES}
-    ${FFMPEG_LIBRARIES}
-    ${ASS_LIBRARIES}
-)
+include_directories(${INCLUDES})
+target_link_libraries(SDL_kitchensink ${LIBRARIES})
 
 if(BUILD_EXAMPLES)
     add_executable(exampleaudio examples/example_audio.c)
@@ -66,15 +75,11 @@ if(BUILD_EXAMPLES)
 
     target_link_libraries(exampleaudio
         SDL_kitchensink_static
-        ${SDL2_LIBRARIES}
-        ${FFMPEG_LIBRARIES}
-        ${ASS_LIBRARIES}
+        ${LIBRARIES}
     )
     target_link_libraries(examplevideo
         SDL_kitchensink_static
-        ${SDL2_LIBRARIES}
-        ${FFMPEG_LIBRARIES}
-        ${ASS_LIBRARIES}
+        ${LIBRARIES}
     )
 endif()
 

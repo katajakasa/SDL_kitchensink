@@ -24,10 +24,10 @@ int Kit_Init(unsigned int flags) {
     state->init_flags = flags;
 
     // Init libass
-    state->libass_handle = ass_library_init();
+    //state->libass_handle = ass_library_init();
 
     // Make libass message spam go away
-    ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
+    //ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     
     return 0;
 }
@@ -40,7 +40,7 @@ void Kit_Quit() {
     }
     state->init_flags = 0;
 
-    ass_library_done(state->libass_handle);
+    //ass_library_done(state->libass_handle);
 }
 
 void Kit_GetVersion(Kit_Version *version) {

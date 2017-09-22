@@ -8,6 +8,7 @@
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_thread.h>
 #include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_mutex.h>
 
 #include <stdbool.h>
 
@@ -26,47 +27,17 @@ typedef enum Kit_PlayerState {
 } Kit_PlayerState;
 
 typedef struct Kit_Player {
-    // Local state
-    Kit_PlayerState state; ///< Playback state
-    Kit_VideoFormat vformat; ///< Video format information
-    Kit_AudioFormat aformat; ///< Audio format information
+    Kit_PlayerState state;      ///< Playback state
+    Kit_VideoFormat vformat;    ///< Video format information
+    Kit_AudioFormat aformat;    ///< Audio format information
     Kit_SubtitleFormat sformat; ///< Subtitle format information
-
-    // Synchronization
-    double clock_sync; ///< Clock sync point
-    double pause_start; ///< Timestamp of pause beginning
-    double vclock_pos; ///< Video stream last pts
-
-    // Threading
-    SDL_Thread *dec_thread; ///< Decoder thread
-    SDL_mutex *vmutex; ///< Video stream buffer lock
-    SDL_mutex *amutex; ///< Audio stream buffer lock
-    SDL_mutex *smutex; ///< Subtitle stream buffer lock
-    SDL_mutex *cmutex; ///< Control stream buffer lock
-
-    // Buffers
-    void *abuffer; ///< Audio stream buffer
-    void *vbuffer; ///< Video stream buffer
-    void *sbuffer; ///< Subtitle stream buffer
-    void *cbuffer; ///< Control stream buffer
-
-    // FFmpeg internal state
-    void *vcodec_ctx; ///< FFmpeg: Video codec context
-    void *acodec_ctx; ///< FFmpeg: Audio codec context
-    void *scodec_ctx; ///< FFmpeg: Subtitle codec context
-    void *tmp_vframe; ///< FFmpeg: Preallocated temporary video frame
-    void *tmp_aframe; ///< FFmpeg: Preallocated temporary audio frame
-    void *tmp_sframe; ///< FFmpeg: Preallocated temporary subtitle frame
-    void *swr; ///< FFmpeg: Audio resampler
-    void *sws; ///< FFmpeg: Video converter
-
-    // libass
-    void *ass_renderer;
-    void *ass_track;
-
-    // Other
-    uint8_t seek_flag;
-    const Kit_Source *src; ///< Reference to Audio/Video source
+    void *audio_dec;            ///< Audio decoder context (or NULL)
+    void *video_dec;            ///< Video decoder context (or NULL)
+    void *subtitle_dec;         ///< Subtitle decoder context (or NULL)
+    SDL_Thread *dec_thread;     ///< Decoder thread
+    SDL_mutex *dec_lock;        ///< Decoder lock
+    const Kit_Source *src;      ///< Reference to Audio/Video source
+    double pause_started;       ///< Temporary flag for handling pauses
 } Kit_Player;
 
 typedef struct Kit_PlayerInfo {

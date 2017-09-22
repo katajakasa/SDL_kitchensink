@@ -1,12 +1,34 @@
 #include <assert.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
+#include <libavformat/avformat.h>
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
 #include <SDL2/SDL.h>
 
+#include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kithelpers.h"
 #include "kitchensink/internal/kitbuffer.h"
 #include "kitchensink/internal/kitaudio.h"
+#include "kitchensink/internal/kitringbuffer.h"
+#include "kitchensink/internal/kitlog.h"
+
+#define KIT_AUDIO_IN_SIZE 32
+#define KIT_AUDIO_OUT_SIZE 16
+#define AUDIO_SYNC_THRESHOLD 0.05
+
+typedef struct Kit_AudioDecoder {
+    Kit_AudioFormat *format;
+    SwrContext *swr;
+    AVFrame *scratch_frame;
+} Kit_AudioDecoder;
+
+typedef struct Kit_AudioPacket {
+    double pts;
+    size_t original_size;
+    Kit_RingBuffer *rb;
+} Kit_AudioPacket;
 
 
 Kit_AudioPacket* _CreateAudioPacket(const char* data, size_t len, double pts) {
@@ -33,7 +55,7 @@ enum AVSampleFormat _FindAVSampleFormat(int format) {
     }
 }
 
-unsigned int _FindAVChannelLayout(int channels) {
+int64_t _FindAVChannelLayout(int channels) {
     switch(channels) {
         case 1: return AV_CH_LAYOUT_MONO;
         case 2: return AV_CH_LAYOUT_STEREO;
@@ -68,88 +90,217 @@ void _FindAudioFormat(enum AVSampleFormat fmt, int *bytes, bool *is_signed, unsi
     }
 }
 
-void _HandleAudioPacket(Kit_Player *player, AVPacket *packet) {
-    assert(player != NULL);
-    assert(packet != NULL);
+static void free_out_audio_packet_cb(void *packet) {
+    Kit_AudioPacket *p = packet;
+    Kit_DestroyRingBuffer(p->rb);
+    free(p);
+}
 
+static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+    assert(dec != NULL);
+    assert(in_packet != NULL);
+
+    Kit_AudioDecoder *audio_dec = dec->userdata;
     int frame_finished;
     int len, len2;
     int dst_linesize;
     int dst_nb_samples, dst_bufsize;
     unsigned char **dst_data;
-    AVCodecContext *acodec_ctx = (AVCodecContext*)player->acodec_ctx;
-    AVFormatContext *fmt_ctx = (AVFormatContext *)player->src->format_ctx;
-    struct SwrContext *swr = (struct SwrContext *)player->swr;
-    AVFrame *aframe = (AVFrame*)player->tmp_aframe;
 
-    while(packet->size > 0) {
-        len = avcodec_decode_audio4(acodec_ctx, aframe, &frame_finished, packet);
+    // Decode as long as there is data
+    while(in_packet->size > 0) {
+        len = avcodec_decode_audio4(dec->codec_ctx, audio_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return;
+            return 1;
         }
 
         if(frame_finished) {
             dst_nb_samples = av_rescale_rnd(
-                aframe->nb_samples,
-                player->aformat.samplerate,
-                acodec_ctx->sample_rate,
+                audio_dec->scratch_frame->nb_samples,
+                audio_dec->format->samplerate,  // Target samplerate
+                dec->codec_ctx->sample_rate,  // Source samplerate
                 AV_ROUND_UP);
 
             av_samples_alloc_array_and_samples(
                 &dst_data,
                 &dst_linesize,
-                player->aformat.channels,
+                audio_dec->format->channels,
                 dst_nb_samples,
-                _FindAVSampleFormat(player->aformat.format),
+                _FindAVSampleFormat(audio_dec->format->format),
                 0);
 
             len2 = swr_convert(
-                swr,
+                audio_dec->swr,
                 dst_data,
-                aframe->nb_samples,
-                (const unsigned char **)aframe->extended_data,
-                aframe->nb_samples);
+                audio_dec->scratch_frame->nb_samples,
+                (const unsigned char **)audio_dec->scratch_frame->extended_data,
+                audio_dec->scratch_frame->nb_samples);
 
             dst_bufsize = av_samples_get_buffer_size(
                 &dst_linesize,
-                player->aformat.channels,
+                audio_dec->format->channels,
                 len2,
-                _FindAVSampleFormat(player->aformat.format), 1);
+                _FindAVSampleFormat(audio_dec->format->format), 1);
 
-            // Get pts
+            // Get pts for the packet
             double pts = 0;
-            if(packet->dts != AV_NOPTS_VALUE) {
-                pts = av_frame_get_best_effort_timestamp(player->tmp_aframe);
-                pts *= av_q2d(fmt_ctx->streams[player->src->astream_idx]->time_base);
-            }
-
-            // Just seeked, set sync clock & pos.
-            if(player->seek_flag == 1) {
-                player->vclock_pos = pts;
-                player->clock_sync = _GetSystemTime() - pts;
-                player->seek_flag = 0;
+            if(in_packet->pts != AV_NOPTS_VALUE) {
+                pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
+                pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
             }
 
             // Lock, write to audio buffer, unlock
-            Kit_AudioPacket *apacket = _CreateAudioPacket((char*)dst_data[0], (size_t)dst_bufsize, pts);
-            bool done = false;
-            if(SDL_LockMutex(player->amutex) == 0) {
-                if(Kit_WriteBuffer((Kit_Buffer*)player->abuffer, apacket) == 0) {
-                    done = true;
-                }
-                SDL_UnlockMutex(player->amutex);
-            }
+            Kit_AudioPacket *out_packet = _CreateAudioPacket(
+                (char*)dst_data[0], (size_t)dst_bufsize, pts);
+            Kit_WriteDecoderOutput(dec, out_packet);
 
-            // Couldn't write packet, free memory
-            if(!done) {
-                _FreeAudioPacket(apacket);
-            }
-
+            // Free temps
             av_freep(&dst_data[0]);
             av_freep(&dst_data);
         }
 
-        packet->size -= len;
-        packet->data += len;
+        in_packet->size -= len;
+        in_packet->data += len;
     }
+
+
+    return 1;
+}
+
+static void dec_close_audio_cb(Kit_Decoder *dec) {
+    if(dec == NULL) return;
+
+    Kit_AudioDecoder *audio_dec = dec->userdata;
+    if(audio_dec->scratch_frame != NULL) {
+        av_frame_free(&audio_dec->scratch_frame);
+    }
+    if(audio_dec->swr != NULL) {
+        swr_free(&audio_dec->swr);
+    }
+    free(audio_dec);
+}
+
+Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_AudioFormat *format) {
+    assert(src != NULL);
+    assert(format != NULL);
+    if(src->audio_stream_index < 0) {
+        return NULL;
+    }
+
+    // First the generic decoder component ...
+    Kit_Decoder *dec = Kit_CreateDecoder(
+        src, src->audio_stream_index,
+        KIT_AUDIO_IN_SIZE, KIT_AUDIO_OUT_SIZE,
+        free_out_audio_packet_cb);
+    if(dec == NULL) {
+        goto exit_0;
+    }
+
+    // Find formats
+    format->samplerate = dec->codec_ctx->sample_rate;
+    format->channels = dec->codec_ctx->channels > 2 ? 2 : dec->codec_ctx->channels;
+    format->is_enabled = true;
+    format->stream_index = src->audio_stream_index;
+    _FindAudioFormat(dec->codec_ctx->sample_fmt, &format->bytes, &format->is_signed, &format->format);
+
+    // ... then allocate the audio decoder
+    Kit_AudioDecoder *audio_dec = calloc(1, sizeof(Kit_AudioDecoder));
+    if(audio_dec == NULL) {
+        goto exit_1;
+    }
+
+    // Create temporary audio frame
+    audio_dec->scratch_frame = av_frame_alloc();
+    if(audio_dec->scratch_frame == NULL) {
+        Kit_SetError("Unable to initialize temporary audio frame");
+        goto exit_2;
+    }
+
+    // Create resampler
+    audio_dec->swr = swr_alloc_set_opts(
+        NULL,
+        _FindAVChannelLayout(format->channels), // Target channel layout
+        _FindAVSampleFormat(format->format), // Target fmt
+        format->samplerate, // Target samplerate
+        dec->codec_ctx->channel_layout, // Source channel layout
+        dec->codec_ctx->sample_fmt, // Source fmt
+        dec->codec_ctx->sample_rate, // Source samplerate
+        0, NULL);
+
+    if(swr_init(audio_dec->swr) != 0) {
+        Kit_SetError("Unable to initialize audio resampler context");
+        goto exit_3;
+    }
+
+    // Set callbacks and userdata, and we're go
+    audio_dec->format = format;
+    dec->dec_decode = dec_decode_audio_cb;
+    dec->dec_close = dec_close_audio_cb;
+    dec->userdata = audio_dec;
+    return dec;
+
+exit_3:
+    av_frame_free(&audio_dec->scratch_frame);
+exit_2:
+    free(audio_dec);
+exit_1:
+    Kit_CloseDecoder(dec);
+exit_0:
+    return NULL;
+}
+
+int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
+    assert(dec != NULL);
+
+    Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
+    if(packet == NULL) {
+        return 0;
+    }
+
+    int ret = 0;
+    Kit_AudioDecoder *audio_dec = dec->userdata;
+    int bytes_per_sample = audio_dec->format->bytes * audio_dec->format->channels;
+    double bytes_per_second = bytes_per_sample * audio_dec->format->samplerate;
+    double sync_ts = _GetSystemTime() - dec->clock_sync;
+
+    if(packet->pts > sync_ts + AUDIO_SYNC_THRESHOLD) {
+        return 0;
+    } else if(packet->pts < sync_ts - AUDIO_SYNC_THRESHOLD) {
+        // Audio is lagging, skip until good pts is found
+        while(1) {
+            Kit_AdvanceDecoderOutput(dec);
+            free_out_audio_packet_cb(packet);
+            packet = Kit_PeekDecoderOutput(dec);
+            if(packet == NULL) {
+                break;
+            } else {
+                dec->clock_pos = packet->pts;
+            }
+            if(packet->pts > sync_ts - AUDIO_SYNC_THRESHOLD) {
+                break;
+            }
+        }
+    }
+
+    // If we have no viable packet, just skip
+    if(packet == NULL) {
+        return 0;
+    }
+
+    // Read data from packet ringbuffer
+    if(len > 0) {
+        ret = Kit_ReadRingBuffer(packet->rb, (char*)buf, len);
+    }
+
+    // If ringbuffer is cleared, kill packet and advance buffer.
+    // Otherwise forward the pts value for the current packet.
+    if(Kit_GetRingBufferLength(packet->rb) == 0) {
+        Kit_AdvanceDecoderOutput(dec);
+        free_out_audio_packet_cb(packet);
+    } else {
+        packet->pts += ((double)ret) / bytes_per_second;
+    }
+    dec->clock_pos = packet->pts;
+
+    return ret;
 }

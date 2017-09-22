@@ -222,30 +222,6 @@ int main(int argc, char *argv[]) {
                     if(event.key.keysym.sym == SDLK_ESCAPE) {
                         run = false;
                     }
-                    if(event.key.keysym.sym == SDLK_q) {
-                        // Start or unpause the video
-                        Kit_PlayerPlay(player);
-                    }
-                    if(event.key.keysym.sym == SDLK_w) {
-                        // Pause playback
-                        Kit_PlayerPause(player);
-                    }
-                    if(event.key.keysym.sym == SDLK_e) {
-                        // Stop playback (will close the window)
-                        Kit_PlayerStop(player);
-                    }
-                    if(event.key.keysym.sym == SDLK_RIGHT) {
-                        // Skip 10 seconds forwards or to the end of the file
-                        if(Kit_PlayerSeek(player, 10.0) != 0) {
-                            fprintf(stderr, "%s\n", Kit_GetError());
-                        }
-                    }
-                    if(event.key.keysym.sym == SDLK_LEFT) {
-                        // Seek 10 seconds backwards or to the start of the file
-                        if(Kit_PlayerSeek(player, -10.0) != 0) {
-                            fprintf(stderr, "%s\n", Kit_GetError());
-                        }
-                    }
                     break;
 
                 case SDL_KEYDOWN:
@@ -270,7 +246,7 @@ int main(int argc, char *argv[]) {
                     // Handle user clicking the progress bar
                     if(mouse_x >= 30 && mouse_x <= size_w-30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
                         double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
-                        double m_time = Kit_GetPlayerDuration(player) * pos - Kit_GetPlayerPosition(player);
+                        double m_time = Kit_GetPlayerDuration(player) * pos;
                         if(Kit_PlayerSeek(player, m_time) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
