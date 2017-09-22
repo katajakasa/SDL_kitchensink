@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 project(SDL_kitchensink C)
+include(GNUInstallDirs)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 set(KIT_VERSION_MAJOR "0")
@@ -12,7 +13,7 @@ add_definitions(
     -DKIT_VERSION_PATCH=${KIT_VERSION_PATCH}
 )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -pedantic -Werror -fno-omit-frame-pointer -Wno-deprecated-declarations")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ggdb -O2 -fno-omit-frame-pointer -DNDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -DNDEBUG")
@@ -61,8 +62,19 @@ set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
 target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
 target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 
+set_property(TARGET SDL_kitchensink PROPERTY C_STANDARD 99)
+set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
+
 include_directories(${INCLUDES})
 target_link_libraries(SDL_kitchensink ${LIBRARIES})
+
+set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink.pc")
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.in"
+    ${PKG_CONFIG_FILE}
+    @ONLY
+)
 
 if(BUILD_EXAMPLES)
     add_executable(exampleaudio examples/example_audio.c)
@@ -72,6 +84,9 @@ if(BUILD_EXAMPLES)
         target_link_libraries(exampleaudio mingw32)
         target_link_libraries(examplevideo mingw32)
     endif()
+
+    set_property(TARGET exampleaudio PROPERTY C_STANDARD 99)
+    set_property(TARGET examplevideo PROPERTY C_STANDARD 99)
 
     target_link_libraries(exampleaudio
         SDL_kitchensink_static
@@ -84,9 +99,8 @@ if(BUILD_EXAMPLES)
 endif()
 
 # Installation
-include(GNUInstallDirs)
-
-INSTALL(FILES ${HEADERS} DESTINATION include/kitchensink/)
+install(FILES ${PKG_CONFIG_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitchensink)
 INSTALL(TARGETS SDL_kitchensink SDL_kitchensink_static
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
