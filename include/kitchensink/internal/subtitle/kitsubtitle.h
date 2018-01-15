@@ -9,6 +9,6 @@
 #include "kitchensink/internal/kitdecoder.h"
 
 KIT_LOCAL Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat *format, int w, int h);
-KIT_LOCAL int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Renderer *renderer);
+KIT_LOCAL int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture);
 
 #endif // KITSUBTITLE_H

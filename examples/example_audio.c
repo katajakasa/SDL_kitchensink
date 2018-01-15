@@ -10,7 +10,7 @@
 * It is for example use only!
 */
 
-#define AUDIOBUFFER_SIZE (16384)
+#define AUDIOBUFFER_SIZE (32768)
 
 const char *stream_types[] = {
     "KIT_STREAMTYPE_UNKNOWN",
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    err = Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
+    err = Kit_Init(KIT_INIT_NETWORK);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -129,12 +129,11 @@ int main(int argc, char *argv[]) {
         // Refresh audio
         ret = SDL_GetQueuedAudioSize(audio_dev);
         if(ret < AUDIOBUFFER_SIZE) {
-            ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE, 0);
+            ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE);
             if(ret > 0) {
                 SDL_LockAudio();
                 SDL_QueueAudio(audio_dev, audiobuf, ret);
                 SDL_UnlockAudio();
-                SDL_PauseAudioDevice(audio_dev, 0);
             }
         }
 

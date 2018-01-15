@@ -9,7 +9,7 @@
 
 #include "kitchensink/kitconfig.h"
 #include "kitchensink/kitsource.h"
-#include "kitchensink/internal/kitbuffer.h"
+#include "kitchensink/internal/utils/kitbuffer.h"
 
 #define KIT_DEC_IN 0
 #define KIT_DEC_OUT 1
@@ -48,6 +48,8 @@ KIT_LOCAL void* Kit_PeekDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_AdvanceDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_ClearDecoderBuffers(Kit_Decoder *dec);
 KIT_LOCAL int Kit_RunDecoder(Kit_Decoder *dec);
+KIT_LOCAL void Kit_ClearDecoderInput(Kit_Decoder *dec);
+KIT_LOCAL void Kit_ClearDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_CloseDecoder(Kit_Decoder *dec);
 
 #endif // KITDECODER_H

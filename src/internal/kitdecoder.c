@@ -6,7 +6,7 @@
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/kiterror.h"
 
-#define BUFFER_IN_SIZE 32
+#define BUFFER_IN_SIZE 128
 
 static void free_in_video_packet_cb(void *packet) {
     av_packet_free((AVPacket**)&packet);
@@ -143,6 +143,20 @@ int Kit_WriteDecoderOutput(Kit_Decoder *dec, void *packet) {
     return ret;
 }
 
+void Kit_ClearDecoderOutput(Kit_Decoder *dec) {
+    if(SDL_LockMutex(dec->lock[KIT_DEC_OUT]) == 0) {
+        Kit_ClearBuffer(dec->buffer[KIT_DEC_OUT]);
+        SDL_UnlockMutex(dec->lock[KIT_DEC_OUT]);
+    }
+}
+
+void Kit_ClearDecoderInput(Kit_Decoder *dec) {
+    if(SDL_LockMutex(dec->lock[KIT_DEC_IN]) == 0) {
+        Kit_ClearBuffer(dec->buffer[KIT_DEC_IN]);
+        SDL_UnlockMutex(dec->lock[KIT_DEC_IN]);
+    }
+}
+
 void* Kit_PeekDecoderOutput(Kit_Decoder *dec) {
     assert(dec != NULL);
     void *ret = NULL;
@@ -163,14 +177,8 @@ void Kit_AdvanceDecoderOutput(Kit_Decoder *dec) {
 
 void Kit_ClearDecoderBuffers(Kit_Decoder *dec) {
     if(dec == NULL) return;
-    if(SDL_LockMutex(dec->lock[KIT_DEC_IN]) == 0) {
-        Kit_ClearBuffer(dec->buffer[KIT_DEC_IN]);
-        SDL_UnlockMutex(dec->lock[KIT_DEC_IN]);
-    }
-    if(SDL_LockMutex(dec->lock[KIT_DEC_OUT]) == 0) {
-        Kit_ClearBuffer(dec->buffer[KIT_DEC_OUT]);
-        SDL_UnlockMutex(dec->lock[KIT_DEC_OUT]);
-    }
+    Kit_ClearDecoderInput(dec);
+    Kit_ClearDecoderOutput(dec);
     avcodec_flush_buffers(dec->codec_ctx);
 }
 

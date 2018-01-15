@@ -24,6 +24,7 @@ typedef struct Kit_VideoFormat {
 typedef struct Kit_SubtitleFormat {
     int stream_index; ///< Stream index
     bool is_enabled; ///< Is stream enabled
+    unsigned int format; ///< SDL Pixel Format
 } Kit_SubtitleFormat;
 
 #endif // KITFORMATS_H

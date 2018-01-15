@@ -6,13 +6,13 @@
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/kithelpers.h"
-#include "kitchensink/internal/kitbuffer.h"
-#include "kitchensink/internal/kitvideo.h"
-#include "kitchensink/internal/kitlog.h"
+#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitbuffer.h"
+#include "kitchensink/internal/video/kitvideo.h"
+#include "kitchensink/internal/utils/kitlog.h"
 
-#define KIT_VIDEO_OUT_SIZE 1
-#define VIDEO_SYNC_THRESHOLD 0.01
+#define KIT_VIDEO_OUT_SIZE 2
+#define KIT_VIDEO_SYNC_THRESHOLD 0.01
 
 typedef struct Kit_VideoDecoder {
     Kit_VideoFormat *format;
@@ -50,7 +50,7 @@ static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
             *out_fmt = SDL_PIXELFORMAT_UYVY;
             break;
         default:
-            *out_fmt = SDL_PIXELFORMAT_ABGR8888;
+            *out_fmt = SDL_PIXELFORMAT_RGBA32;
             break;
     }
 }
@@ -61,8 +61,8 @@ static enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt) {
         case SDL_PIXELFORMAT_YV12: return AV_PIX_FMT_YUV420P;
         case SDL_PIXELFORMAT_YUY2: return AV_PIX_FMT_YUYV422;
         case SDL_PIXELFORMAT_UYVY: return AV_PIX_FMT_UYVY422;
-        case SDL_PIXELFORMAT_ARGB8888: return AV_PIX_FMT_BGRA;
-        case SDL_PIXELFORMAT_ABGR8888: return AV_PIX_FMT_RGBA;
+        case SDL_PIXELFORMAT_ARGB32: return AV_PIX_FMT_BGRA;
+        case SDL_PIXELFORMAT_RGBA32: return AV_PIX_FMT_RGBA;
         default:
             return AV_PIX_FMT_NONE;
     }
@@ -81,6 +81,7 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     
     Kit_VideoDecoder *video_dec = dec->userdata;
     int frame_finished;
+    
 
     while(in_packet->size > 0) {
         int len = avcodec_decode_video2(dec->codec_ctx, video_dec->scratch_frame, &frame_finished, in_packet);
@@ -92,12 +93,12 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             // Target frame
             AVFrame *out_frame = av_frame_alloc();
             av_image_alloc(
-                out_frame->data,
-                out_frame->linesize,
-                dec->codec_ctx->width,
-                dec->codec_ctx->height,
-                _FindAVPixelFormat(video_dec->format->format),
-                1);
+                    out_frame->data,
+                    out_frame->linesize,
+                    dec->codec_ctx->width,
+                    dec->codec_ctx->height,
+                    _FindAVPixelFormat(video_dec->format->format),
+                    1);
 
             // Scale from source format to target format, don't touch the size
             sws_scale(
@@ -109,12 +110,9 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 out_frame->data,
                 out_frame->linesize);
 
-            // Get pts
-            double pts = 0;
-            if(in_packet->pts != AV_NOPTS_VALUE) {
-                pts = av_frame_get_best_effort_timestamp(video_dec->scratch_frame);
-                pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
-            }
+            // Get presentation timestamp
+            double pts = av_frame_get_best_effort_timestamp(video_dec->scratch_frame);
+            pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock
             Kit_VideoPacket *out_packet = _CreateVideoPacket(out_frame, pts);
@@ -177,7 +175,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *form
         goto exit_2;
     }
 
-    // Create scaler
+    // Create scaler for handling format changes
     video_dec->sws = sws_getContext(
         dec->codec_ctx->width, // Source w
         dec->codec_ctx->height, // Source h
@@ -185,9 +183,8 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *form
         dec->codec_ctx->width, // Target w
         dec->codec_ctx->height, // Target h
         _FindAVPixelFormat(format->format), // Target fmt
-        SWS_BICUBIC,
+        SWS_BILINEAR,
         NULL, NULL, NULL);
-
     if(video_dec->sws == NULL) {
         Kit_SetError("Unable to initialize video converter context");
         goto exit_3;
@@ -212,6 +209,7 @@ exit_0:
 
 int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
+    assert(texture != NULL);
 
     Kit_VideoPacket *packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
@@ -222,10 +220,10 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     double sync_ts = _GetSystemTime() - dec->clock_sync;
 
     // Check if we want the packet
-    if(packet->pts > sync_ts + VIDEO_SYNC_THRESHOLD) {
+    if(packet->pts > sync_ts + KIT_VIDEO_SYNC_THRESHOLD) {
         // Video is ahead, don't show yet.
         return 0;
-    } else if(packet->pts < sync_ts - VIDEO_SYNC_THRESHOLD) {
+    } else if(packet->pts < sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
         // Video is lagging, skip until we find a good PTS to continue from.
         while(packet != NULL) {
             Kit_AdvanceDecoderOutput(dec);
@@ -236,7 +234,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
             } else {
                 dec->clock_pos = packet->pts;
             }
-            if(packet->pts > sync_ts - VIDEO_SYNC_THRESHOLD) {
+            if(packet->pts > sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
                 break;
             }
         }
@@ -268,8 +266,8 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
 
     // Advance buffer, and free the decoded frame.
     Kit_AdvanceDecoderOutput(dec);
-    free_out_video_packet_cb(packet);
     dec->clock_pos = packet->pts;
+    free_out_video_packet_cb(packet);
 
     return 0;
 }

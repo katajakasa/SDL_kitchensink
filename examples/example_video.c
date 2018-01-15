@@ -10,7 +10,7 @@
 * It is for example use only!
 */
 
-#define AUDIOBUFFER_SIZE (32768)
+#define AUDIOBUFFER_SIZE (1024 * 64)
 
 
 void render_gui(SDL_Renderer *renderer, double percent) {
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
     // Initialize Kitchensink with network support and all formats.
-    err = Kit_Init(KIT_INIT_FORMATS|KIT_INIT_NETWORK);
+    err = Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -181,6 +181,8 @@ int main(int argc, char *argv[]) {
     // Print some format info
     fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.format));
     fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.format));
+    fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(pinfo.subtitle.format));
+    fflush(stderr);
 
     // Initialize textures
     SDL_Texture *video_tex = SDL_CreateTexture(
@@ -193,8 +195,19 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
     }
+    SDL_Texture *subtitle_tex = SDL_CreateTexture(
+        renderer,
+        pinfo.subtitle.format,
+        SDL_TEXTUREACCESS_STATIC,
+        pinfo.video.width,
+        pinfo.video.height);
+    if(subtitle_tex == NULL) {
+        fprintf(stderr, "Error while attempting to create a subtitle texture\n");
+        return 1;
+    }
 
-    fflush(stderr);
+    // Make sure subtitle texture is in correct blendmode
+    SDL_SetTextureBlendMode(subtitle_tex, SDL_BLENDMODE_BLEND);
 
     // Set logical size for the renderer. This way when we scale, we keep aspect ratio.
     SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
@@ -276,7 +289,10 @@ int main(int argc, char *argv[]) {
 
             SDL_LockAudio();
             while(need > 0) {
-                ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE, (size_t)SDL_GetQueuedAudioSize(audio_dev));
+                ret = Kit_GetAudioData(
+                    player,
+                    (unsigned char*)audiobuf,
+                    AUDIOBUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
                     SDL_QueueAudio(audio_dev, audiobuf, ret);
@@ -295,7 +311,8 @@ int main(int argc, char *argv[]) {
         // Refresh videotexture and render it
         Kit_GetVideoData(player, video_tex);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
-        Kit_GetSubtitleData(player, renderer);
+        Kit_GetSubtitleData(player, subtitle_tex);
+        SDL_RenderCopy(renderer, subtitle_tex, NULL, NULL);
 
         // Render GUI
         if(gui_enabled) {
@@ -307,6 +324,7 @@ int main(int argc, char *argv[]) {
         SDL_RenderPresent(renderer);
     }
 
+    SDL_DestroyTexture(subtitle_tex);
     SDL_DestroyTexture(video_tex);
     SDL_CloseAudioDevice(audio_dev);
 

@@ -1,7 +1,7 @@
-#include "kitchensink/internal/kitbuffer.h"
-
 #include <stdlib.h>
 #include <assert.h>
+
+#include "kitchensink/internal/utils/kitbuffer.h"
 
 Kit_Buffer* Kit_CreateBuffer(unsigned int size, Kit_BufferFreeCallback free_cb) {
     Kit_Buffer *b = calloc(1, sizeof(Kit_Buffer));

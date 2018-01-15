@@ -8,13 +8,13 @@
 #include <SDL2/SDL.h>
 
 #include "kitchensink/kiterror.h"
-#include "kitchensink/internal/kithelpers.h"
-#include "kitchensink/internal/kitbuffer.h"
-#include "kitchensink/internal/kitaudio.h"
-#include "kitchensink/internal/kitringbuffer.h"
-#include "kitchensink/internal/kitlog.h"
+#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitbuffer.h"
+#include "kitchensink/internal/audio/kitaudio.h"
+#include "kitchensink/internal/utils/kitringbuffer.h"
+#include "kitchensink/internal/utils/kitlog.h"
 
-#define KIT_AUDIO_OUT_SIZE 16
+#define KIT_AUDIO_OUT_SIZE 64
 #define AUDIO_SYNC_THRESHOLD 0.05
 
 typedef struct Kit_AudioDecoder {
@@ -55,6 +55,25 @@ int64_t _FindAVChannelLayout(int channels) {
         case 4: return AV_CH_LAYOUT_QUAD;
         case 6: return AV_CH_LAYOUT_5POINT1;
         default: return AV_CH_LAYOUT_STEREO_DOWNMIX;
+    }
+}
+
+void _FindChannelLayout(uint64_t channel_layout, int *channels) {
+    switch(channel_layout) {
+        case AV_CH_LAYOUT_MONO:
+            *channels = 1;
+            break;
+        case AV_CH_LAYOUT_STEREO:
+            *channels = 2;
+            break;
+        case AV_CH_LAYOUT_QUAD:
+            *channels = 4;
+            break;
+        case AV_CH_LAYOUT_5POINT1:
+            *channels = 6;
+            break;
+        default:
+            *channels = 2;
     }
 }
 
@@ -135,12 +154,9 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 len2,
                 _FindAVSampleFormat(audio_dec->format->format), 1);
 
-            // Get pts for the packet
-            double pts = 0;
-            if(in_packet->pts != AV_NOPTS_VALUE) {
-                pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
-                pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
-            }
+            // Get presentation timestamp
+            double pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
+            pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock
             Kit_AudioPacket *out_packet = _CreateAudioPacket(
@@ -191,9 +207,9 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_AudioFormat *form
 
     // Find formats
     format->samplerate = dec->codec_ctx->sample_rate;
-    format->channels = dec->codec_ctx->channels > 2 ? 2 : dec->codec_ctx->channels;
     format->is_enabled = true;
     format->stream_index = src->audio_stream_index;
+    _FindChannelLayout(dec->codec_ctx->channel_layout, &format->channels);
     _FindAudioFormat(dec->codec_ctx->sample_fmt, &format->bytes, &format->is_signed, &format->format);
 
     // ... then allocate the audio decoder
@@ -289,11 +305,12 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     // Otherwise forward the pts value for the current packet.
     if(Kit_GetRingBufferLength(packet->rb) == 0) {
         Kit_AdvanceDecoderOutput(dec);
+        dec->clock_pos = packet->pts;
         free_out_audio_packet_cb(packet);
     } else {
         packet->pts += ((double)ret) / bytes_per_second;
+        dec->clock_pos = packet->pts;
     }
-    dec->clock_pos = packet->pts;
 
     return ret;
 }

@@ -21,9 +21,9 @@ extern "C" {
 
 typedef enum Kit_PlayerState {
     KIT_STOPPED = 0, ///< Playback stopped or has not started yet.
-    KIT_PLAYING, ///< Playback started & player is actively decoding.
-    KIT_PAUSED, ///< Playback paused; player is actively decoding but no new data is given out.
-    KIT_CLOSED ///< Playback is stopped and player is closing.
+    KIT_PLAYING,     ///< Playback started & player is actively decoding.
+    KIT_PAUSED,      ///< Playback paused; player is actively decoding but no new data is given out.
+    KIT_CLOSED       ///< Playback is stopped and player is closing.
 } Kit_PlayerState;
 
 typedef struct Kit_Player {
@@ -57,8 +57,8 @@ KIT_API void Kit_ClosePlayer(Kit_Player *player);
 
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
 KIT_API int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture);
-KIT_API int Kit_GetSubtitleData(Kit_Player *player, SDL_Renderer *renderer);
-KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length, int cur_buf_len);
+KIT_API int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture);
+KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length);
 KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 
 KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player);

@@ -1,13 +1,13 @@
-#include "kitchensink/kitsource.h"
-#include "kitchensink/kiterror.h"
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include "kitchensink/kitsource.h"
+#include "kitchensink/kiterror.h"
 
 Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
     assert(url != NULL);

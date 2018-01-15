@@ -18,8 +18,8 @@ typedef struct Kit_Version {
 } Kit_Version;
 
 enum {
-    KIT_INIT_FORMATS = 0x1,
-    KIT_INIT_NETWORK = 0x2,
+    KIT_INIT_NETWORK = 0x1,
+    KIT_INIT_ASS = 0x2
 };
 
 KIT_API int Kit_Init(unsigned int flags);
