@@ -84,7 +84,6 @@ static Kit_SubtitlePacket* ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *sr
     if(change == 0) {
         return NULL;
     }
-    LOG("Change at %f %f\n", start_pts, end_pts);
 
     // Find dimensions
     for(image = wt_image; image; image = image->next) {

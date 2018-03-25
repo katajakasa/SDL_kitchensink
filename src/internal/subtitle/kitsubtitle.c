@@ -67,8 +67,6 @@ static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             // Free subtitle since it has now been handled
             avsubtitle_free(&subtitle_dec->scratch_frame);
         }
-
-        LOGFLUSH();
     }
 
     return 1;

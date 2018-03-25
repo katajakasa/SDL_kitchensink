@@ -3,11 +3,9 @@
 
 #ifdef NDEBUG
     #define LOG(...)
-    #define LOGFLUSH()
 #else
     #include <stdio.h>
-    #define LOG(...) fprintf(stderr, __VA_ARGS__)
-    #define LOGFLUSH() fflush(stderr)
+    #define LOG(...) fprintf(stderr, __VA_ARGS__); fflush(stderr)
 #endif
 
 #endif // KITLOG_H
