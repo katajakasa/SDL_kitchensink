@@ -6,7 +6,9 @@
 #include "kitchensink/internal/utils/kitlog.h"
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitlibstate.h"
+#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/kitsubtitle.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubass.h"
@@ -14,7 +16,7 @@
 #include "kitchensink/internal/utils/kithelpers.h"
 
 
-#define KIT_SUBTITLE_OUT_SIZE 32
+#define KIT_SUBTITLE_OUT_SIZE 1024
 
 typedef struct Kit_SubtitleDecoder {
     Kit_SubtitleFormat *format;
@@ -23,27 +25,12 @@ typedef struct Kit_SubtitleDecoder {
     int w;
     int h;
     int output_state;
+    SDL_Surface *tmp_buffer;
 } Kit_SubtitleDecoder;
 
-typedef struct Kit_SubtitlePacket {
-    double pts_start;
-    double pts_end;
-    SDL_Surface *surface;
-} Kit_SubtitlePacket;
-
-
-static Kit_SubtitlePacket* _CreateSubtitlePacket(double pts_start, double pts_end, SDL_Surface *surface) {
-    Kit_SubtitlePacket *p = calloc(1, sizeof(Kit_SubtitlePacket));
-    p->pts_start = pts_start;
-    p->pts_end = pts_end;
-    p->surface = surface;
-    return p;
-}
 
 static void free_out_subtitle_packet_cb(void *packet) {
-    Kit_SubtitlePacket *p = packet;
-    SDL_FreeSurface(p->surface);
-    free(p);
+    Kit_FreeSubtitlePacket((Kit_SubtitlePacket*)packet);
 }
 
 static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
@@ -70,25 +57,18 @@ static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             double start = pts + (subtitle_dec->scratch_frame.start_display_time / 1000.0f);
             double end = pts + (subtitle_dec->scratch_frame.end_display_time / 1000.0f);
 
-            // Surface to render on
-            SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-                0, subtitle_dec->w, subtitle_dec->h, 32, SDL_PIXELFORMAT_RGBA32);
-            memset(surface->pixels, 0, surface->pitch * surface->h);
-    
             // Create a packet. This should be filled by renderer.
-            Kit_SubtitlePacket *out_packet = _CreateSubtitlePacket(start, end, surface);
-            int ret = Kit_RunSubtitleRenderer(
-                subtitle_dec->renderer, &subtitle_dec->scratch_frame, start, surface);
-            if(ret == -1) {
-                // Renderer failed, free packet.
-                free_out_subtitle_packet_cb(out_packet);
-            } else {
+            Kit_SubtitlePacket *out_packet = Kit_RunSubtitleRenderer(
+                subtitle_dec->renderer, &subtitle_dec->scratch_frame, start, end);
+            if(out_packet != NULL) {
                 Kit_WriteDecoderOutput(dec, out_packet);
             }
 
             // Free subtitle since it has now been handled
             avsubtitle_free(&subtitle_dec->scratch_frame);
         }
+
+        LOGFLUSH();
     }
 
     return 1;
@@ -97,6 +77,7 @@ static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
 static void dec_close_subtitle_cb(Kit_Decoder *dec) {
     if(dec == NULL) return;
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    SDL_FreeSurface(subtitle_dec->tmp_buffer);
     Kit_CloseSubtitleRenderer(subtitle_dec->renderer);
     free(subtitle_dec);
 }
@@ -149,16 +130,27 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
         goto exit_2;
     }
 
+    // Allocate temporary screen-sized subtitle buffer
+    SDL_Surface *tmp_buffer = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
+    if(tmp_buffer == NULL) {
+        goto exit_3;
+    }
+    SDL_FillRect(tmp_buffer, NULL, 0);
+
     // Set callbacks and userdata, and we're go
     subtitle_dec->format = format;
     subtitle_dec->renderer = ren;
     subtitle_dec->w = w;
     subtitle_dec->h = h;
+    subtitle_dec->tmp_buffer = tmp_buffer;
+    subtitle_dec->output_state = 0;
     dec->dec_decode = dec_decode_subtitle_cb;
     dec->dec_close = dec_close_subtitle_cb;
     dec->userdata = subtitle_dec;
     return dec;
 
+exit_3:
+    Kit_CloseSubtitleRenderer(ren);
 exit_2:
     free(subtitle_dec);
 exit_1:
@@ -167,43 +159,77 @@ exit_0:
     return NULL;
 }
 
+
+typedef struct {
+    double sync_ts;
+    SDL_Surface *surface;
+    int rendered;
+} tmp_sub_image;
+
+
+static void _merge_subtitle_texture(void *ptr, void *userdata) {
+    tmp_sub_image *img = userdata;
+    Kit_SubtitlePacket *packet = ptr;
+
+    // Make sure current time is within presentation range
+    if(packet->pts_start >= img->sync_ts)
+        return;
+    if(packet->pts_end <= img->sync_ts)
+        return;
+
+    // Tell the renderer function that we did something here
+    img->rendered = 1;
+
+    // Blit source whole source surface to target surface in requested coords
+    SDL_Rect dst_rect;
+    dst_rect.x = packet->x;
+    dst_rect.y = packet->y;
+    SDL_BlitSurface(packet->surface, NULL, img->surface, &dst_rect);
+}
+
+
 int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 
-    double sync_ts = _GetSystemTime() - dec->clock_sync;
-    char *clear_scr;
-    
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
-    Kit_SubtitlePacket *packet = Kit_PeekDecoderOutput(dec);
-    if(packet == NULL) {
-        goto exit_0;
-    }
-    if(packet->pts_start > sync_ts) {
-        goto exit_0;
-    }
-    if(packet->pts_end < sync_ts) {
-        goto exit_1;
+
+    double sync_ts = _GetSystemTime() - dec->clock_sync;
+
+    // If we rendered on last frame, clear the buffer
+    if(subtitle_dec->output_state == 1) {
+        SDL_FillRect(subtitle_dec->tmp_buffer, NULL, 0);
     }
 
-    // Update the texture with our subtitle frame
+    // Blit all subtitle image rectangles to master buffer
+    tmp_sub_image img;
+    img.sync_ts = sync_ts;
+    img.surface = subtitle_dec->tmp_buffer;
+    img.rendered = 0;
+    Kit_ForEachDecoderOutput(dec, _merge_subtitle_texture, (void*)&img);
+
+    // Clear out old packets
+    Kit_SubtitlePacket *packet = NULL;
+    while((packet = Kit_PeekDecoderOutput(dec)) != NULL) {
+        if(packet->pts_end >= sync_ts)
+            break;
+        Kit_AdvanceDecoderOutput(dec);
+        free_out_subtitle_packet_cb(packet);
+    }
+
+    // If nothing was rendered now or last frame, just return. No need to update texture.
+    dec->clock_pos = sync_ts;
+    if(img.rendered == 0 && subtitle_dec->output_state == 0) {
+        return 1;
+    }
+    subtitle_dec->output_state = img.rendered;
+
+    // Update output texture with current buffered image
     SDL_UpdateTexture(
         texture, NULL,
-        packet->surface->pixels,
-        packet->surface->pitch);
+        subtitle_dec->tmp_buffer->pixels,
+        subtitle_dec->tmp_buffer->pitch);
 
-    dec->clock_pos = sync_ts;
-    return 0;
-
-    // All done.
-exit_1:
-    Kit_AdvanceDecoderOutput(dec);
-    free_out_subtitle_packet_cb(packet);
-exit_0:
-    // Clear subtitle frame
-    clear_scr = calloc(1, subtitle_dec->h * subtitle_dec->w * 4);
-    SDL_UpdateTexture(texture, NULL, clear_scr, subtitle_dec->w * 4);
-    free(clear_scr);
-
+    // all done!
     return 0;
 }

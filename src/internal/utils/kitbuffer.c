@@ -27,6 +27,8 @@ void Kit_DestroyBuffer(Kit_Buffer *buffer) {
 
 void Kit_ClearBuffer(Kit_Buffer *buffer) {
     void *data;
+    if(buffer->free_cb == NULL)
+        return;
     while((data = Kit_ReadBuffer(buffer)) != NULL) {
         buffer->free_cb(data);
     }
@@ -47,12 +49,15 @@ void* Kit_ReadBuffer(Kit_Buffer *buffer) {
     return NULL;
 }
 
-KIT_LOCAL void* Kit_PeekBuffer(const Kit_Buffer *buffer) {
+void* Kit_PeekBuffer(const Kit_Buffer *buffer) {
     assert(buffer != NULL);
-    return buffer->data[buffer->read_p % buffer->size];
+    if(buffer->read_p < buffer->write_p) {
+        return buffer->data[buffer->read_p % buffer->size];
+    }
+    return NULL;
 }
 
-KIT_LOCAL void Kit_AdvanceBuffer(Kit_Buffer *buffer) {
+void Kit_AdvanceBuffer(Kit_Buffer *buffer) {
     assert(buffer != NULL);
     if(buffer->read_p < buffer->write_p) {
         buffer->data[buffer->read_p % buffer->size] = NULL;
@@ -60,6 +65,18 @@ KIT_LOCAL void Kit_AdvanceBuffer(Kit_Buffer *buffer) {
         if(buffer->read_p >= buffer->size) {
             buffer->read_p = buffer->read_p % buffer->size;
             buffer->write_p = buffer->write_p % buffer->size;
+        }
+    }
+}
+
+void Kit_ForEachItemInBuffer(const Kit_Buffer *buffer, Kit_ForEachItemCallback cb, void *userdata) {
+    unsigned int read_p = buffer->read_p;
+    unsigned int write_p = buffer->write_p;
+    while(read_p < write_p) {
+        cb(buffer->data[read_p++ % buffer->size], userdata);
+        if(read_p >= buffer->size) {
+            read_p = read_p % buffer->size;
+            write_p = write_p % buffer->size;
         }
     }
 }

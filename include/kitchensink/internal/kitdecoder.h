@@ -46,6 +46,7 @@ KIT_LOCAL AVPacket* Kit_ReadDecoderInput(Kit_Decoder *dec);
 KIT_LOCAL int Kit_WriteDecoderOutput(Kit_Decoder *dec, void *packet);
 KIT_LOCAL void* Kit_PeekDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_AdvanceDecoderOutput(Kit_Decoder *dec);
+KIT_LOCAL void Kit_ForEachDecoderOutput(Kit_Decoder *dec, Kit_ForEachItemCallback foreach_cb, void *userdata);
 KIT_LOCAL void Kit_ClearDecoderBuffers(Kit_Decoder *dec);
 KIT_LOCAL int Kit_RunDecoder(Kit_Decoder *dec);
 KIT_LOCAL void Kit_ClearDecoderInput(Kit_Decoder *dec);

@@ -5,7 +5,9 @@
 #include <SDL2/SDL_Surface.h>
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitlibstate.h"
+#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubass.h"
 
@@ -19,19 +21,21 @@ typedef struct Kit_ASSSubtitleRenderer {
     ASS_Track *track;
 } Kit_ASSSubtitleRenderer;
 
-static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
+static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img, int min_x, int min_y) {
     unsigned char r = ((img->color) >> 24) & 0xFF;
     unsigned char g = ((img->color) >> 16) & 0xFF;
     unsigned char b = ((img->color) >>  8) & 0xFF;
     unsigned char a = (img->color) & 0xFF;
     unsigned char *src = img->bitmap;
     unsigned char *dst = surface->pixels;
+    unsigned int pos_x = img->dst_x - min_x;
+    unsigned int pos_y = img->dst_y - min_y;
     unsigned int an, ao, x, y, x_off;
-    dst += img->dst_y * surface->pitch;
+    dst += pos_y * surface->pitch;
 
     for(y = 0; y < img->h; y++) {
         for(x = 0; x < img->w; x++) {
-            x_off = (img->dst_x + x) * 4;
+            x_off = (pos_x + x) * 4;
             an = ((255 - a) * src[x]) >> 8; // New alpha
             ao = dst[x_off + 3]; // Original alpha
             if(ao == 0) {
@@ -53,16 +57,20 @@ static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     }
 }
 
-static int ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start_pts, void *dst) {
+static Kit_SubtitlePacket* ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
     assert(ren != NULL);
     assert(src != NULL);
-    assert(dst != NULL);
 
     Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
     AVSubtitle *sub = src;
-    SDL_Surface *surface = dst;
+    SDL_Surface *surface = NULL;
+    ASS_Image *image = NULL;
+    ASS_Image *wt_image = NULL;
     unsigned int now = start_pts * 1000;
     int change = 0;
+    int x0 = INT_MAX, y0 = INT_MAX;
+    int x1 = 0, y1 = 0;
+    int w, h;
 
     // Read incoming subtitle packets to libASS
     for(int r = 0; r < sub->num_rects; r++) {
@@ -72,19 +80,40 @@ static int ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start_
     }
 
     // Ask libass to render frames. If there are no changes since last render, stop here.
-    ASS_Image *image = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
-    if(change <= 0) {
-        return -1;
+    wt_image = image = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
+    if(change == 0) {
+        return NULL;
     }
+    LOG("Change at %f %f\n", start_pts, end_pts);
 
-    for(; image; image = image->next) {
+    // Find dimensions
+    for(image = wt_image; image; image = image->next) {
+        if(image->dst_x < x0)
+            x0 = image->dst_x;
+        if(image->dst_y < y0)
+            y0 = image->dst_y;
+        if(image->dst_x + image->w > x1)
+            x1 = image->dst_x + image->w;
+        if(image->dst_y + image->h > y1)
+            y1 = image->dst_y + image->h;
+    }
+    w = x1 - x0;
+    h = y1 - y0;
+
+    // Surface to render on
+    surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
+    SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
+    SDL_FillRect(surface, NULL, 0);
+
+    // Render subimages to the target surface.
+    for(image = wt_image; image; image = image->next) {
         if(image->w == 0 || image->h == 0)
             continue;
-        _ProcessAssImage(surface, image);
+        _ProcessAssImage(surface, image, x0, y0);
     }
 
     // We tell subtitle handler to clear output before adding this frame.
-    return 0;
+    return Kit_CreateSubtitlePacket(start_pts, end_pts, x0, y0, surface);
 }
 
 static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {

@@ -167,6 +167,14 @@ void* Kit_PeekDecoderOutput(Kit_Decoder *dec) {
     return ret;
 }
 
+void Kit_ForEachDecoderOutput(Kit_Decoder *dec, Kit_ForEachItemCallback cb, void *userdata) {
+    assert(dec != NULL);
+    if(SDL_LockMutex(dec->lock[KIT_DEC_OUT]) == 0) {
+        Kit_ForEachItemInBuffer(dec->buffer[KIT_DEC_OUT], cb, userdata);
+        SDL_UnlockMutex(dec->lock[KIT_DEC_OUT]);
+    }
+}
+
 void Kit_AdvanceDecoderOutput(Kit_Decoder *dec) {
     assert(dec != NULL);
     if(SDL_LockMutex(dec->lock[KIT_DEC_OUT]) == 0) {

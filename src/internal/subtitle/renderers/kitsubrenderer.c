@@ -2,6 +2,7 @@
 #include <assert.h>
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
 
 
@@ -15,12 +16,12 @@ Kit_SubtitleRenderer* Kit_CreateSubtitleRenderer() {
     return ren;
 }
 
-int Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *ren, void *src, double start_pts, void *surface) {
+Kit_SubtitlePacket* Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
     if(ren == NULL)
-        return 1;
+        return NULL;
     if(ren->ren_render != NULL)
-        return ren->ren_render(ren, src, start_pts, surface);
-    return 1;
+        return ren->ren_render(ren, src, start_pts, end_pts);
+    return NULL;
 }
 
 void Kit_CloseSubtitleRenderer(Kit_SubtitleRenderer *ren) {
