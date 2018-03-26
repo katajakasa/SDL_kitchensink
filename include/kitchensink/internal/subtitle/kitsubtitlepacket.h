@@ -1,7 +1,7 @@
 #ifndef KITSUBTITLEPACKET_H
 #define KITSUBTITLEPACKET_H
 
-#include <SDL2/SDL_Surface.h>
+#include <SDL2/SDL_surface.h>
 
 typedef struct Kit_SubtitlePacket {
     double pts_start;

@@ -194,7 +194,7 @@ int Kit_RunDecoder(Kit_Decoder *dec) {
     if(dec == NULL) return 0;
 
     AVPacket *in_packet;
-    int is_output_full;
+    int is_output_full = 1;
     int ret;
 
     // First, check if there is room in output buffer
