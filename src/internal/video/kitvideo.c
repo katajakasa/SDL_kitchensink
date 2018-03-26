@@ -33,7 +33,7 @@ static Kit_VideoPacket* _CreateVideoPacket(AVFrame *frame, double pts) {
     return p;
 }
 
-static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
+static unsigned int _FindPixelFormat(enum AVPixelFormat fmt) {
     switch(fmt) {
         case AV_PIX_FMT_YUV420P9:
         case AV_PIX_FMT_YUV420P10:
@@ -41,17 +41,13 @@ static void _FindPixelFormat(enum AVPixelFormat fmt, unsigned int *out_fmt) {
         case AV_PIX_FMT_YUV420P14:
         case AV_PIX_FMT_YUV420P16:
         case AV_PIX_FMT_YUV420P:
-            *out_fmt = SDL_PIXELFORMAT_YV12;
-            break;
+            return SDL_PIXELFORMAT_YV12;
         case AV_PIX_FMT_YUYV422:
-            *out_fmt = SDL_PIXELFORMAT_YUY2;
-            break;
+            return SDL_PIXELFORMAT_YUY2;
         case AV_PIX_FMT_UYVY422:
-            *out_fmt = SDL_PIXELFORMAT_UYVY;
-            break;
+            return SDL_PIXELFORMAT_UYVY;
         default:
-            *out_fmt = SDL_PIXELFORMAT_RGBA32;
-            break;
+            return SDL_PIXELFORMAT_RGBA32;
     }
 }
 
@@ -160,7 +156,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *form
     format->width = dec->codec_ctx->width;
     format->height = dec->codec_ctx->height;
     format->stream_index = src->video_stream_index;
-    _FindPixelFormat(dec->codec_ctx->pix_fmt, &format->format);
+    format->format = _FindPixelFormat(dec->codec_ctx->pix_fmt);
 
     // ... then allocate the video decoder
     Kit_VideoDecoder *video_dec = calloc(1, sizeof(Kit_VideoDecoder));
@@ -207,7 +203,7 @@ exit_0:
     return NULL;
 }
 
-int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
+int Kit_GetVideoDecoderDataTexture(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 

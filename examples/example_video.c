@@ -309,9 +309,9 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
         // Refresh videotexture and render it
-        Kit_GetVideoData(player, video_tex);
+        Kit_GetVideoDataTexture(player, video_tex);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
-        Kit_GetSubtitleData(player, subtitle_tex);
+        Kit_GetSubtitleDataTexture(player, subtitle_tex);
         SDL_RenderCopy(renderer, subtitle_tex, NULL, NULL);
 
         // Render GUI

@@ -205,7 +205,7 @@ static void _merge_subtitle_texture(void *ptr, void *userdata) {
 }
 
 
-int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
+int Kit_GetSubtitleDecoderDataTexture(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 

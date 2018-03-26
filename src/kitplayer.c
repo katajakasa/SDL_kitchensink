@@ -176,7 +176,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     free(player);
 }
 
-int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetVideoDataTexture(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
     if(player->video_dec == NULL) {
         return 0;
@@ -190,7 +190,7 @@ int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
-    return Kit_GetVideoDecoderData(player->video_dec, texture);
+    return Kit_GetVideoDecoderDataTexture(player->video_dec, texture);
 }
 
 int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length) {
@@ -216,7 +216,7 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length) {
     return Kit_GetAudioDecoderData(player->audio_dec, buffer, length);
 }
 
-int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetSubtitleDataTexture(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
     if(player->subtitle_dec == NULL) {
         return 0;
@@ -230,7 +230,7 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
-    return Kit_GetSubtitleDecoderData(player->subtitle_dec, texture);
+    return Kit_GetSubtitleDecoderDataTexture(player->subtitle_dec, texture);
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
