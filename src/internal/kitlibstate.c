@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "kitchensink/internal/kitlibstate.h"
 
 static Kit_LibraryState _librarystate = {0, NULL, NULL};
