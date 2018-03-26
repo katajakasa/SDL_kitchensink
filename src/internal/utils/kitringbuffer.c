@@ -1,16 +1,16 @@
 /*
  * Ringbuffer
  *
- * Copyright (c) 2016, Tuomas Virtanen
+ * Copyright (c) 2017, Tuomas Virtanen
  * license: MIT; see LICENSE for details.
 */
-
-#include "kitchensink/internal/kitringbuffer.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+
+#include "kitchensink/internal/utils/kitringbuffer.h"
 
 /**
   * Creates a new ringbuffer with the given size.

@@ -20,10 +20,10 @@ typedef enum Kit_StreamType {
 } Kit_StreamType;
 
 typedef struct Kit_Source {
-    int astream_idx; ///< Audio stream index
-    int vstream_idx; ///< Video stream index
-    int sstream_idx; ///< Subtitle stream index
-    void *format_ctx; ///< FFmpeg: Videostream format context
+    int audio_stream_index;    ///< Audio stream index
+    int video_stream_index;    ///< Video stream index
+    int subtitle_stream_index; ///< Subtitle stream index
+    void *format_ctx;          ///< FFmpeg: Videostream format context
 } Kit_Source;
 
 typedef struct Kit_Stream {

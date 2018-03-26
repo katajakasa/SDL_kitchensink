@@ -5,16 +5,18 @@
 
 FFmpeg and SDL2 based library for audio and video playback, written in C99.
 
-This library is still very much todo, but it's slowly getting there.
-
 Features:
-* Decoding video & audio via FFmpeg
-* Dumping video data on SDL_textures
+* Decoding video, audio and subtitles via FFmpeg
+* Dumping video and subtitle data on SDL_textures/SDL_Surfaces
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
 * Synchronizing video & audio to clock
 * Seeking forwards and backwards
-* Bitmap & libass subtitle support. No text (srt, sub) support yet.
+* Bitmap, text and SSA/ASS subtitle support
+
+Note! Master branch is for the development of v1.0.0 series. v0 can be found in the 
+rel-kitchensink-0 branch. v0 is no longer in active development and only bug- and security-fixes
+are accepted.
 
 ## 1. Library requirements
 
@@ -23,9 +25,9 @@ Build requirements:
 * GCC (C99 support required)
 
 Library requirements:
-* SDL2 (>=2.0.3) (Note! Examples require 2.0.4!)
+* SDL2 (>=2.0.5)
 * FFmpeg (>=3.0)
-* libass
+* libass (optional, supports runtime linking via SDL_LoadSO)
 * CUnit (optional, for unittests)
 
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions

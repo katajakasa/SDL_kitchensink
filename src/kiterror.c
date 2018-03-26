@@ -1,10 +1,10 @@
-#include "kitchensink/kitchensink.h"
-
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
+
+#include "kitchensink/kitchensink.h"
 
 #define KIT_ERRBUFSIZE 1024
 
