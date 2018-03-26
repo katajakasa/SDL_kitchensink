@@ -6,6 +6,7 @@
 #include "kitchensink/internal/utils/kitlog.h"
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/kitlib.h"
 #include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
@@ -93,6 +94,8 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
         return NULL;
     }
 
+    Kit_LibraryState *library_state = Kit_GetLibraryState();
+
     // First the generic decoder component
     Kit_Decoder *dec = Kit_CreateDecoder(
         src, src->subtitle_stream_index,
@@ -122,7 +125,11 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
         case AV_CODEC_ID_SUBRIP:
         case AV_CODEC_ID_SSA:
         case AV_CODEC_ID_ASS:
-            ren = Kit_CreateASSSubtitleRenderer(dec, w, h);
+            if(library_state->init_flags & KIT_INIT_ASS) {
+                ren = Kit_CreateASSSubtitleRenderer(dec, w, h);
+            } else {
+                format->is_enabled = false;
+            }
             break;
         case AV_CODEC_ID_DVD_SUBTITLE:
         case AV_CODEC_ID_DVB_SUBTITLE:

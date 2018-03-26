@@ -16,6 +16,10 @@ Features:
 * Seeking forwards and backwards
 * Bitmap & libass subtitle support. No text (srt, sub) support yet.
 
+Note! Master branch is for the development of v1.0.0 series. v0 can be found in the 
+rel-kitchensink-0 branch. v0 is no longer in active development and only bug- and security-fixes
+are accepted.
+
 ## 1. Library requirements
 
 Build requirements:

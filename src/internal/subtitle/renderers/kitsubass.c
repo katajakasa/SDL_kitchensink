@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <ass/ass.h>
 #include <SDL2/SDL_surface.h>
 
 #include "kitchensink/kiterror.h"
@@ -196,6 +195,8 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(const Kit_Decoder *dec, int 
             (char*)dec->codec_ctx->subtitle_header,
             dec->codec_ctx->subtitle_header_size);
     }
+
+    LOG("kekekekee\n");
 
     // Set callbacks and userdata, and we're go
     ass_ren->renderer = ass_renderer;
