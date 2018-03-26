@@ -55,11 +55,17 @@ static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
             }
             double start = pts + (subtitle_dec->scratch_frame.start_display_time / 1000.0f);
-            double end = pts + (subtitle_dec->scratch_frame.end_display_time / 1000.0f);
+            double end = -1;
+            if(subtitle_dec->scratch_frame.end_display_time < UINT_MAX) {
+                end = pts + (subtitle_dec->scratch_frame.end_display_time / 1000.0f);
+            }
 
             // Create a packet. This should be filled by renderer.
             Kit_SubtitlePacket *out_packet = Kit_RunSubtitleRenderer(
                 subtitle_dec->renderer, &subtitle_dec->scratch_frame, start, end);
+            if(end < 0) {
+                Kit_ClearDecoderOutput(dec);
+            }
             if(out_packet != NULL) {
                 Kit_WriteDecoderOutput(dec, out_packet);
             }
@@ -110,6 +116,10 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
     // For subtitles, we need a renderer for the stream. Pick one based on codec ID.
     Kit_SubtitleRenderer *ren = NULL;
     switch(dec->codec_ctx->codec_id) {
+        case AV_CODEC_ID_TEXT:
+        case AV_CODEC_ID_HDMV_TEXT_SUBTITLE:
+        case AV_CODEC_ID_SRT:
+        case AV_CODEC_ID_SUBRIP:
         case AV_CODEC_ID_SSA:
         case AV_CODEC_ID_ASS:
             ren = Kit_CreateASSSubtitleRenderer(dec, w, h);
@@ -118,19 +128,21 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
         case AV_CODEC_ID_DVB_SUBTITLE:
         case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
         case AV_CODEC_ID_XSUB:
-            format->is_enabled = false;
+            ren = Kit_CreateImageSubtitleRenderer(dec, w, h);
             break;
         default:
             format->is_enabled = false;
             break;
     }
     if(ren == NULL) {
+        Kit_SetError("Unrecognized subtitle format");
         goto exit_2;
     }
 
     // Allocate temporary screen-sized subtitle buffer
     SDL_Surface *tmp_buffer = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
     if(tmp_buffer == NULL) {
+        Kit_SetError("Unable to allocate subtitle buffer");
         goto exit_3;
     }
     SDL_FillRect(tmp_buffer, NULL, 0);
@@ -172,7 +184,7 @@ static void _merge_subtitle_texture(void *ptr, void *userdata) {
     // Make sure current time is within presentation range
     if(packet->pts_start >= img->sync_ts)
         return;
-    if(packet->pts_end <= img->sync_ts)
+    if(packet->pts_end <= img->sync_ts && packet->pts_end >= 0)
         return;
 
     // Tell the renderer function that we did something here
@@ -199,21 +211,23 @@ int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
         SDL_FillRect(subtitle_dec->tmp_buffer, NULL, 0);
     }
 
+    // Clear out old packets
+    Kit_SubtitlePacket *packet = NULL;
+    while((packet = Kit_PeekDecoderOutput(dec)) != NULL) {
+        if(packet->pts_end >= sync_ts)
+            break;
+        if(packet->pts_end < 0)
+            break;
+        Kit_AdvanceDecoderOutput(dec);
+        free_out_subtitle_packet_cb(packet);
+    }
+
     // Blit all subtitle image rectangles to master buffer
     tmp_sub_image img;
     img.sync_ts = sync_ts;
     img.surface = subtitle_dec->tmp_buffer;
     img.rendered = 0;
     Kit_ForEachDecoderOutput(dec, _merge_subtitle_texture, (void*)&img);
-
-    // Clear out old packets
-    Kit_SubtitlePacket *packet = NULL;
-    while((packet = Kit_PeekDecoderOutput(dec)) != NULL) {
-        if(packet->pts_end >= sync_ts)
-            break;
-        Kit_AdvanceDecoderOutput(dec);
-        free_out_subtitle_packet_cb(packet);
-    }
 
     // If nothing was rendered now or last frame, just return. No need to update texture.
     dec->clock_pos = sync_ts;
