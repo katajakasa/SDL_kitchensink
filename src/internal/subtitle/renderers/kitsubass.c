@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include <ass/ass.h>
-#include <SDL2/SDL_Surface.h>
+#include <SDL2/SDL_surface.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/utils/kitlog.h"
