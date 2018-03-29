@@ -43,8 +43,7 @@ enum AVSampleFormat _FindAVSampleFormat(int format) {
         case AUDIO_U8: return AV_SAMPLE_FMT_U8;
         case AUDIO_S16SYS: return AV_SAMPLE_FMT_S16;
         case AUDIO_S32SYS: return AV_SAMPLE_FMT_S32;
-        default:
-            return AV_SAMPLE_FMT_NONE;
+        default: return AV_SAMPLE_FMT_NONE;
     }
 }
 
@@ -58,22 +57,13 @@ int64_t _FindAVChannelLayout(int channels) {
     }
 }
 
-void _FindChannelLayout(uint64_t channel_layout, int *channels) {
+int _FindChannelLayout(uint64_t channel_layout) {
     switch(channel_layout) {
-        case AV_CH_LAYOUT_MONO:
-            *channels = 1;
-            break;
-        case AV_CH_LAYOUT_STEREO:
-            *channels = 2;
-            break;
-        case AV_CH_LAYOUT_QUAD:
-            *channels = 4;
-            break;
-        case AV_CH_LAYOUT_5POINT1:
-            *channels = 6;
-            break;
-        default:
-            *channels = 2;
+        case AV_CH_LAYOUT_MONO: return 1;
+        case AV_CH_LAYOUT_STEREO: return 2;
+        case AV_CH_LAYOUT_QUAD: return 4;
+        case AV_CH_LAYOUT_5POINT1: return 6;
+        default: return 2;
     }
 }
 
@@ -209,7 +199,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_AudioFormat *form
     format->samplerate = dec->codec_ctx->sample_rate;
     format->is_enabled = true;
     format->stream_index = src->audio_stream_index;
-    _FindChannelLayout(dec->codec_ctx->channel_layout, &format->channels);
+    format->channels = _FindChannelLayout(dec->codec_ctx->channel_layout);
     _FindAudioFormat(dec->codec_ctx->sample_fmt, &format->bytes, &format->is_signed, &format->format);
 
     // ... then allocate the audio decoder

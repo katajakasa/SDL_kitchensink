@@ -1,6 +1,10 @@
 #ifndef KITFORMATS_H
 #define KITFORMATS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 
 typedef struct Kit_AudioFormat {
@@ -26,5 +30,9 @@ typedef struct Kit_SubtitleFormat {
     bool is_enabled; ///< Is stream enabled
     unsigned int format; ///< SDL Pixel Format
 } Kit_SubtitleFormat;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // KITFORMATS_H
