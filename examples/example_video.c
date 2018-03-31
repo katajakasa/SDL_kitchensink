@@ -82,9 +82,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Attempt to acquire opengl driver context
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-
     // Create a resizable window.
     window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
