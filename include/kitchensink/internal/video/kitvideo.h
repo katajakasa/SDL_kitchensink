@@ -7,6 +7,6 @@
 #include "kitchensink/internal/kitdecoder.h"
 
 KIT_LOCAL Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *format);
-KIT_LOCAL int Kit_GetVideoDecoderDataTexture(Kit_Decoder *dec, SDL_Texture *texture);
+KIT_LOCAL int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture);
 
 #endif // KITVIDEO_H

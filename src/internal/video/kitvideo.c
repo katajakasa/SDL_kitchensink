@@ -203,7 +203,7 @@ exit_0:
     return NULL;
 }
 
-int Kit_GetVideoDecoderDataTexture(Kit_Decoder *dec, SDL_Texture *texture) {
+int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 

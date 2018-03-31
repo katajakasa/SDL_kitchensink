@@ -5,6 +5,6 @@
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
 
-KIT_LOCAL Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(const Kit_Decoder *dec, int w, int h);
+KIT_LOCAL Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int w, int h);
 
 #endif // KITSUBIMAGE_H

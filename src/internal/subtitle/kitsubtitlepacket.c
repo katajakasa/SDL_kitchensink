@@ -2,9 +2,10 @@
 
 
 Kit_SubtitlePacket* Kit_CreateSubtitlePacket(
-        double pts_start, double pts_end, int pos_x, int pos_y, SDL_Surface *surface)
+        Kit_SubtitlePacketType type, double pts_start, double pts_end, int pos_x, int pos_y, SDL_Surface *surface)
 {
     Kit_SubtitlePacket *p = calloc(1, sizeof(Kit_SubtitlePacket));
+    p->type = type;
     p->pts_start = pts_start;
     p->pts_end = pts_end;
     p->x = pos_x;

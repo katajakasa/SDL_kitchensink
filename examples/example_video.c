@@ -11,6 +11,9 @@
 */
 
 #define AUDIOBUFFER_SIZE (1024 * 64)
+#define ATLAS_WIDTH 4096
+#define ATLAS_HEIGHT 4096
+#define ATLAS_MAX 1024
 
 
 void render_gui(SDL_Renderer *renderer, double percent) {
@@ -93,12 +96,6 @@ int main(int argc, char *argv[]) {
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a renderer!\n");
-        return 1;
-    }
-
-    // We want to alphablend textures, so switch that on
-    if(SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND) < 0) {
-        fprintf(stderr, "Unable to set blendmode!\n");
         return 1;
     }
 
@@ -199,10 +196,9 @@ int main(int argc, char *argv[]) {
         renderer,
         pinfo.subtitle.format,
         SDL_TEXTUREACCESS_STATIC,
-        pinfo.video.width,
-        pinfo.video.height);
+        ATLAS_WIDTH, ATLAS_HEIGHT);
     if(subtitle_tex == NULL) {
-        fprintf(stderr, "Error while attempting to create a subtitle texture\n");
+        fprintf(stderr, "Error while attempting to create a subtitle texture atlas\n");
         return 1;
     }
 
@@ -309,11 +305,17 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
         // Refresh videotexture and render it
-        Kit_GetVideoDataTexture(player, video_tex);
+        Kit_GetVideoData(player, video_tex);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
-        Kit_GetSubtitleDataTexture(player, subtitle_tex);
-        SDL_RenderCopy(renderer, subtitle_tex, NULL, NULL);
 
+        // Refresh subtitle texture atlas and render subtitle frames from it
+        SDL_Rect sources[ATLAS_MAX];
+        SDL_Rect targets[ATLAS_MAX];
+        int got = Kit_GetSubtitleData(player, subtitle_tex, sources, targets, ATLAS_MAX);
+        for(int i = 0; i < got; i++) {
+            SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+        }
+        
         // Render GUI
         if(gui_enabled) {
             double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);

@@ -56,8 +56,8 @@ KIT_API Kit_Player* Kit_CreatePlayer(const Kit_Source *src);
 KIT_API void Kit_ClosePlayer(Kit_Player *player);
 
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
-KIT_API int Kit_GetVideoDataTexture(Kit_Player *player, SDL_Texture *texture);
-KIT_API int Kit_GetSubtitleDataTexture(Kit_Player *player, SDL_Texture *texture);
+KIT_API int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture);
+KIT_API int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
 KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length);
 KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 

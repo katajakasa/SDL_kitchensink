@@ -176,7 +176,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     free(player);
 }
 
-int Kit_GetVideoDataTexture(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
     if(player->video_dec == NULL) {
         return 0;
@@ -190,7 +190,7 @@ int Kit_GetVideoDataTexture(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
-    return Kit_GetVideoDecoderDataTexture(player->video_dec, texture);
+    return Kit_GetVideoDecoderData(player->video_dec, texture);
 }
 
 int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length) {
@@ -216,21 +216,23 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length) {
     return Kit_GetAudioDecoderData(player->audio_dec, buffer, length);
 }
 
-int Kit_GetSubtitleDataTexture(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
     assert(player != NULL);
+    assert(texture != NULL);
+    assert(sources != NULL);
+    assert(targets != NULL);
+    assert(limit >= 0);
+
     if(player->subtitle_dec == NULL) {
         return 0;
     }
 
     // If paused or stopped, do nothing
-    if(player->state == KIT_PAUSED) {
-        return 0;
-    }
     if(player->state == KIT_STOPPED) {
         return 0;
     }
 
-    return Kit_GetSubtitleDecoderDataTexture(player->subtitle_dec, texture);
+    return Kit_GetSubtitleDecoderData(player->subtitle_dec, texture, sources, targets, limit);
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {

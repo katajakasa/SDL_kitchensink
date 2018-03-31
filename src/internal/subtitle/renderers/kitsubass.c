@@ -7,49 +7,30 @@
 #include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubass.h"
-
-// For compatibility
-#ifndef ASS_FONTPROVIDER_AUTODETECT
-#define ASS_FONTPROVIDER_AUTODETECT 1
-#endif
 
 typedef struct Kit_ASSSubtitleRenderer {
     ASS_Renderer *renderer;
     ASS_Track *track;
 } Kit_ASSSubtitleRenderer;
 
-static void _ProcessAssImage(SDL_Surface *surface, const ASS_Image *img, int min_x, int min_y) {
+static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     unsigned char r = ((img->color) >> 24) & 0xFF;
     unsigned char g = ((img->color) >> 16) & 0xFF;
     unsigned char b = ((img->color) >>  8) & 0xFF;
     unsigned char a = (img->color) & 0xFF;
     unsigned char *src = img->bitmap;
     unsigned char *dst = surface->pixels;
-    unsigned int pos_x = img->dst_x - min_x;
-    unsigned int pos_y = img->dst_y - min_y;
-    unsigned int an, ao, x, y, x_off;
-    dst += pos_y * surface->pitch;
+    unsigned int x, y;
 
     for(y = 0; y < img->h; y++) {
         for(x = 0; x < img->w; x++) {
-            x_off = (pos_x + x) * 4;
-            an = ((255 - a) * src[x]) >> 8; // New alpha
-            ao = dst[x_off + 3]; // Original alpha
-            if(ao == 0) {
-                dst[x_off + 0] = r;
-                dst[x_off + 1] = g;
-                dst[x_off + 2] = b;
-                dst[x_off + 3] = an;
-            } else {
-                dst[x_off + 3] = 255 - (255 - dst[x_off + 3]) * (255 - an) / 255;
-                if(dst[x_off + 3] != 0) {
-                    dst[x_off + 0] = (dst[x_off + 0] * ao * (255-an) / 255 + r * an ) / dst[x_off + 3];
-                    dst[x_off + 1] = (dst[x_off + 1] * ao * (255-an) / 255 + g * an ) / dst[x_off + 3];
-                    dst[x_off + 2] = (dst[x_off + 2] * ao * (255-an) / 255 + b * an ) / dst[x_off + 3];
-                }
-            }
+            dst[x * 4 + 0] = r;
+            dst[x * 4 + 1] = g;
+            dst[x * 4 + 2] = b;
+            dst[x * 4 + 3] = ((255 - a) * src[x]) >> 8;
         }
         src += img->stride;
         dst += surface->pitch;
@@ -62,67 +43,67 @@ static Kit_SubtitlePacket* ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *sr
 
     Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
     AVSubtitle *sub = src;
-    SDL_Surface *surface = NULL;
-    ASS_Image *image = NULL;
-    ASS_Image *wt_image = NULL;
-    unsigned int now = start_pts * 1000;
-    int change = 0;
-    int x0 = INT_MAX, y0 = INT_MAX;
-    int x1 = 0, y1 = 0;
-    int w, h;
 
     // Read incoming subtitle packets to libASS
-    for(int r = 0; r < sub->num_rects; r++) {
-        if(sub->rects[r]->ass == NULL)
-            continue;
-        ass_process_data(ass_ren->track, sub->rects[r]->ass, strlen(sub->rects[r]->ass));
+    if(Kit_LockDecoderOutput(ren->dec) == 0) {
+        for(int r = 0; r < sub->num_rects; r++) {
+            if(sub->rects[r]->ass == NULL)
+                continue;
+            ass_process_data(ass_ren->track, sub->rects[r]->ass, strlen(sub->rects[r]->ass));
+        }
+        Kit_UnlockDecoderOutput(ren->dec);
     }
 
-    // Ask libass to render frames. If there are no changes since last render, stop here.
-    wt_image = image = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
-    if(change == 0) {
-        return NULL;
-    }
-
-    // Find dimensions
-    for(image = wt_image; image; image = image->next) {
-        if(image->dst_x < x0)
-            x0 = image->dst_x;
-        if(image->dst_y < y0)
-            y0 = image->dst_y;
-        if(image->dst_x + image->w > x1)
-            x1 = image->dst_x + image->w;
-        if(image->dst_y + image->h > y1)
-            y1 = image->dst_y + image->h;
-    }
-    w = x1 - x0;
-    h = y1 - y0;
-
-    // Surface to render on
-    surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
-    SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
-    SDL_FillRect(surface, NULL, 0);
-
-    // Render subimages to the target surface.
-    for(image = wt_image; image; image = image->next) {
-        if(image->w == 0 || image->h == 0)
-            continue;
-        _ProcessAssImage(surface, image, x0, y0);
-    }
-
-    // We tell subtitle handler to clear output before adding this frame.
-    return Kit_CreateSubtitlePacket(start_pts, end_pts, x0, y0, surface);
+    return NULL;
 }
 
 static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
     if(ren == NULL) return;
 
     Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+    ass_free_track(ass_ren->track);
     ass_renderer_done(ass_ren->renderer);
     free(ass_ren);
 }
 
-Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(const Kit_Decoder *dec, int w, int h) {
+static int ren_get_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
+    Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+    SDL_Surface *surface;
+    ASS_Image *image = NULL;
+    int change = 0;
+    unsigned int now = current_pts * 1000;
+
+    // First, we tell ASS to render images for us
+    if(Kit_LockDecoderOutput(ren->dec) == 0) {
+        image = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
+        Kit_UnlockDecoderOutput(ren->dec);
+    }
+
+    // If there was no change, stop here
+    if(change == 0) {
+        return 0;
+    }
+
+    // There was some change, process images and add them to atlas
+    Kit_ClearAtlasContent(atlas);
+    for(; image; image = image->next) {
+        if(image->w == 0 || image->h == 0)
+            continue;
+        surface = SDL_CreateRGBSurfaceWithFormat(0, image->w, image->h, 32, SDL_PIXELFORMAT_RGBA32);
+        SDL_FillRect(surface, NULL, 0);
+        Kit_ProcessAssImage(surface, image);
+        SDL_Rect target;
+        target.x = image->dst_x;
+        target.y = image->dst_y;
+        target.w = image->w;
+        target.h = image->h;
+        Kit_AddAtlasItem(atlas, surface, &target);
+    }
+
+    return 0;
+}
+
+Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int w, int h) {
     assert(dec != NULL);
     assert(w >= 0);
     assert(h >= 0);
@@ -135,7 +116,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(const Kit_Decoder *dec, int 
     }
 
     // First allocate the generic decoder component
-    Kit_SubtitleRenderer *ren = Kit_CreateSubtitleRenderer();
+    Kit_SubtitleRenderer *ren = Kit_CreateSubtitleRenderer(dec);
     if(ren == NULL) {
         goto exit_0;
     }
@@ -196,13 +177,12 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(const Kit_Decoder *dec, int 
             dec->codec_ctx->subtitle_header_size);
     }
 
-    LOG("kekekekee\n");
-
     // Set callbacks and userdata, and we're go
     ass_ren->renderer = ass_renderer;
     ass_ren->track = ass_track;
     ren->ren_render = ren_render_ass_cb;
     ren->ren_close = ren_close_ass_cb;
+    ren->ren_get_data = ren_get_data_cb;
     ren->userdata = ass_ren;
     return ren;
 
