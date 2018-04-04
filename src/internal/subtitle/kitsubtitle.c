@@ -39,6 +39,7 @@ static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(in_packet != NULL);
 
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    double pts, start, end;
     int frame_finished;
     int len;
 
@@ -50,26 +51,23 @@ static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
 
         if(frame_finished) {
             // Start and end presentation timestamps for subtitle frame
-            double pts = 0;
+            pts = 0;
             if(in_packet->pts != AV_NOPTS_VALUE) {
                 pts = in_packet->pts;
                 pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
             }
-            double start = pts + (subtitle_dec->scratch_frame.start_display_time / 1000.0f);
-            double end = -1;
-            if(subtitle_dec->scratch_frame.end_display_time < UINT_MAX) {
-                end = pts + (subtitle_dec->scratch_frame.end_display_time / 1000.0f);
+
+            // If subtitle has no ending time, we set some safety value.
+            if(subtitle_dec->scratch_frame.end_display_time == UINT_MAX) {
+                subtitle_dec->scratch_frame.end_display_time = 30000;
             }
 
+            start = pts + subtitle_dec->scratch_frame.start_display_time / 1000.0f;
+            end = pts + subtitle_dec->scratch_frame.end_display_time / 1000.0f;
+
             // Create a packet. This should be filled by renderer.
-            Kit_SubtitlePacket *out_packet = Kit_RunSubtitleRenderer(
+            Kit_RunSubtitleRenderer(
                 subtitle_dec->renderer, &subtitle_dec->scratch_frame, start, end);
-            if(end < 0) {
-                Kit_ClearDecoderOutput(dec);
-            }
-            if(out_packet != NULL) {
-                Kit_WriteDecoderOutput(dec, out_packet);
-            }
 
             // Free subtitle since it has now been handled
             avsubtitle_free(&subtitle_dec->scratch_frame);

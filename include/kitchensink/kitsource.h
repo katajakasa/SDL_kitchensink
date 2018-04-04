@@ -26,7 +26,7 @@ typedef struct Kit_Source {
     void *format_ctx;          ///< FFmpeg: Videostream format context
 } Kit_Source;
 
-typedef struct Kit_Stream {
+typedef struct Kit_StreamInfo {
     int index; ///< Stream index
     Kit_StreamType type; ///< Stream type
 } Kit_StreamInfo;

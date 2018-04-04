@@ -17,12 +17,11 @@ Kit_SubtitleRenderer* Kit_CreateSubtitleRenderer(Kit_Decoder *dec) {
     return ren;
 }
 
-Kit_SubtitlePacket* Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
+void Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
     if(ren == NULL)
-        return NULL;
+        return;
     if(ren->ren_render != NULL)
-        return ren->ren_render(ren, src, start_pts, end_pts);
-    return NULL;
+        ren->ren_render(ren, src, start_pts, end_pts);
 }
 
 int Kit_GetSubtitleRendererData(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {

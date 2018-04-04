@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
     // Ask for linear texture scaling (better quality)
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
-    // Initialize Kitchensink with network support and all formats.
+    // Initialize Kitchensink with network and libass support.
     err = Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());

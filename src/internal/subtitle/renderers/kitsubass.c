@@ -37,7 +37,7 @@ static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     }
 }
 
-static Kit_SubtitlePacket* ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
+static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
     assert(ren != NULL);
     assert(src != NULL);
 
@@ -53,8 +53,6 @@ static Kit_SubtitlePacket* ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *sr
         }
         Kit_UnlockDecoderOutput(ren->dec);
     }
-
-    return NULL;
 }
 
 static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
@@ -68,14 +66,14 @@ static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
 
 static int ren_get_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
     Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
-    SDL_Surface *surface;
-    ASS_Image *image = NULL;
+    SDL_Surface *dst = NULL;
+    ASS_Image *src = NULL;
     int change = 0;
     unsigned int now = current_pts * 1000;
 
     // First, we tell ASS to render images for us
     if(Kit_LockDecoderOutput(ren->dec) == 0) {
-        image = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
+        src = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
         Kit_UnlockDecoderOutput(ren->dec);
     }
 
@@ -86,18 +84,18 @@ static int ren_get_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, d
 
     // There was some change, process images and add them to atlas
     Kit_ClearAtlasContent(atlas);
-    for(; image; image = image->next) {
-        if(image->w == 0 || image->h == 0)
+    for(; src; src = src->next) {
+        if(src->w == 0 || src->h == 0)
             continue;
-        surface = SDL_CreateRGBSurfaceWithFormat(0, image->w, image->h, 32, SDL_PIXELFORMAT_RGBA32);
-        SDL_FillRect(surface, NULL, 0);
-        Kit_ProcessAssImage(surface, image);
+        dst = SDL_CreateRGBSurfaceWithFormat(0, src->w, src->h, 32, SDL_PIXELFORMAT_RGBA32);
+        Kit_ProcessAssImage(dst, src);
         SDL_Rect target;
-        target.x = image->dst_x;
-        target.y = image->dst_y;
-        target.w = image->w;
-        target.h = image->h;
-        Kit_AddAtlasItem(atlas, surface, &target);
+        target.x = src->dst_x;
+        target.y = src->dst_y;
+        target.w = src->w;
+        target.h = src->h;
+        Kit_AddAtlasItem(atlas, dst, &target);
+        SDL_FreeSurface(dst);
     }
 
     return 0;

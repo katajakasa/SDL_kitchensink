@@ -206,16 +206,18 @@ int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, SDL_Rect *ta
     assert(surface != NULL);
     assert(target != NULL);
 
+    Kit_TextureAtlasItem *item;
+
     if(atlas->cur_items >= atlas->max_items) {
-        SDL_FreeSurface(surface);
         return -1; // Cannot fit, buffer full!
     }
 
-    Kit_TextureAtlasItem *item = &atlas->items[atlas->cur_items];
+    item = &atlas->items[atlas->cur_items];
     item->cur_shelf = -1;
     item->cur_slot = -1;
     item->is_copied = false;
     item->surface = surface;
+    item->surface->refcount++; // We dont want to needlessly copy; instead increase refcount.
     memset(&item->source, 0, sizeof(SDL_Rect));
     memcpy(&item->target, target, sizeof(SDL_Rect));
     return atlas->cur_items++;
