@@ -4,8 +4,6 @@
 #include <stdbool.h>
 
 /*
-* Requires SDL2 2.0.4 !
-*
 * Note! This example does not do proper error handling etc.
 * It is for example use only!
 */

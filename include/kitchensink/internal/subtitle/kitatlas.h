@@ -34,7 +34,6 @@ KIT_LOCAL void Kit_RefreshAtlas(Kit_TextureAtlas *atlas, double current_pts);
 KIT_LOCAL void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas);
 KIT_LOCAL int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture);
 KIT_LOCAL int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit);
-KIT_LOCAL int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, SDL_Rect *target);
-KIT_LOCAL void Kit_FreeAtlasItem(Kit_TextureAtlas *atlas, int item_id);
+KIT_LOCAL int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, const SDL_Rect *target);
 
 #endif // KITATLAS_H

@@ -192,6 +192,5 @@ int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect 
     int item_count = Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
 
     // All done
-    dec->clock_pos = sync_ts;
     return item_count;
 }

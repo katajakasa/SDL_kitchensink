@@ -9,11 +9,6 @@
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
 
-typedef struct Kit_SubtitleCBData {
-    Kit_TextureAtlas *atlas;
-    double current_pts;
-} Kit_SubtitleCBData;
-
 static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double start_pts, double end_pts) {
     assert(ren != NULL);
     assert(sub_src != NULL);
@@ -44,7 +39,6 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
         SDL_BlitSurface(src, NULL, dst, NULL);
         
         // Create a new packet and write it to output buffer
-        SDL_SetSurfaceBlendMode(dst, SDL_BLENDMODE_BLEND);
         Kit_WriteDecoderOutput(
             ren->dec, Kit_CreateSubtitlePacket(false, start_pts, end_pts, r->x, r->y, dst));
 
@@ -79,6 +73,7 @@ static int ren_get_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, d
             }
             Kit_AdvanceDecoderOutput(ren->dec);
             Kit_FreeSubtitlePacket(packet);
+            ren->dec->clock_pos = current_pts;
             continue;
         }
         break;

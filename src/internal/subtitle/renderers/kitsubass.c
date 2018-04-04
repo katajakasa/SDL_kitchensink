@@ -98,6 +98,7 @@ static int ren_get_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, d
         SDL_FreeSurface(dst);
     }
 
+    ren->dec->clock_pos = current_pts;
     return 0;
 }
 

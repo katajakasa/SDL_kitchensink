@@ -68,24 +68,28 @@ void Kit_FreeAtlas(Kit_TextureAtlas *atlas) {
 }
 
 void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, int shelf, int slot, int x, int y) {
+    assert(item != NULL);
+
     item->cur_shelf = shelf;
     item->cur_slot = slot;
     item->source.x = x;
     item->source.y = y;
     item->source.w = item->surface->w;
     item->source.h = item->surface->h;
-    //LOG("Writing x,y=(%d, %d) w,h=(%d, %d) on shelf %d slot %d\n",
-    //    x, y, item->surface->w, item->surface->h, shelf, slot);
 }
 
 int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
+    assert(atlas != NULL);
+    assert(item != NULL);
+
     int shelf_w, shelf_h;
     int total_remaining_h = atlas->h;
     int total_reserved_h = 0;
 
     // First, try to look for a good, existing shelf
     int best_shelf_idx = -1;
-    int best_shelf_h = 0;
+    int best_shelf_h = atlas->h;
+    int best_shelf_y = 0;
     
     // Try to find a good shelf to put this item in
     int shelf_idx;
@@ -100,9 +104,10 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
 
         // If the item fits, check if the space is better than previous one
         if(item->surface->w <= (atlas->w - shelf_w) && item->surface->h <= shelf_h) {
-            if(shelf_h > best_shelf_h) {
+            if(shelf_h < best_shelf_h) {
                 best_shelf_h = shelf_h;
                 best_shelf_idx = shelf_idx;
+                best_shelf_y = total_reserved_h - shelf_h;
             }
         }
     }
@@ -114,11 +119,11 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
             best_shelf_idx,
             atlas->shelf[best_shelf_idx][2],
             atlas->shelf[best_shelf_idx][0],
-            total_reserved_h);
+            best_shelf_y);
         atlas->shelf[best_shelf_idx][0] += item->surface->w;
         atlas->shelf[best_shelf_idx][2] += 1;
         return 0;
-    } else if(total_remaining_h > item->surface->h) {
+    } else if(total_remaining_h >= item->surface->h) {
         atlas->shelf[shelf_idx][0] = item->surface->w;
         atlas->shelf[shelf_idx][1] = item->surface->h;
         atlas->shelf[shelf_idx][2] = 1;
@@ -134,29 +139,34 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
     return 1; // Can't fit!
 }
 
-int Kit_AllocateAtlasSurfaces(Kit_TextureAtlas *atlas, bool halt_on_errors) {
-    int ret = 0;
+int Kit_AllocateAtlasSurfaces(Kit_TextureAtlas *atlas) {
+    assert(atlas != NULL);
+
     Kit_TextureAtlasItem *item;
     for(int i = 0; i < atlas->cur_items; i++) {
         item = &atlas->items[i];
         if(item->cur_shelf > -1) // Stop if already allocated
             continue;
         if(Kit_FindFreeAtlasSlot(atlas, item) != 0) { // If nothing else helps, create a new slot
-            ret = 1;
-            if(halt_on_errors)
-                goto exit_0;
+            goto exit_0;
         }
     }
+    return 0;
 
 exit_0:
-    return ret;
+    return 1;
 }
 
 void Kit_BlitAtlasSurfaces(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
+    assert(atlas != NULL);
+    assert(texture != NULL);
+
     Kit_TextureAtlasItem *item;
     for(int i = 0; i < atlas->cur_items; i++) {
         item = &atlas->items[i];
-        if(!item->is_copied) { // Copy if not yet copied
+        if(item->cur_shelf == -1) // Skip if not allocated
+            continue;
+        if(!item->is_copied) {
             SDL_UpdateTexture(texture, &item->source, item->surface->pixels, item->surface->pitch);
             item->is_copied = true;
         }
@@ -177,7 +187,7 @@ int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
         atlas->h = texture_h;
     }
 
-    if(Kit_AllocateAtlasSurfaces(atlas, true) != 0) {
+    if(Kit_AllocateAtlasSurfaces(atlas) != 0) {
         LOG("WARNING! FULL ATLAS, CANNOT MAKE MORE ROOM!\n");
     }
 
@@ -187,9 +197,14 @@ int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
 }
 
 int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+    assert(atlas != NULL);
+    assert(limit >= 0);
+
     int count = 0;
     for(int i = 0; i < min(atlas->cur_items, limit); i++) {
         Kit_TextureAtlasItem *item = &atlas->items[i];
+        if(!item->is_copied)
+            continue;
         
         if(sources != NULL)
             memcpy(&sources[count], &item->source, sizeof(SDL_Rect));
@@ -201,7 +216,7 @@ int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect
     return count;
 }
 
-int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, SDL_Rect *target) {
+int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, const SDL_Rect *target) {
     assert(atlas != NULL);
     assert(surface != NULL);
     assert(target != NULL);
@@ -212,7 +227,7 @@ int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, SDL_Rect *ta
         return -1; // Cannot fit, buffer full!
     }
 
-    item = &atlas->items[atlas->cur_items];
+    item = &atlas->items[atlas->cur_items++];
     item->cur_shelf = -1;
     item->cur_slot = -1;
     item->is_copied = false;
@@ -220,14 +235,5 @@ int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, SDL_Rect *ta
     item->surface->refcount++; // We dont want to needlessly copy; instead increase refcount.
     memset(&item->source, 0, sizeof(SDL_Rect));
     memcpy(&item->target, target, sizeof(SDL_Rect));
-    return atlas->cur_items++;
-}
-
-void Kit_FreeAtlasItem(Kit_TextureAtlas *atlas, int item_id) {
-    assert(item_id >= 0);
-    SDL_FreeSurface(atlas->items[item_id].surface);
-    memmove(&atlas->items[item_id],
-            &atlas->items[item_id+1],
-            (atlas->max_items - item_id - 1) * sizeof(Kit_TextureAtlasItem));
-    atlas->cur_items--;
+    return 0;
 }

@@ -4,8 +4,6 @@
 #include <stdbool.h>
 
 /*
-* Requires SDL2 2.0.4 !
-*
 * Note! This example does not do proper error handling etc.
 * It is for example use only!
 */
@@ -96,9 +94,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Ask for linear texture scaling (better quality)
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-
     // Initialize Kitchensink with network and libass support.
     err = Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS);
     if(err != 0) {
@@ -178,7 +173,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(pinfo.subtitle.format));
     fflush(stderr);
 
-    // Initialize textures
+    // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_Texture *video_tex = SDL_CreateTexture(
         renderer,
         pinfo.video.format,
@@ -189,6 +184,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
     }
+
+    // This is the subtitle texture atlas. This contains all the subtitle image fragments.
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
         renderer,
         pinfo.subtitle.format,
@@ -312,7 +309,7 @@ int main(int argc, char *argv[]) {
         for(int i = 0; i < got; i++) {
             SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
         }
-        
+
         // Render GUI
         if(gui_enabled) {
             double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);
