@@ -1,59 +1,24 @@
 language: c
 
-sudo: false
-
-env:
-  global:
-   - secure: "p7KivdPu+pWYLI95Rmtu8FgOPWUq36TiXr9kH5rDyuqg2iz3DAt8unDYXWGfSn9p6OzfchBd2WsGMMvbvICfBNm+uOjrQwWwW6SBENLNyGDiGKQd4coAmUF247UXY+CslRQrSuciajrNSrBIPOL4EjvlMmV8N5kwDrFB8QktgxyLf35vbNAc8vkoUdFu7vUzt2MISIA1rrWcOUjDaM6vqovzosr/LzDwwjj3HX92ys2YZh2m1V7BOMLuNRLW7pou3ge4VmXdTVIyFcEEG1Nqk1apeX9ZEsw0IQ6xLfcOJbqg5CSIFrkGhdlM1L+u7ThBBa+EZU9EZr6qYnVvHMRU1xyCFEJvGMr9FhS9ZnzPxOxz0BG/qkDbtkQtPtkPobb/325b7/jpDNZFXj6/kErdLjsClP1jUnFmj3jkcOXYsGlz4Osl7tih4a52VLWhzL7Lz7XxmZ9KUOJPuofg2CT0eUa1w+OAtA/tB7molRo2AowmfuN+PvNcmE16cFtveFqAArnN0R7st91SkyGZNRTumDfb7rh9coAboFEZU7vKYnCk7Tt7Atp43HnqnX0ywvxqEmHY7yYQQE1Z/1Mw0+6JnHuEaFp0Q5aU/KJmGXae6v0HqvGqvr8mCjsm0LMAxtRb6tb5zbtGCKwEd3HaDA/i3B9xLDBebbIxjMBjDdvAn9Q="
-   - CMAKE_PREFIX_PATH=$HOME/local
-
-cache:
-  directories:
-  - $HOME/local
+sudo: required
+dist: trusty
 
 compiler:
   - gcc
 
-install:
-  - chmod +x ${TRAVIS_BUILD_DIR}/travis/sdl2.sh
-  - chmod +x ${TRAVIS_BUILD_DIR}/travis/ffmpeg.sh
-  - ${TRAVIS_BUILD_DIR}/travis/sdl2.sh
-  - ${TRAVIS_BUILD_DIR}/travis/ffmpeg.sh
+before_install: chmod +x travis/*
 
-script: if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then cd $TRAVIS_BUILD_DIR && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/bin/gcc-5 -DBUILD_EXAMPLES=On -DBUILD_TESTS=Off . && make; fi
+install: travis/deps.sh
+
+script: travis/make.sh
 
 notifications:
   email: false
 
 addons:
-  coverity_scan:
-    project:
-      name: "katajakasa/SDL_kitchensink"
-      description: "A Simple SDL2 / FFmpeg library for audio/video playback written in C99"
-    notification_email: katajakasa@gmail.com
-    build_command_prepend: "cov-configure --comptype gcc --compiler gcc-5 --template && cmake -DCMAKE_C_COMPILER=/usr/bin/gcc-5 -DCMAKE_BUILD_TYPE=Debug ."
-    build_command: "make"
-    branch_pattern: coverity_scan
-  apt:
-    sources:
-    - ubuntu-toolchain-r-test
-    - george-edison55-precise-backports
-    packages:
-    - libc6-dev
-    - yasm
-    - gcc-5
-    - gettext
-    - libcunit1
-    - libcunit1-dev
-    - libasound2-dev
-    - libpulse-dev
-    - libx11-dev
-    - libxext-dev
-    - libxrandr-dev
-    - libxi-dev
-    - libxxf86vm-dev
-    - libxss-dev
-    - libudev-dev
-    - cmake
-    - cmake-data
-    - libass-dev
+  sonarcloud:
+    organization: "katajakasa-github"
+
+cache:
+  directories:
+    - '$HOME/.sonar/cache'
