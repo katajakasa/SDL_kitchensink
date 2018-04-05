@@ -27,7 +27,11 @@ addons:
     - gcc-7
     - libsdl2-dev
     - libass-dev
-    - ffmpeg
+    - libavcodec-dev
+    - libavformat-dev
+    - libswresample-dev
+    - libswscale-dev
+    - libavutil-dev
 
 cache:
   directories:
