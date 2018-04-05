@@ -121,41 +121,49 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     // Initialize audio decoder
     player->audio_dec = Kit_CreateAudioDecoder(src, &player->aformat);
     if(player->audio_dec == NULL && src->audio_stream_index >= 0) {
-        goto error;
+        goto exit_0;
     }
 
     // Initialize video decoder
     player->video_dec = Kit_CreateVideoDecoder(src, &player->vformat);
     if(player->video_dec == NULL && src->video_stream_index >= 0) {
-        goto error;
+        goto exit_1;
     }
 
     // Initialize subtitle decoder
     player->subtitle_dec = Kit_CreateSubtitleDecoder(
         src, &player->sformat, player->vformat.width, player->vformat.height);
     if(player->subtitle_dec == NULL && src->subtitle_stream_index >= 0) {
-        goto error;
+        goto exit_2;
     }
 
     // Decoder thread lock
     player->dec_lock = SDL_CreateMutex();
     if(player->dec_lock == NULL) {
         Kit_SetError("Unable to create a decoder thread lock mutex: %s", SDL_GetError());
-        goto error;
+        goto exit_3;
     }
 
     // Decoder thread
     player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
     if(player->dec_thread == NULL) {
         Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
-        goto error;
+        goto exit_4;
     }
 
     player->src = src;
     return player;
 
-error:
-    Kit_ClosePlayer(player);
+exit_4:
+    SDL_DestroyMutex(player->dec_lock);
+exit_3:
+    Kit_CloseDecoder(player->subtitle_dec);
+exit_2:
+    Kit_CloseDecoder(player->video_dec);
+exit_1:
+    Kit_CloseDecoder(player->audio_dec);
+exit_0:
+    free(player);
     return NULL;
 }
 
