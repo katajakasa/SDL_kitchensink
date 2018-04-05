@@ -6,9 +6,10 @@ dist: trusty
 compiler:
   - gcc
 
-before_install: chmod +x travis/*
-
-script: travis/make.sh
+script:
+  - cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=On -DCMAKE_C_COMPILER=/usr/bin/gcc-7 -DUSE_TESTS=Off . 
+  - make && make test && make clean
+  - build-wrapper-linux-x86-64 --out-dir bw-output make && sonar-scanner
 
 notifications:
   email: false
