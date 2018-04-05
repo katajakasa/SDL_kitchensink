@@ -7,8 +7,9 @@ compiler:
   - gcc
 
 script:
-  - cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=On -DCMAKE_C_COMPILER=/usr/bin/gcc-7 -DUSE_TESTS=Off . 
-  - make && make test && make clean
+  - wget https://www.libsdl.org/release/SDL2-2.0.8.tar.gz -O - | tar -xz
+  - cd SDL2-2.0.8 && CC=gcc-7 ./configure --prefix=/usr && make -j2 && sudo make install && cd ..
+  - cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=On -DUSE_DYNAMIC_LIBASS=Off -DCMAKE_C_COMPILER=/usr/bin/gcc-7 . 
   - build-wrapper-linux-x86-64 --out-dir bw-output make && sonar-scanner
 
 notifications:
@@ -25,7 +26,6 @@ addons:
     packages:
     - cmake
     - gcc-7
-    - libsdl2-dev
     - libass-dev
     - libavcodec-dev
     - libavformat-dev
