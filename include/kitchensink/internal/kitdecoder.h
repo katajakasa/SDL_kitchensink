@@ -16,7 +16,7 @@
 
 typedef struct Kit_Decoder Kit_Decoder;
 
-typedef int (*dec_decode_cb)(Kit_Decoder *dec, AVPacket *in_packet);
+typedef void (*dec_decode_cb)(Kit_Decoder *dec, AVPacket *in_packet);
 typedef void (*dec_close_cb)(Kit_Decoder *dec);
 typedef void (*dec_free_packet_cb)(void *packet);
 

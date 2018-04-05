@@ -213,7 +213,6 @@ int Kit_RunDecoder(Kit_Decoder *dec) {
 
     AVPacket *in_packet;
     int is_output_full = 1;
-    int ret;
 
     // First, check if there is room in output buffer
     if(SDL_LockMutex(dec->lock[KIT_DEC_OUT]) == 0) {
@@ -231,11 +230,11 @@ int Kit_RunDecoder(Kit_Decoder *dec) {
     }
 
     // Run decoder with incoming packet
-    ret = dec->dec_decode(dec, in_packet);
+    dec->dec_decode(dec, in_packet);
 
     // Free raw packet before returning
     av_packet_free(&in_packet);
-    return ret;
+    return 1;
 }
 
 void Kit_CloseDecoder(Kit_Decoder *dec) {

@@ -71,7 +71,7 @@ static void free_out_video_packet_cb(void *packet) {
     free(p);
 }
 
-static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(dec != NULL);
     assert(in_packet != NULL);
     
@@ -82,7 +82,7 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     while(in_packet->size > 0) {
         int len = avcodec_decode_video2(dec->codec_ctx, video_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return 1;
+            return;
         }
 
         if(frame_finished) {
@@ -117,9 +117,6 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
         in_packet->size -= len;
         in_packet->data += len;
     }
-
-
-    return 1;
 }
 
 static void dec_close_video_cb(Kit_Decoder *dec) {

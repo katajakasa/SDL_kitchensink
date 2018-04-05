@@ -6,7 +6,8 @@
 typedef struct Kit_RingBuffer {
     int size;
     int len;
-    int wpos, rpos;
+    int wpos;
+    int rpos;
     char* data;
 } Kit_RingBuffer;
 

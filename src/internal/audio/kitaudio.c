@@ -74,16 +74,12 @@ void _FindAudioFormat(enum AVSampleFormat fmt, int *bytes, bool *is_signed, unsi
             *is_signed = false;
             *format = AUDIO_U8;
             break;
-        case AV_SAMPLE_FMT_S16:
-            *bytes = 2;
-            *is_signed = true;
-            *format = AUDIO_S16SYS;
-            break;
         case AV_SAMPLE_FMT_S32:
             *bytes = 4;
             *is_signed = true;
             *format = AUDIO_S32SYS;
             break;
+        case AV_SAMPLE_FMT_S16:
         default:
             *bytes = 2;
             *is_signed = true;
@@ -98,7 +94,7 @@ static void free_out_audio_packet_cb(void *packet) {
     free(p);
 }
 
-static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(dec != NULL);
     assert(in_packet != NULL);
 
@@ -113,7 +109,7 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     while(in_packet->size > 0) {
         len = avcodec_decode_audio4(dec->codec_ctx, audio_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return 1;
+            return;
         }
 
         if(frame_finished) {
@@ -161,9 +157,6 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
         in_packet->size -= len;
         in_packet->data += len;
     }
-
-
-    return 1;
 }
 
 static void dec_close_audio_cb(Kit_Decoder *dec) {
