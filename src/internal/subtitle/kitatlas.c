@@ -3,6 +3,8 @@
 #include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
+#define BORDER 2
+
 static int min(int a, int b) {
     if(a < b)
         return a;
@@ -50,12 +52,11 @@ void Kit_ResetAtlasContent(Kit_TextureAtlas *atlas) {
 }
 
 void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas) {
-    Kit_TextureAtlasItem *item;
     for(int i = 0; i < atlas->cur_items; i++) {
-        item = &atlas->items[i];
-        SDL_FreeSurface(item->surface);
+        SDL_FreeSurface(atlas->items[i].surface);
     }
     atlas->cur_items = 0;
+    memset(atlas->items, 0, atlas->max_items * sizeof(Kit_TextureAtlasItem));
     memset(atlas->shelf, 0, sizeof(atlas->shelf));
 }
 
@@ -82,7 +83,8 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
     assert(atlas != NULL);
     assert(item != NULL);
 
-    int shelf_w, shelf_h;
+    int shelf_w;
+    int shelf_h;
     int total_remaining_h = atlas->h;
     int total_reserved_h = 0;
 

@@ -23,7 +23,7 @@ typedef enum Kit_PlayerState {
     KIT_STOPPED = 0, ///< Playback stopped or has not started yet.
     KIT_PLAYING,     ///< Playback started & player is actively decoding.
     KIT_PAUSED,      ///< Playback paused; player is actively decoding but no new data is given out.
-    KIT_CLOSED       ///< Playback is stopped and player is closing.
+    KIT_CLOSED,      ///< Playback is stopped and player is closing.
 } Kit_PlayerState;
 
 typedef struct Kit_Player {

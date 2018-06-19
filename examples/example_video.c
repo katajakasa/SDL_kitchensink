@@ -253,6 +253,7 @@ int main(int argc, char *argv[]) {
                         if(Kit_PlayerSeek(player, m_time) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
+                        SDL_ClearQueuedAudio(audio_dev);
                     } else {
                         // Handle pause
                         if(Kit_GetPlayerState(player) == KIT_PAUSED) {
@@ -274,10 +275,10 @@ int main(int argc, char *argv[]) {
         gui_enabled = (mouse_y >= limit);
 
         // Refresh audio
-        if(SDL_GetQueuedAudioSize(audio_dev) < AUDIOBUFFER_SIZE) {
-            int need = AUDIOBUFFER_SIZE - ret;
+        int queued = SDL_GetQueuedAudioSize(audio_dev);
+        if(queued < AUDIOBUFFER_SIZE) {
+            int need = AUDIOBUFFER_SIZE - queued;
 
-            SDL_LockAudio();
             while(need > 0) {
                 ret = Kit_GetAudioData(
                     player,
@@ -290,8 +291,10 @@ int main(int argc, char *argv[]) {
                     break;
                 }
             }
-            SDL_UnlockAudio();
-            SDL_PauseAudioDevice(audio_dev, 0);
+            // If we now have data, start playback (again)
+            if(SDL_GetQueuedAudioSize(audio_dev) > 0) {
+                SDL_PauseAudioDevice(audio_dev, 0);
+            }
         }
 
         // Clear screen with black

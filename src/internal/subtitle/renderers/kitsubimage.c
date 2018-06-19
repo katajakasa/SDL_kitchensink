@@ -14,7 +14,8 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
     assert(sub_src != NULL);
 
     AVSubtitle *sub = sub_src;
-    SDL_Surface *dst = NULL, *src = NULL;
+    SDL_Surface *dst = NULL;
+    SDL_Surface *src = NULL;
 
     // If this subtitle has no rects, we still need to clear screen from old subs
     if(sub->num_rects == 0) {

@@ -57,6 +57,21 @@ static int _DemuxStream(const Kit_Player *player) {
     return -1;
 }
 
+static bool _IsOutputEmpty(const Kit_Player *player) {
+    Kit_Decoder *decoders[] = {
+        player->video_dec,
+        player->audio_dec,
+        player->subtitle_dec
+    };
+    for(int i = 0; i < 3; i++) {
+        if(decoders[i] == NULL)
+            continue;
+        if(Kit_PeekDecoderOutput(decoders[i]))
+            return false;
+    }
+    return true;
+}
+
 static int _DecoderThread(void *ptr) {
     Kit_Player *player = ptr;
     bool is_running = true;
@@ -84,8 +99,9 @@ static int _DecoderThread(void *ptr) {
             // Get more data from demuxer, decode. Wait a bit if there's no more work for now.
             if(SDL_LockMutex(player->dec_lock) == 0) {
                 while((ret = _DemuxStream(player)) == -1);
-                if(ret == 1) {
+                if(ret == 1 && _IsOutputEmpty(player)) {
                     player->state = KIT_STOPPED;
+                    SDL_UnlockMutex(player->dec_lock);
                     continue;
                 }
 
@@ -340,6 +356,7 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
     double position, duration;
     int64_t seek_target;
+    int flags = AVSEEK_FLAG_ANY;
 
     if(SDL_LockMutex(player->dec_lock) == 0) {
         duration = Kit_GetPlayerDuration(player);
@@ -354,7 +371,10 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
         // Set source to timestamp
         AVFormatContext *format_ctx = player->src->format_ctx;
         seek_target = seek_set * AV_TIME_BASE;
-        if(avformat_seek_file(format_ctx, -1, seek_target, seek_target, seek_target, AVSEEK_FLAG_ANY) < 0) {
+        if(seek_set < position) {
+            flags |= AVSEEK_FLAG_BACKWARD;
+        }
+        if(avformat_seek_file(format_ctx, -1, 0, seek_target, seek_target, flags) < 0) {
             Kit_SetError("Unable to seek source");
             SDL_UnlockMutex(player->dec_lock);
             return 1;
