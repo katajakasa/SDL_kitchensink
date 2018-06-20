@@ -8,6 +8,9 @@
 
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/utils/kitlog.h"
+
+#define AVIO_BUF_SIZE 32768
 
 Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
     assert(url != NULL);
@@ -46,9 +49,82 @@ exit_0:
     return NULL;
 }
 
+Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata) {
+    assert(read_cb != NULL);
+
+    Kit_Source *src = calloc(1, sizeof(Kit_Source));
+    if(src == NULL) {
+        Kit_SetError("Unable to allocate source");
+        return NULL;
+    }
+
+    uint8_t *avio_buf = av_malloc(AVIO_BUF_SIZE);
+    if(avio_buf == NULL) {
+        Kit_SetError("Unable to allocate avio buffer");
+        goto exit_0;
+    }
+
+    AVFormatContext *format_ctx = avformat_alloc_context();
+    if(format_ctx == NULL) {
+        Kit_SetError("Unable to allocate format context");
+        goto exit_1;
+    }
+
+    AVIOContext *avio_ctx = avio_alloc_context(
+        avio_buf, AVIO_BUF_SIZE, 0, userdata, read_cb, 0, seek_cb);
+    if(avio_ctx == NULL) {
+        Kit_SetError("Unable to allocate avio context");
+        goto exit_2;
+    }
+
+    // Set the format as AVIO format
+    format_ctx->pb = avio_ctx;
+
+    // Attempt to open source
+    if(avformat_open_input(&format_ctx, "", NULL, NULL) < 0) {
+        Kit_SetError("Unable to open custom source");
+        goto exit_3;
+    }
+
+    // Set probe opts for input scanning
+    av_opt_set_int(src->format_ctx, "probesize", INT_MAX, 0);
+    av_opt_set_int(src->format_ctx, "analyzeduration", INT_MAX, 0);
+
+    // Fetch stream information. This may potentially take a while.
+    if(avformat_find_stream_info(format_ctx, NULL) < 0) {
+        Kit_SetError("Unable to fetch source information");
+        goto exit_4;
+    }
+
+    // Set internals
+    src->format_ctx = format_ctx;
+    src->avio_ctx = avio_ctx;
+    src->avio_buf = avio_buf;
+
+    // Find best streams for defaults
+    src->audio_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
+    src->video_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO);
+    src->subtitle_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE);
+    return src;
+
+exit_4:
+    avformat_close_input(&format_ctx);
+exit_3:
+    av_free(avio_ctx);
+exit_2:
+    avformat_free_context(format_ctx);
+exit_1:
+    av_free(avio_buf);
+exit_0:
+    free(src);
+    return NULL;
+}
+
 void Kit_CloseSource(Kit_Source *src) {
     assert(src != NULL);
     avformat_close_input((AVFormatContext **)&src->format_ctx);
+    av_free(src->avio_ctx);
+    av_free(src->avio_buf);
     free(src);
 }
 

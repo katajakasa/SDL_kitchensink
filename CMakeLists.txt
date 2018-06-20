@@ -93,23 +93,21 @@ configure_file(
 if(BUILD_EXAMPLES)
     add_executable(exampleaudio examples/example_audio.c)
     add_executable(examplevideo examples/example_video.c)
+    add_executable(examplecustvideo examples/example_cust_video.c)
 
     if(MINGW)
         target_link_libraries(exampleaudio mingw32)
         target_link_libraries(examplevideo mingw32)
+        target_link_libraries(examplecustvideo mingw32)
     endif()
 
     set_property(TARGET exampleaudio PROPERTY C_STANDARD 99)
     set_property(TARGET examplevideo PROPERTY C_STANDARD 99)
+    set_property(TARGET examplecustvideo PROPERTY C_STANDARD 99)
 
-    target_link_libraries(exampleaudio
-        SDL_kitchensink_static
-        ${LIBRARIES}
-    )
-    target_link_libraries(examplevideo
-        SDL_kitchensink_static
-        ${LIBRARIES}
-    )
+    target_link_libraries(exampleaudio SDL_kitchensink_static ${LIBRARIES})
+    target_link_libraries(examplevideo SDL_kitchensink_static ${LIBRARIES})
+    target_link_libraries(examplecustvideo SDL_kitchensink_static ${LIBRARIES})
 endif()
 
 # Installation

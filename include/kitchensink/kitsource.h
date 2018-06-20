@@ -1,6 +1,7 @@
 #ifndef KITSOURCE_H
 #define KITSOURCE_H
 
+#include <inttypes.h>
 #include "kitchensink/kitconfig.h"
 
 #ifdef __cplusplus
@@ -24,6 +25,8 @@ typedef struct Kit_Source {
     int video_stream_index;    ///< Video stream index
     int subtitle_stream_index; ///< Subtitle stream index
     void *format_ctx;          ///< FFmpeg: Videostream format context
+    void *avio_ctx;            ///< FFmpeg: AVIO context
+    uint8_t *avio_buf;   ///< Buffer for custom AVIO source
 } Kit_Source;
 
 typedef struct Kit_StreamInfo {
@@ -31,7 +34,11 @@ typedef struct Kit_StreamInfo {
     Kit_StreamType type; ///< Stream type
 } Kit_StreamInfo;
 
+typedef int (*Kit_ReadCallback)(void*, uint8_t*, int);
+typedef int64_t (*Kit_SeekCallback)(void*, int64_t, int);
+
 KIT_API Kit_Source* Kit_CreateSourceFromUrl(const char *path);
+KIT_API Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata);
 KIT_API void Kit_CloseSource(Kit_Source *src);
 
 KIT_API int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_StreamInfo *info, int index);
