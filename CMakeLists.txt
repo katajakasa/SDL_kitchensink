@@ -22,6 +22,7 @@ set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_TESTS "Build unittests" OFF)
 option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" ON)
+option(USE_ASAN "Use AddressSanitizer" OFF)
 
 find_package(SDL2)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
@@ -71,6 +72,12 @@ target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 
 set_property(TARGET SDL_kitchensink PROPERTY C_STANDARD 99)
 set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
+
+if(USE_ASAN)
+    set(LIBRARIES asan ${LIBRARIES})
+    target_compile_options(SDL_kitchensink PRIVATE "-fsanitize=address")
+    message(STATUS "DEVELOPMENT: AddressSanitizer enabled!")
+endif()
 
 include_directories(${INCLUDES})
 target_link_libraries(SDL_kitchensink ${LIBRARIES})

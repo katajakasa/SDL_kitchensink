@@ -251,7 +251,10 @@ int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sour
         return 0;
     }
 
-    // If stopped, do nothing
+    // If paused or stopped, do nothing
+    if(player->state == KIT_PAUSED) {
+        return 0;
+    }
     if(player->state == KIT_STOPPED) {
         return 0;
     }
