@@ -39,7 +39,10 @@ int Kit_Init(unsigned int flags) {
         Kit_SetError("Kitchensink is already initialized.");
         goto exit_0;
     }
+
+    #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
     av_register_all();
+    #endif
 
     if(flags & KIT_INIT_NETWORK) {
         avformat_network_init();
