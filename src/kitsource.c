@@ -87,8 +87,8 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     }
 
     // Set probe opts for input scanning
-    av_opt_set_int(src->format_ctx, "probesize", INT_MAX, 0);
-    av_opt_set_int(src->format_ctx, "analyzeduration", INT_MAX, 0);
+    av_opt_set_int(format_ctx, "probesize", INT_MAX, 0);
+    av_opt_set_int(format_ctx, "analyzeduration", INT_MAX, 0);
 
     // Fetch stream information. This may potentially take a while.
     if(avformat_find_stream_info(format_ctx, NULL) < 0) {
