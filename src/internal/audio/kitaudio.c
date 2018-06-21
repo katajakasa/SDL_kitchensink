@@ -51,8 +51,6 @@ int64_t _FindAVChannelLayout(int channels) {
     switch(channels) {
         case 1: return AV_CH_LAYOUT_MONO;
         case 2: return AV_CH_LAYOUT_STEREO;
-        case 4: return AV_CH_LAYOUT_QUAD;
-        case 6: return AV_CH_LAYOUT_5POINT1;
         default: return AV_CH_LAYOUT_STEREO_DOWNMIX;
     }
 }
@@ -61,8 +59,6 @@ int _FindChannelLayout(uint64_t channel_layout) {
     switch(channel_layout) {
         case AV_CH_LAYOUT_MONO: return 1;
         case AV_CH_LAYOUT_STEREO: return 2;
-        case AV_CH_LAYOUT_QUAD: return 4;
-        case AV_CH_LAYOUT_5POINT1: return 6;
         default: return 2;
     }
 }
