@@ -99,7 +99,6 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     // Set internals
     src->format_ctx = format_ctx;
     src->avio_ctx = avio_ctx;
-    src->avio_buf = avio_buf;
 
     // Find best streams for defaults
     src->audio_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
@@ -109,15 +108,12 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
 
 exit_4:
     avformat_close_input(&format_ctx);
-    free(src);
-    return NULL;
-
 exit_3:
-    av_free(avio_ctx);
+    av_freep(&avio_ctx);
 exit_2:
     avformat_free_context(format_ctx);
 exit_1:
-    av_free(avio_buf);
+    av_freep(&avio_buf);
 exit_0:
     free(src);
     return NULL;
@@ -125,7 +121,13 @@ exit_0:
 
 void Kit_CloseSource(Kit_Source *src) {
     assert(src != NULL);
-    avformat_close_input((AVFormatContext **)&src->format_ctx);
+    AVFormatContext *format_ctx = src->format_ctx;
+    AVIOContext *avio_ctx = src->avio_ctx;
+    avformat_close_input(&format_ctx);
+    if(avio_ctx) {
+        av_freep(&avio_ctx->buffer);
+        av_freep(&avio_ctx);
+    }
     free(src);
 }
 

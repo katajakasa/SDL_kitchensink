@@ -26,7 +26,6 @@ typedef struct Kit_Source {
     int subtitle_stream_index; ///< Subtitle stream index
     void *format_ctx;          ///< FFmpeg: Videostream format context
     void *avio_ctx;            ///< FFmpeg: AVIO context
-    uint8_t *avio_buf;   ///< Buffer for custom AVIO source
 } Kit_Source;
 
 typedef struct Kit_StreamInfo {
