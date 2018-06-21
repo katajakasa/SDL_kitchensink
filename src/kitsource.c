@@ -109,6 +109,9 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
 
 exit_4:
     avformat_close_input(&format_ctx);
+    free(src);
+    return NULL;
+
 exit_3:
     av_free(avio_ctx);
 exit_2:
@@ -123,8 +126,6 @@ exit_0:
 void Kit_CloseSource(Kit_Source *src) {
     assert(src != NULL);
     avformat_close_input((AVFormatContext **)&src->format_ctx);
-    av_free(src->avio_ctx);
-    av_free(src->avio_buf);
     free(src);
 }
 
