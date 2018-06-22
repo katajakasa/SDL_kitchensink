@@ -115,7 +115,7 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
         total_reserved_h += shelf_h;
 
         // If the item fits, check if the space is better than previous one
-        if(item->surface->w <= (atlas->w - shelf_w) && item->surface->h <= shelf_h) {
+        if(item->surface->w <= (atlas->w - shelf_w) && (item->surface->h + atlas->border) <= shelf_h) {
             if(shelf_h < best_shelf_h) {
                 best_shelf_h = shelf_h;
                 best_shelf_idx = shelf_idx;
@@ -130,21 +130,21 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
             item,
             best_shelf_idx,
             atlas->shelves[best_shelf_idx].count,
-            atlas->shelves[best_shelf_idx].width,
+            atlas->shelves[best_shelf_idx].width + atlas->border,
             best_shelf_y);
-        atlas->shelves[best_shelf_idx].width += item->surface->w;
+        atlas->shelves[best_shelf_idx].width += item->surface->w + atlas->border;
         atlas->shelves[best_shelf_idx].count += 1;
         return 0;
     } else if(total_remaining_h >= item->surface->h) {
-        atlas->shelves[shelf_idx].width = item->surface->w;
-        atlas->shelves[shelf_idx].height = item->surface->h;
+        atlas->shelves[shelf_idx].width = item->surface->w + atlas->border;
+        atlas->shelves[shelf_idx].height = item->surface->h + atlas->border;
         atlas->shelves[shelf_idx].count = 1;
         Kit_SetItemAllocation(
             item,
             shelf_idx,
             0,
-            0,
-            total_reserved_h);
+            atlas->border,
+            total_reserved_h + atlas->border);
         return 0;
     }
 
