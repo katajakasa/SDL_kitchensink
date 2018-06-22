@@ -8,8 +8,6 @@
 
 #include "kitchensink/kitconfig.h"
 
-#define MAX_SHELVES 256
-
 typedef struct Kit_TextureAtlasItem {
     int cur_shelf; //< Current shelf number in cache
     int cur_slot; //< Current slot on shelf in cache
@@ -19,13 +17,21 @@ typedef struct Kit_TextureAtlasItem {
     SDL_Surface *surface; //< Current item surface
 } Kit_TextureAtlasItem;
 
+typedef struct Kit_Shelf {
+    uint16_t width;
+    uint16_t height;
+    uint16_t count;
+} Kit_Shelf;
+
 typedef struct Kit_TextureAtlas {
     int cur_items; //< Current items count
     int max_items; //< Maximum items count
+    int max_shelves; //< Maximum shelf count
+    int border; //< Cleared border between atlas items in texture
     int w; //< Current atlas width
     int h; //< Current atlas height
     Kit_TextureAtlasItem *items; //< Cached items
-    uint16_t shelf[MAX_SHELVES][3]; //< Atlas current shelf width, height, item count
+    Kit_Shelf *shelves; //< Atlas shelves
 } Kit_TextureAtlas;
 
 KIT_LOCAL Kit_TextureAtlas* Kit_CreateAtlas(int w, int h);

@@ -3,8 +3,6 @@
 #include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
-#define BORDER 2
-
 static int min(int a, int b) {
     if(a < b)
         return a;
@@ -22,6 +20,8 @@ Kit_TextureAtlas* Kit_CreateAtlas(int w, int h) {
     }
     atlas->cur_items = 0;
     atlas->max_items = 1024;
+    atlas->max_shelves = 256;
+    atlas->border = 1;
     atlas->w = w;
     atlas->h = h;
 
@@ -30,9 +30,15 @@ Kit_TextureAtlas* Kit_CreateAtlas(int w, int h) {
         goto exit_1;
     }
 
-    memset(atlas->shelf, 0, sizeof(atlas->shelf));
+    atlas->shelves = calloc(atlas->max_shelves, sizeof(Kit_Shelf));
+    if(atlas->shelves == NULL) {
+        goto exit_2;
+    }
+
     return atlas;
 
+exit_2:
+    free(atlas->items);
 exit_1:
     free(atlas);
 exit_0:
@@ -42,7 +48,7 @@ exit_0:
 void Kit_ResetAtlasContent(Kit_TextureAtlas *atlas) {
     // Clear shelves & allocations on items
     Kit_TextureAtlasItem *item;
-    memset(atlas->shelf, 0, sizeof(atlas->shelf));
+    memset(atlas->shelves, 0, atlas->max_shelves * sizeof(Kit_Shelf));
     for(int i = 0; i < atlas->cur_items; i++) {
         item = &atlas->items[i];
         item->cur_shelf = -1;
@@ -57,7 +63,7 @@ void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas) {
     }
     atlas->cur_items = 0;
     memset(atlas->items, 0, atlas->max_items * sizeof(Kit_TextureAtlasItem));
-    memset(atlas->shelf, 0, sizeof(atlas->shelf));
+    memset(atlas->shelves, 0, atlas->max_shelves * sizeof(Kit_Shelf));
 }
 
 void Kit_FreeAtlas(Kit_TextureAtlas *atlas) {
@@ -95,9 +101,9 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
     
     // Try to find a good shelf to put this item in
     int shelf_idx;
-    for(shelf_idx = 0; shelf_idx < MAX_SHELVES; shelf_idx++) {
-        shelf_w = atlas->shelf[shelf_idx][0];
-        shelf_h = atlas->shelf[shelf_idx][1];
+    for(shelf_idx = 0; shelf_idx < atlas->max_shelves; shelf_idx++) {
+        shelf_w = atlas->shelves[shelf_idx].width;
+        shelf_h = atlas->shelves[shelf_idx].height;
         if(shelf_h == 0) {
             break;
         }
@@ -119,16 +125,16 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
         Kit_SetItemAllocation(
             item,
             best_shelf_idx,
-            atlas->shelf[best_shelf_idx][2],
-            atlas->shelf[best_shelf_idx][0],
+            atlas->shelves[best_shelf_idx].count,
+            atlas->shelves[best_shelf_idx].width,
             best_shelf_y);
-        atlas->shelf[best_shelf_idx][0] += item->surface->w;
-        atlas->shelf[best_shelf_idx][2] += 1;
+        atlas->shelves[best_shelf_idx].width += item->surface->w;
+        atlas->shelves[best_shelf_idx].count += 1;
         return 0;
     } else if(total_remaining_h >= item->surface->h) {
-        atlas->shelf[shelf_idx][0] = item->surface->w;
-        atlas->shelf[shelf_idx][1] = item->surface->h;
-        atlas->shelf[shelf_idx][2] = 1;
+        atlas->shelves[shelf_idx].width = item->surface->w;
+        atlas->shelves[shelf_idx].height = item->surface->h;
+        atlas->shelves[shelf_idx].count = 1;
         Kit_SetItemAllocation(
             item,
             shelf_idx,
