@@ -84,6 +84,16 @@ Make sure CUnit is installed, then add ```-DBUILD_UNITTESTS=1``` to the cmake ar
 
 You can run unittests by running ```make unittest```.
 
+### 2.5. Building with AddressSanitizer
+
+This is for development/debugging use only!
+
+Make sure llvm is installed, then add ```-DUSE_ASAN=1``` to the cmake arguments and rebuild. Note that ASAN is not
+supported on all OSes (eg. windows).
+
+After building, you can run with the following (make sure to set correct llvm-symbolizer path):
+```ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./examplevideo <my videofile>```
+
 ## 3. License
 
 MIT. Please see ```LICENSE``` for details.

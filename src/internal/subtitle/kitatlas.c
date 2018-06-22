@@ -25,11 +25,13 @@ Kit_TextureAtlas* Kit_CreateAtlas(int w, int h) {
     atlas->w = w;
     atlas->h = h;
 
+    // Allocate items. These hold the surfaces that should be in atlas
     atlas->items = calloc(atlas->max_items, sizeof(Kit_TextureAtlasItem));
     if(atlas->items == NULL) {
         goto exit_1;
     }
 
+    // Allocate shelves. These describe the used space of the atlas
     atlas->shelves = calloc(atlas->max_shelves, sizeof(Kit_Shelf));
     if(atlas->shelves == NULL) {
         goto exit_2;
