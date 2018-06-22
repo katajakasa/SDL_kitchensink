@@ -68,9 +68,11 @@ void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas) {
 
 void Kit_FreeAtlas(Kit_TextureAtlas *atlas) {
     assert(atlas != NULL);
-
-    Kit_ClearAtlasContent(atlas);
+    for(int i = 0; i < atlas->cur_items; i++) {
+        SDL_FreeSurface(atlas->items[i].surface);
+    }
     free(atlas->items);
+    free(atlas->shelves);
     free(atlas);
 }
 
