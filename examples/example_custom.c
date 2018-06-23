@@ -14,37 +14,6 @@
 #define ATLAS_MAX 1024
 
 
-void render_gui(SDL_Renderer *renderer, double percent) {
-    // Get window size
-    int size_w, size_h;
-    SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
-
-    // Render progress bar
-    SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
-    SDL_Rect progress_border;
-    progress_border.x = 28;
-    progress_border.y = size_h - 61;
-    progress_border.w = size_w - 57;
-    progress_border.h = 22;
-    SDL_RenderFillRect(renderer, &progress_border);
-
-    SDL_SetRenderDrawColor(renderer, 155, 155, 155, 255);
-    SDL_Rect progress_bottom;
-    progress_bottom.x = 30;
-    progress_bottom.y = size_h - 60;
-    progress_bottom.w = size_w - 60;
-    progress_bottom.h = 20;
-    SDL_RenderFillRect(renderer, &progress_bottom);
-
-    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
-    SDL_Rect progress_top;
-    progress_top.x = 30;
-    progress_top.y = size_h - 60;
-    progress_top.w = (size_w - 60) * percent;
-    progress_top.h = 20;
-    SDL_RenderFillRect(renderer, &progress_top);
-}
-
 int read_callback(void *userdata, uint8_t *buf, int buf_size) {
     FILE *fd = (FILE*)userdata;
     if(!feof(fd)) {
@@ -61,38 +30,21 @@ int64_t seek_callback(void *userdata, int64_t offset, int whence) {
     return ftell(fd);
 }
 
-void find_viewport_size(int sw, int sh, int vw, int vh, int *rw, int *rh) {
-    float r_x = (float)sw / (float)vw;
-    float r_y = (float)sh / (float)vh;
-    float r_t = r_x < r_y ? r_x : r_y;
-    *rw = vw * r_t;
-    *rh = vh * r_t;
-}
-
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
     const char* filename = NULL;
-
-    // Video
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
-
-    // Events
-    SDL_Event event;
     bool run = true;
-    
-    // Kitchensink
     Kit_Source *src = NULL;
     Kit_Player *player = NULL;
-
-    // Audio playback
     SDL_AudioSpec wanted_spec, audio_spec;
     SDL_AudioDeviceID audio_dev;
     char audiobuf[AUDIOBUFFER_SIZE];
 
     // Get filename to open
     if(argc != 2) {
-        fprintf(stderr, "Usage: exampleplay <filename>\n");
+        fprintf(stderr, "Usage: custom <filename>\n");
         return 0;
     }
     filename = argv[1];
@@ -132,24 +84,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open up the sourcefile.
-    // This can be a local file, network url, ...
+    // Open up the custom source. Declare read & seek callbacks, and transport FD in userdata.
     src = Kit_CreateSourceFromCustom(read_callback, seek_callback, fd);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
-    }
-
-    // Print stream information
-    Kit_StreamInfo sinfo;
-    fprintf(stderr, "Source streams:\n");
-    for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
-        err = Kit_GetSourceStreamInfo(src, &sinfo, i);
-        if(err) {
-            fprintf(stderr, "Unable to fetch stream #%d information: %s.\n", i, Kit_GetError());
-            return 1;
-        }
-        fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(sinfo.type));
     }
 
     // Create the player. Pick best video, audio and subtitle streams, and set subtitle
@@ -174,28 +113,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    fprintf(stderr, "Media information:\n");
-    if(pinfo.audio.is_enabled) {
-        fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
-            pinfo.acodec,
-            pinfo.acodec_name,
-            pinfo.audio.samplerate,
-            pinfo.audio.channels,
-            pinfo.audio.bytes,
-            pinfo.audio.is_signed ? "signed" : "unsigned");
-    }
-    fprintf(stderr, " * Video: %s (%s), %dx%d\n",
-        pinfo.vcodec,
-        pinfo.vcodec_name,
-        pinfo.video.width,
-        pinfo.video.height);
-    if(pinfo.subtitle.is_enabled) {
-        fprintf(stderr, " * Subtitle: %s (%s)\n",
-            pinfo.scodec,
-            pinfo.scodec_name);
-    }
-    fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
-
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = pinfo.audio.samplerate;
@@ -203,12 +120,6 @@ int main(int argc, char *argv[]) {
     wanted_spec.channels = pinfo.audio.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
-
-    // Print some format info
-    fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.format));
-    fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.format));
-    fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(pinfo.subtitle.format));
-    fflush(stderr);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
@@ -238,88 +149,20 @@ int main(int argc, char *argv[]) {
     // Make sure subtitle texture is in correct blendmode
     SDL_SetTextureBlendMode(subtitle_tex, SDL_BLENDMODE_BLEND);
 
-    // Set logical size for the renderer. This way when we scale, we keep aspect ratio.
-    SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
-
     // Start playback
     Kit_PlayerPlay(player);
 
     // Get movie area size
-    int mouse_x = 0;
-    int mouse_y = 0;
-    int size_w = 0;
-    int size_h = 0;
-    int screen_w = 0;
-    int screen_h = 0;
-    SDL_GetWindowSize(window, &screen_w, &screen_h);
-    find_viewport_size(screen_w, screen_h, pinfo.video.width, pinfo.video.height, &size_w, &size_h);
-    SDL_RenderSetLogicalSize(renderer, size_w, size_h);
-    Kit_SetPlayerScreenSize(player, size_w, size_h);
-    bool fullscreen = false;
+    SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height);
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
             continue;
         }
 
-        // Check for events
-        const Uint8 *state;
+        SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
-                case SDL_KEYUP:
-                    if(event.key.keysym.sym == SDLK_ESCAPE) {
-                        run = false;
-                    }
-                    break;
-
-                case SDL_KEYDOWN:
-                    // Find alt+enter
-                    state = SDL_GetKeyboardState(NULL);
-                    if(state[SDL_SCANCODE_RETURN] && state[SDL_SCANCODE_LALT]) {
-                        if(!fullscreen) {
-                            SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-                        } else {
-                            SDL_SetWindowFullscreen(window, 0);
-                        }
-                        fullscreen = !fullscreen;
-                    }
-                    break;
-
-                case SDL_MOUSEMOTION:
-                    mouse_x = event.motion.x;
-                    mouse_y = event.motion.y;
-                    break;
-
-                case SDL_WINDOWEVENT:
-                    switch(event.window.event) {
-                        case SDL_WINDOWEVENT_SIZE_CHANGED:
-                            SDL_GetWindowSize(window, &screen_w, &screen_h);
-                            find_viewport_size(screen_w, screen_h, pinfo.video.width, pinfo.video.height, &size_w, &size_h);
-                            SDL_RenderSetLogicalSize(renderer, size_w, size_h);
-                            Kit_SetPlayerScreenSize(player, size_w, size_h);
-                            break;
-                    }
-                    break;
-
-                case SDL_MOUSEBUTTONUP:
-                    // Handle user clicking the progress bar
-                    if(mouse_x >= 30 && mouse_x <= size_w-30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
-                        double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
-                        double m_time = Kit_GetPlayerDuration(player) * pos;
-                        if(Kit_PlayerSeek(player, m_time) != 0) {
-                            fprintf(stderr, "%s\n", Kit_GetError());
-                        }
-                        SDL_ClearQueuedAudio(audio_dev);
-                    } else {
-                        // Handle pause
-                        if(Kit_GetPlayerState(player) == KIT_PAUSED) {
-                            Kit_PlayerPlay(player);
-                        } else {
-                            Kit_PlayerPause(player);
-                        }
-                    }
-                    break;
-
                 case SDL_QUIT:
                     run = false;
                     break;
@@ -359,19 +202,11 @@ int main(int argc, char *argv[]) {
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
-        SDL_RenderSetLogicalSize(renderer, screen_w, screen_h); 
         SDL_Rect sources[ATLAS_MAX];
         SDL_Rect targets[ATLAS_MAX];
         int got = Kit_GetPlayerSubtitleData(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
             SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
-        }
-        SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
-
-        // Enable GUI if mouse is hovering over the bottom third of the screen
-        if(mouse_y >= ((size_h / 3) * 2)) {
-            double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);
-            render_gui(renderer, percent);
         }
 
         // Render to screen + wait for vsync

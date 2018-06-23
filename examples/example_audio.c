@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     // Get filename to open
     if(argc != 2) {
-        fprintf(stderr, "Usage: exampleplay <filename>\n");
+        fprintf(stderr, "Usage: audio <filename>\n");
         return 0;
     }
     filename = argv[1];
