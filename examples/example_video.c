@@ -221,6 +221,7 @@ int main(int argc, char *argv[]) {
     int screen_w = 0;
     int screen_h = 0;
     SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
+    SDL_GetWindowSize(window, &screen_w, &screen_h);
     bool gui_enabled = false;
     bool fullscreen = false;
     while(run) {
