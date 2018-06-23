@@ -125,7 +125,12 @@ static int _DecoderThread(void *ptr) {
     return 0;
 }
 
-Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
+Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
+                             int video_stream_index,
+                             int audio_stream_index,
+                             int subtitle_stream_index,
+                             int screen_w,
+                             int screen_h) {
     assert(src != NULL);
 
     Kit_Player *player = calloc(1, sizeof(Kit_Player));
@@ -135,21 +140,21 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src) {
     }
 
     // Initialize audio decoder
-    player->audio_dec = Kit_CreateAudioDecoder(src, &player->aformat);
-    if(player->audio_dec == NULL && src->audio_stream_index >= 0) {
+    player->audio_dec = Kit_CreateAudioDecoder(src, audio_stream_index, &player->aformat);
+    if(player->audio_dec == NULL && audio_stream_index >= 0) {
         goto exit_0;
     }
 
     // Initialize video decoder
-    player->video_dec = Kit_CreateVideoDecoder(src, &player->vformat);
-    if(player->video_dec == NULL && src->video_stream_index >= 0) {
+    player->video_dec = Kit_CreateVideoDecoder(src, video_stream_index, &player->vformat);
+    if(player->video_dec == NULL && video_stream_index >= 0) {
         goto exit_1;
     }
 
     // Initialize subtitle decoder
     player->subtitle_dec = Kit_CreateSubtitleDecoder(
-        src, &player->sformat, player->vformat.width, player->vformat.height);
-    if(player->subtitle_dec == NULL && src->subtitle_stream_index >= 0) {
+        src, subtitle_stream_index,  &player->sformat, screen_w, screen_h);
+    if(player->subtitle_dec == NULL && subtitle_stream_index >= 0) {
         goto exit_2;
     }
 
@@ -200,7 +205,35 @@ void Kit_ClosePlayer(Kit_Player *player) {
     free(player);
 }
 
-int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
+void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h) {
+    assert(player != NULL);
+    if(player->subtitle_dec == NULL)
+        return;
+    Kit_SetSubtitleDecoderSize(player->subtitle_dec, w, h);
+}
+
+int Kit_SetPlayerVideoStream(Kit_Player *player, int index) {
+    assert(player != NULL);
+    if(player->video_dec == NULL)
+        return 1;
+    return Kit_SetDecoderStreamIndex(player->video_dec, index);
+}
+
+int Kit_SetPlayerAudioStream(Kit_Player *player, int index) {
+    assert(player != NULL);
+    if(player->audio_dec == NULL)
+        return 1;
+    return Kit_SetDecoderStreamIndex(player->audio_dec, index);
+}
+
+int Kit_SetPlayerSubtitleStream(Kit_Player *player, int index) {
+    assert(player != NULL);
+    if(player->subtitle_dec == NULL)
+        return 1;
+    return Kit_SetDecoderStreamIndex(player->subtitle_dec, index);
+}
+
+int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
     if(player->video_dec == NULL) {
         return 0;
@@ -217,7 +250,7 @@ int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture) {
     return Kit_GetVideoDecoderData(player->video_dec, texture);
 }
 
-int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length) {
+int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length) {
     assert(player != NULL);
     assert(buffer != NULL);
     if(player->audio_dec == NULL) {
@@ -240,7 +273,7 @@ int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length) {
     return Kit_GetAudioDecoderData(player->audio_dec, buffer, length);
 }
 
-int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
     assert(player != NULL);
     assert(texture != NULL);
     assert(sources != NULL);

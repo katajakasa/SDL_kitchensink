@@ -168,16 +168,17 @@ static void dec_close_audio_cb(Kit_Decoder *dec) {
     free(audio_dec);
 }
 
-Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_AudioFormat *format) {
+Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index, Kit_AudioFormat *format) {
     assert(src != NULL);
     assert(format != NULL);
-    if(src->audio_stream_index < 0) {
+    if(stream_index < 0) {
         return NULL;
     }
 
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
-        src, src->audio_stream_index,
+        src,
+        stream_index,
         KIT_AUDIO_OUT_SIZE,
         free_out_audio_packet_cb);
     if(dec == NULL) {
@@ -187,7 +188,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_AudioFormat *form
     // Find formats
     format->samplerate = dec->codec_ctx->sample_rate;
     format->is_enabled = true;
-    format->stream_index = src->audio_stream_index;
+    format->stream_index = stream_index;
     format->channels = _FindChannelLayout(dec->codec_ctx->channel_layout);
     _FindAudioFormat(dec->codec_ctx->sample_fmt, &format->bytes, &format->is_signed, &format->format);
 

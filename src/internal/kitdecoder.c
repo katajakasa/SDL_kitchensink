@@ -93,13 +93,22 @@ exit_0:
     return NULL;
 }
 
+int Kit_SetDecoderStreamIndex(Kit_Decoder *dec, int stream_index) {
+    if(dec == NULL)
+        return 1;
+    dec->stream_index = stream_index;
+    return 0;
+}
+
 void Kit_SetDecoderClockSync(Kit_Decoder *dec, double sync) {
-    if(dec == NULL) return;
+    if(dec == NULL)
+        return;
     dec->clock_sync = sync;
 }
 
 void Kit_ChangeDecoderClockSync(Kit_Decoder *dec, double sync) {
-    if(dec == NULL) return;
+    if(dec == NULL)
+        return;
     dec->clock_sync += sync;
 }
 

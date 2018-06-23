@@ -32,6 +32,13 @@ int Kit_GetSubtitleRendererData(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atl
     return 0;
 }
 
+void Kit_SetSubtitleRendererSize(Kit_SubtitleRenderer *ren, int w, int h) {
+    if(ren == NULL)
+        return;
+    if(ren->ren_set_size != NULL)
+        ren->ren_set_size(ren, w, h);
+}
+
 void Kit_CloseSubtitleRenderer(Kit_SubtitleRenderer *ren) {
     if(ren == NULL)
         return;

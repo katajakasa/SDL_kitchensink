@@ -35,11 +35,6 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
         Kit_SetError("Unable to fetch source information");
         goto exit_1;
     }
-
-    // Find best streams for defaults
-    src->audio_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
-    src->video_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO);
-    src->subtitle_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE);
     return src;
 
 exit_1:
@@ -99,11 +94,6 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     // Set internals
     src->format_ctx = format_ctx;
     src->avio_ctx = avio_ctx;
-
-    // Find best streams for defaults
-    src->audio_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO);
-    src->video_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO);
-    src->subtitle_stream_index = Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE);
     return src;
 
 exit_4:
@@ -176,31 +166,6 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
         return 1;
     }
     return ret;
-}
-
-int Kit_SetSourceStream(Kit_Source *src, const Kit_StreamType type, int index) {
-    assert(src != NULL);
-    switch(type) {
-        case KIT_STREAMTYPE_AUDIO: src->audio_stream_index = index; break;
-        case KIT_STREAMTYPE_VIDEO: src->video_stream_index = index; break;
-        case KIT_STREAMTYPE_SUBTITLE: src->subtitle_stream_index = index; break;
-        default:
-            Kit_SetError("Invalid stream type");
-            return 1;
-    }
-    return 0;
-}
-
-int Kit_GetSourceStream(const Kit_Source *src, const Kit_StreamType type) {
-    assert(src != NULL);
-    switch(type) {
-        case KIT_STREAMTYPE_AUDIO: return src->audio_stream_index;
-        case KIT_STREAMTYPE_VIDEO: return src->video_stream_index;
-        case KIT_STREAMTYPE_SUBTITLE: return src->subtitle_stream_index;
-        default:
-            break;
-    }
-    return -1;
 }
 
 int Kit_GetSourceStreamCount(const Kit_Source *src) {

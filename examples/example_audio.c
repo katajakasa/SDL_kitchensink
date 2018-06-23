@@ -62,11 +62,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Disable any video and subtitle streams. If we leave these enabled and then don't
-    // clear the buffers for these sometimes, decoding will block.
-    Kit_SetSourceStream(src, KIT_STREAMTYPE_SUBTITLE, -1);
-    Kit_SetSourceStream(src, KIT_STREAMTYPE_VIDEO, -1);
-
     // Print stream information
     Kit_StreamInfo sinfo;
     fprintf(stderr, "Source streams:\n");
@@ -79,8 +74,13 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, " * Stream #%d: %s\n", i, stream_types[sinfo.type]);
     }
 
-    // Create the player
-    player = Kit_CreatePlayer(src);
+    // Create the player. No video, pick best audio stream, no subtitles, no screen
+    player = Kit_CreatePlayer(
+        src,
+        -1,
+        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
+        -1,
+        0, 0);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIOBUFFER_SIZE) {
-            ret = Kit_GetAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE - queued);
+            ret = Kit_GetPlayerAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE - queued);
             if(ret > 0) {
                 SDL_QueueAudio(audio_dev, audiobuf, ret);
             }
@@ -136,12 +136,11 @@ int main(int argc, char *argv[]) {
         SDL_Delay(1);
     }
 
-    SDL_CloseAudioDevice(audio_dev);
-
     Kit_ClosePlayer(player);
     Kit_CloseSource(src);
-
     Kit_Quit();
+
+    SDL_CloseAudioDevice(audio_dev);
     SDL_Quit();
     return 0;
 }

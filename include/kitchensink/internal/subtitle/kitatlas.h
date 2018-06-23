@@ -27,14 +27,13 @@ typedef struct Kit_TextureAtlas {
     int cur_items; //< Current items count
     int max_items; //< Maximum items count
     int max_shelves; //< Maximum shelf count
-    int border; //< Cleared border between atlas items in texture
     int w; //< Current atlas width
     int h; //< Current atlas height
     Kit_TextureAtlasItem *items; //< Cached items
     Kit_Shelf *shelves; //< Atlas shelves
 } Kit_TextureAtlas;
 
-KIT_LOCAL Kit_TextureAtlas* Kit_CreateAtlas(int w, int h);
+KIT_LOCAL Kit_TextureAtlas* Kit_CreateAtlas();
 KIT_LOCAL void Kit_FreeAtlas(Kit_TextureAtlas *atlas);
 KIT_LOCAL void Kit_RefreshAtlas(Kit_TextureAtlas *atlas, double current_pts);
 KIT_LOCAL void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas);

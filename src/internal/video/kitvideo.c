@@ -132,16 +132,17 @@ static void dec_close_video_cb(Kit_Decoder *dec) {
     free(video_dec);
 }
 
-Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *format) {
+Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index, Kit_VideoFormat *format) {
     assert(src != NULL);
     assert(format != NULL);
-    if(src->video_stream_index < 0) {
+    if(stream_index < 0) {
         return NULL;
     }
 
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
-        src, src->video_stream_index,
+        src,
+        stream_index,
         KIT_VIDEO_OUT_SIZE,
         free_out_video_packet_cb);
     if(dec == NULL) {
@@ -152,7 +153,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_VideoFormat *form
     format->is_enabled = true;
     format->width = dec->codec_ctx->width;
     format->height = dec->codec_ctx->height;
-    format->stream_index = src->video_stream_index;
+    format->stream_index = stream_index;
     format->format = _FindPixelFormat(dec->codec_ctx->pix_fmt);
 
     // ... then allocate the video decoder

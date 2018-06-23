@@ -83,10 +83,10 @@ static void dec_close_subtitle_cb(Kit_Decoder *dec) {
     free(subtitle_dec);
 }
 
-Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat *format, int w, int h) {
+Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, Kit_SubtitleFormat *format, int w, int h) {
     assert(src != NULL);
     assert(format != NULL);
-    if(src->subtitle_stream_index < 0) {
+    if(stream_index < 0) {
         return NULL;
     }
 
@@ -94,7 +94,8 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
 
     // First the generic decoder component
     Kit_Decoder *dec = Kit_CreateDecoder(
-        src, src->subtitle_stream_index,
+        src,
+        stream_index,
         KIT_SUBTITLE_OUT_SIZE,
         free_out_subtitle_packet_cb);
     if(dec == NULL) {
@@ -103,7 +104,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
 
     // Set format. Note that is_enabled may be changed below ...
     format->is_enabled = true;
-    format->stream_index = src->subtitle_stream_index;
+    format->stream_index = stream_index;
     format->format = SDL_PIXELFORMAT_RGBA32; // Always this
 
     // ... then allocate the subtitle decoder
@@ -143,7 +144,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_SubtitleFormat
     }
 
     // Allocate texture atlas for subtitle rectangles
-    Kit_TextureAtlas *atlas = Kit_CreateAtlas(1024, 1024);
+    Kit_TextureAtlas *atlas = Kit_CreateAtlas();
     if(atlas == NULL) {
         Kit_SetError("Unable to allocate subtitle texture atlas");
         goto exit_3;
@@ -168,6 +169,14 @@ exit_1:
     Kit_CloseDecoder(dec);
 exit_0:
     return NULL;
+}
+
+void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int w, int h) {
+    assert(dec != NULL);
+    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    subtitle_dec->w = w;
+    subtitle_dec->h = h;
+    Kit_SetSubtitleRendererSize(subtitle_dec->renderer, w, h);
 }
 
 int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {

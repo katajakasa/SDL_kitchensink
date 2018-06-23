@@ -4,8 +4,6 @@
 #include <stdbool.h>
 
 /*
-* Note! This is the video playback from memory example!
-*
 * Note! This example does not do proper error handling etc.
 * It is for example use only!
 */
@@ -146,8 +144,14 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(sinfo.type));
     }
 
-    // Create the player
-    player = Kit_CreatePlayer(src);
+    // Create the player. Pick best video, audio and subtitle streams, and set subtitle
+    // rendering resolution to screen resolution.
+    player = Kit_CreatePlayer(
+        src,
+        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
+        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
+        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
+        1280, 720);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -199,6 +203,7 @@ int main(int argc, char *argv[]) {
     fflush(stderr);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
         renderer,
         pinfo.video.format,
@@ -211,6 +216,7 @@ int main(int argc, char *argv[]) {
     }
 
     // This is the subtitle texture atlas. This contains all the subtitle image fragments.
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
         renderer,
         pinfo.subtitle.format,
@@ -231,8 +237,12 @@ int main(int argc, char *argv[]) {
     Kit_PlayerPlay(player);
 
     // Get movie area size
-    int mouse_x = 0, mouse_y = 0;
-    int size_w = 0, size_h = 0;
+    int mouse_x = 0;
+    int mouse_y = 0;
+    int size_w = 0;
+    int size_h = 0;
+    int screen_w = 0;
+    int screen_h = 0;
     SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
     bool gui_enabled = false;
     bool fullscreen = false;
@@ -270,6 +280,15 @@ int main(int argc, char *argv[]) {
                     mouse_y = event.motion.y;
                     break;
 
+                case SDL_WINDOWEVENT:
+                    switch(event.window.event) {
+                        case SDL_WINDOWEVENT_SIZE_CHANGED:
+                            SDL_GetWindowSize(window, &screen_w, &screen_h);
+                            Kit_SetPlayerScreenSize(player, screen_w, screen_h);
+                            break;
+                    }
+                    break;
+
                 case SDL_MOUSEBUTTONUP:
                     // Handle user clicking the progress bar
                     if(mouse_x >= 30 && mouse_x <= size_w-30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
@@ -305,7 +324,7 @@ int main(int argc, char *argv[]) {
             int need = AUDIOBUFFER_SIZE - queued;
 
             while(need > 0) {
-                ret = Kit_GetAudioData(
+                ret = Kit_GetPlayerAudioData(
                     player,
                     (unsigned char*)audiobuf,
                     AUDIOBUFFER_SIZE);
@@ -327,16 +346,19 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
         // Refresh videotexture and render it
-        Kit_GetVideoData(player, video_tex);
+        Kit_GetPlayerVideoData(player, video_tex);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
+        // For subtitles, use screen size instead of video size for best quality
+        SDL_RenderSetLogicalSize(renderer, screen_w, screen_h); 
         SDL_Rect sources[ATLAS_MAX];
         SDL_Rect targets[ATLAS_MAX];
-        int got = Kit_GetSubtitleData(player, subtitle_tex, sources, targets, ATLAS_MAX);
+        int got = Kit_GetPlayerSubtitleData(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
             SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
         }
+        SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
 
         // Render GUI
         if(gui_enabled) {
@@ -348,15 +370,15 @@ int main(int argc, char *argv[]) {
         SDL_RenderPresent(renderer);
     }
 
-    SDL_DestroyTexture(subtitle_tex);
-    SDL_DestroyTexture(video_tex);
-    SDL_CloseAudioDevice(audio_dev);
-
     Kit_ClosePlayer(player);
     Kit_CloseSource(src);
     fclose(fd);
-
     Kit_Quit();
+
+    SDL_DestroyTexture(subtitle_tex);
+    SDL_DestroyTexture(video_tex);
+    SDL_CloseAudioDevice(audio_dev);
+    
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

@@ -10,10 +10,7 @@ static int min(int a, int b) {
 }
 
 
-Kit_TextureAtlas* Kit_CreateAtlas(int w, int h) {
-    assert(w >= 1024);
-    assert(h >= 1024);
-
+Kit_TextureAtlas* Kit_CreateAtlas() {
     Kit_TextureAtlas *atlas = calloc(1, sizeof(Kit_TextureAtlas));
     if(atlas == NULL) {
         goto exit_0;
@@ -21,9 +18,8 @@ Kit_TextureAtlas* Kit_CreateAtlas(int w, int h) {
     atlas->cur_items = 0;
     atlas->max_items = 1024;
     atlas->max_shelves = 256;
-    atlas->border = 1;
-    atlas->w = w;
-    atlas->h = h;
+    atlas->w = 0;
+    atlas->h = 0;
 
     // Allocate items. These hold the surfaces that should be in atlas
     atlas->items = calloc(atlas->max_items, sizeof(Kit_TextureAtlasItem));
@@ -115,7 +111,7 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
         total_reserved_h += shelf_h;
 
         // If the item fits, check if the space is better than previous one
-        if(item->surface->w <= (atlas->w - shelf_w) && (item->surface->h + atlas->border) <= shelf_h) {
+        if(item->surface->w <= (atlas->w - shelf_w) && (item->surface->h) <= shelf_h) {
             if(shelf_h < best_shelf_h) {
                 best_shelf_h = shelf_h;
                 best_shelf_idx = shelf_idx;
@@ -130,21 +126,21 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
             item,
             best_shelf_idx,
             atlas->shelves[best_shelf_idx].count,
-            atlas->shelves[best_shelf_idx].width + atlas->border,
+            atlas->shelves[best_shelf_idx].width,
             best_shelf_y);
-        atlas->shelves[best_shelf_idx].width += item->surface->w + atlas->border;
+        atlas->shelves[best_shelf_idx].width += item->surface->w;
         atlas->shelves[best_shelf_idx].count += 1;
         return 0;
     } else if(total_remaining_h >= item->surface->h) {
-        atlas->shelves[shelf_idx].width = item->surface->w + atlas->border;
-        atlas->shelves[shelf_idx].height = item->surface->h + atlas->border;
+        atlas->shelves[shelf_idx].width = item->surface->w;
+        atlas->shelves[shelf_idx].height = item->surface->h;
         atlas->shelves[shelf_idx].count = 1;
         Kit_SetItemAllocation(
             item,
             shelf_idx,
             0,
-            atlas->border,
-            total_reserved_h + atlas->border);
+            0,
+            total_reserved_h);
         return 0;
     }
 
@@ -188,6 +184,7 @@ void Kit_BlitAtlasSurfaces(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
 int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
     assert(atlas != NULL);
     assert(texture != NULL);
+    int ret = 0;
 
     // Check if texture size has changed
     int texture_w, texture_h;
@@ -199,13 +196,15 @@ int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
         atlas->h = texture_h;
     }
 
+    // Allocate spots for all surfaces in the result texture. If there is not enough room for
+    // everything, we need to show it to the caller.
     if(Kit_AllocateAtlasSurfaces(atlas) != 0) {
-        LOG("WARNING! FULL ATLAS, CANNOT MAKE MORE ROOM!\n");
+        ret = 1;
     }
 
     // Blit unblitted surfaces to texture
     Kit_BlitAtlasSurfaces(atlas, texture);
-    return 0;
+    return ret;
 }
 
 int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit) {

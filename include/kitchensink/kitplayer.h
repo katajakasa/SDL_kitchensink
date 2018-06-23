@@ -52,13 +52,27 @@ typedef struct Kit_PlayerInfo {
     Kit_SubtitleFormat subtitle; ///< Subtitle format information
 } Kit_PlayerInfo;
 
-KIT_API Kit_Player* Kit_CreatePlayer(const Kit_Source *src);
+KIT_API Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
+                                     int video_stream_index,
+                                     int audio_stream_index,
+                                     int subtitle_stream_index,
+                                     int screen_w,
+                                     int screen_h);
 KIT_API void Kit_ClosePlayer(Kit_Player *player);
 
+KIT_API void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h);
+KIT_API int Kit_SetPlayerVideoStream(Kit_Player *player, int index);
+KIT_API int Kit_SetPlayerAudioStream(Kit_Player *player, int index);
+KIT_API int Kit_SetPlayerSubtitleStream(Kit_Player *player, int index);
+
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
-KIT_API int Kit_GetVideoData(Kit_Player *player, SDL_Texture *texture);
-KIT_API int Kit_GetSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
-KIT_API int Kit_GetAudioData(Kit_Player *player, unsigned char *buffer, int length);
+KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
+KIT_API int Kit_GetPlayerSubtitleData(Kit_Player *player,
+                                      SDL_Texture *texture,
+                                      SDL_Rect *sources,
+                                      SDL_Rect *targets,
+                                      int limit);
+KIT_API int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length);
 KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 
 KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player);

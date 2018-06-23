@@ -49,7 +49,7 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
     }
 }
 
-static int ren_get_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
+static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
     // Read any new packets to atlas
     Kit_SubtitlePacket *packet = NULL;
 
@@ -96,7 +96,7 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int w, i
 
     // Only renderer required, no other data.
     ren->ren_render = ren_render_image_cb;
-    ren->ren_get_data = ren_get_data_cb;
+    ren->ren_get_data = ren_get_img_data_cb;
     ren->ren_close = NULL;
     ren->userdata = NULL;
     return ren;
