@@ -61,6 +61,14 @@ int64_t seek_callback(void *userdata, int64_t offset, int whence) {
     return ftell(fd);
 }
 
+void find_viewport_size(int sw, int sh, int vw, int vh, int *rw, int *rh) {
+    float r_x = (float)sw / (float)vw;
+    float r_y = (float)sh / (float)vh;
+    float r_t = r_x < r_y ? r_x : r_y;
+    *rw = vw * r_t;
+    *rh = vh * r_t;
+}
+
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
     const char* filename = NULL;
@@ -243,9 +251,10 @@ int main(int argc, char *argv[]) {
     int size_h = 0;
     int screen_w = 0;
     int screen_h = 0;
-    SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
     SDL_GetWindowSize(window, &screen_w, &screen_h);
-    bool gui_enabled = false;
+    find_viewport_size(screen_w, screen_h, pinfo.video.width, pinfo.video.height, &size_w, &size_h);
+    SDL_RenderSetLogicalSize(renderer, size_w, size_h);
+    Kit_SetPlayerScreenSize(player, size_w, size_h);
     bool fullscreen = false;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
@@ -285,7 +294,9 @@ int main(int argc, char *argv[]) {
                     switch(event.window.event) {
                         case SDL_WINDOWEVENT_SIZE_CHANGED:
                             SDL_GetWindowSize(window, &screen_w, &screen_h);
-                            Kit_SetPlayerScreenSize(player, screen_w, screen_h);
+                            find_viewport_size(screen_w, screen_h, pinfo.video.width, pinfo.video.height, &size_w, &size_h);
+                            SDL_RenderSetLogicalSize(renderer, size_w, size_h);
+                            Kit_SetPlayerScreenSize(player, size_w, size_h);
                             break;
                     }
                     break;
@@ -314,10 +325,6 @@ int main(int argc, char *argv[]) {
                     break;
             }
         }
-
-        // Enable GUI if mouse is hovering over the bottom third of the screen
-        int limit = (pinfo.video.height / 3) * 2; 
-        gui_enabled = (mouse_y >= limit);
 
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
@@ -361,8 +368,8 @@ int main(int argc, char *argv[]) {
         }
         SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height); 
 
-        // Render GUI
-        if(gui_enabled) {
+        // Enable GUI if mouse is hovering over the bottom third of the screen
+        if(mouse_y >= ((size_h / 3) * 2)) {
             double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);
             render_gui(renderer, percent);
         }
