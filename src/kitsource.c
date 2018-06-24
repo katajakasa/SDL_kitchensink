@@ -121,7 +121,7 @@ void Kit_CloseSource(Kit_Source *src) {
     free(src);
 }
 
-int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_StreamInfo *info, int index) {
+int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_SourceStreamInfo *info, int index) {
     assert(src != NULL);
     assert(info != NULL);
 

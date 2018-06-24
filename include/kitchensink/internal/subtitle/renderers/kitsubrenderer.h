@@ -2,7 +2,6 @@
 #define KITSUBRENDERER_H
 
 #include "kitchensink/kitsource.h"
-#include "kitchensink/kitformats.h"
 
 typedef struct Kit_SubtitleRenderer Kit_SubtitleRenderer;
 typedef struct Kit_TextureAtlas Kit_TextureAtlas;

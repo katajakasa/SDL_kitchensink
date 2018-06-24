@@ -18,10 +18,7 @@
 #include "kitchensink/internal/utils/kithelpers.h"
 
 
-#define KIT_SUBTITLE_OUT_SIZE 64
-
 typedef struct Kit_SubtitleDecoder {
-    Kit_SubtitleFormat *format;
     Kit_SubtitleRenderer *renderer;
     AVSubtitle scratch_frame;
     Kit_TextureAtlas *atlas;
@@ -81,30 +78,30 @@ static void dec_close_subtitle_cb(Kit_Decoder *dec) {
     free(subtitle_dec);
 }
 
-Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, Kit_SubtitleFormat *format, int video_w, int video_h, int screen_w, int screen_h) {
+Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, int video_w, int video_h, int screen_w, int screen_h) {
     assert(src != NULL);
-    assert(format != NULL);
+    assert(video_w >= 0);
+    assert(video_h >= 0);
+    assert(screen_w >= 0);
+    assert(screen_h >= 0);
+
     if(stream_index < 0) {
         return NULL;
     }
 
-    Kit_LibraryState *library_state = Kit_GetLibraryState();
+    Kit_LibraryState *state = Kit_GetLibraryState();
 
     // First the generic decoder component
     Kit_Decoder *dec = Kit_CreateDecoder(
         src,
         stream_index,
-        KIT_SUBTITLE_OUT_SIZE,
-        free_out_subtitle_packet_cb);
+        state->subtitle_buf_frames,
+        free_out_subtitle_packet_cb,
+        state->thread_count);
     if(dec == NULL) {
         Kit_SetError("Unable to allocate subtitle decoder");
         goto exit_0;
     }
-
-    // Set format. Note that is_enabled may be changed below ...
-    format->is_enabled = true;
-    format->stream_index = stream_index;
-    format->format = SDL_PIXELFORMAT_RGBA32; // Always this
 
     // ... then allocate the subtitle decoder
     Kit_SubtitleDecoder *subtitle_dec = calloc(1, sizeof(Kit_SubtitleDecoder));
@@ -113,8 +110,12 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         goto exit_1;
     }
 
+    // Set format. Note that is_enabled may be changed below ...
+    Kit_OutputFormat output;
+    memset(&output, 0, sizeof(Kit_OutputFormat));
+    output.format = SDL_PIXELFORMAT_RGBA32; // Always this
+
     // For subtitles, we need a renderer for the stream. Pick one based on codec ID.
-    Kit_SubtitleRenderer *ren = NULL;
     switch(dec->codec_ctx->codec_id) {
         case AV_CODEC_ID_TEXT:
         case AV_CODEC_ID_HDMV_TEXT_SUBTITLE:
@@ -122,45 +123,40 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         case AV_CODEC_ID_SUBRIP:
         case AV_CODEC_ID_SSA:
         case AV_CODEC_ID_ASS:
-            if(library_state->init_flags & KIT_INIT_ASS) {
-                ren = Kit_CreateASSSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
-            } else {
-                format->is_enabled = false;
+            if(state->init_flags & KIT_INIT_ASS) {
+                subtitle_dec->renderer = Kit_CreateASSSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
             }
             break;
         case AV_CODEC_ID_DVD_SUBTITLE:
         case AV_CODEC_ID_DVB_SUBTITLE:
         case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
         case AV_CODEC_ID_XSUB:
-            ren = Kit_CreateImageSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
+            subtitle_dec->renderer = Kit_CreateImageSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
             break;
         default:
-            format->is_enabled = false;
             break;
     }
-    if(ren == NULL) {
+    if(subtitle_dec->renderer == NULL) {
         Kit_SetError("Unrecognized subtitle format");
         goto exit_2;
     }
 
     // Allocate texture atlas for subtitle rectangles
-    Kit_TextureAtlas *atlas = Kit_CreateAtlas();
-    if(atlas == NULL) {
+    subtitle_dec->atlas = Kit_CreateAtlas();
+    if(subtitle_dec->atlas == NULL) {
         Kit_SetError("Unable to allocate subtitle texture atlas");
         goto exit_3;
     }
 
     // Set callbacks and userdata, and we're go
-    subtitle_dec->format = format;
-    subtitle_dec->renderer = ren;
-    subtitle_dec->atlas = atlas;
     dec->dec_decode = dec_decode_subtitle_cb;
     dec->dec_close = dec_close_subtitle_cb;
     dec->userdata = subtitle_dec;
+    dec->output = output;
     return dec;
 
 exit_3:
-    Kit_CloseSubtitleRenderer(ren);
+    Kit_CloseSubtitleRenderer(subtitle_dec->renderer);
 exit_2:
     free(subtitle_dec);
 exit_1:

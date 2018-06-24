@@ -3,7 +3,8 @@
 
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kitconfig.h"
-#include "kitchensink/kitformats.h"
+#include "kitchensink/kitformat.h"
+#include "kitchensink/kitcodec.h"
 
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_thread.h>
@@ -16,9 +17,6 @@
 extern "C" {
 #endif
 
-#define KIT_CODECMAX 16
-#define KIT_CODECNAMEMAX 128
-
 typedef enum Kit_PlayerState {
     KIT_STOPPED = 0, ///< Playback stopped or has not started yet.
     KIT_PLAYING,     ///< Playback started & player is actively decoding.
@@ -27,29 +25,23 @@ typedef enum Kit_PlayerState {
 } Kit_PlayerState;
 
 typedef struct Kit_Player {
-    Kit_PlayerState state;      ///< Playback state
-    Kit_VideoFormat vformat;    ///< Video format information
-    Kit_AudioFormat aformat;    ///< Audio format information
-    Kit_SubtitleFormat sformat; ///< Subtitle format information
-    void *audio_dec;            ///< Audio decoder context (or NULL)
-    void *video_dec;            ///< Video decoder context (or NULL)
-    void *subtitle_dec;         ///< Subtitle decoder context (or NULL)
-    SDL_Thread *dec_thread;     ///< Decoder thread
-    SDL_mutex *dec_lock;        ///< Decoder lock
-    const Kit_Source *src;      ///< Reference to Audio/Video source
-    double pause_started;       ///< Temporary flag for handling pauses
+    Kit_PlayerState state;   ///< Playback state
+    void *decoders[3];       ///< Decoder contexts
+    SDL_Thread *dec_thread;  ///< Decoder thread
+    SDL_mutex *dec_lock;     ///< Decoder lock
+    const Kit_Source *src;   ///< Reference to Audio/Video source
+    double pause_started;    ///< Temporary flag for handling pauses
 } Kit_Player;
 
+typedef struct Kit_PlayerStreamInfo {
+    Kit_Codec codec;
+    Kit_OutputFormat output;
+} Kit_PlayerStreamInfo;
+
 typedef struct Kit_PlayerInfo {
-    char acodec[KIT_CODECMAX]; ///< Audio codec short name, eg "ogg", "mp3"
-    char acodec_name[KIT_CODECNAMEMAX]; ///< Audio codec long, more descriptive name
-    char vcodec[KIT_CODECMAX]; ///< Video codec short name, eg. "x264"
-    char vcodec_name[KIT_CODECNAMEMAX]; ///< Video codec long, more descriptive name
-    char scodec[KIT_CODECMAX]; ///< Subtitle codec short name, eg. "ass"
-    char scodec_name[KIT_CODECNAMEMAX]; ///< Subtitle codec long, more descriptive name
-    Kit_VideoFormat video; ///< Video format information
-    Kit_AudioFormat audio; ///< Audio format information
-    Kit_SubtitleFormat subtitle; ///< Subtitle format information
+    Kit_PlayerStreamInfo video;
+    Kit_PlayerStreamInfo audio;
+    Kit_PlayerStreamInfo subtitle;
 } Kit_PlayerInfo;
 
 KIT_API Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
@@ -61,9 +53,9 @@ KIT_API Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
 KIT_API void Kit_ClosePlayer(Kit_Player *player);
 
 KIT_API void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h);
-KIT_API int Kit_SetPlayerVideoStream(Kit_Player *player, int index);
-KIT_API int Kit_SetPlayerAudioStream(Kit_Player *player, int index);
-KIT_API int Kit_SetPlayerSubtitleStream(Kit_Player *player, int index);
+KIT_API int Kit_GetPlayerVideoStream(const Kit_Player *player);
+KIT_API int Kit_GetPlayerAudioStream(const Kit_Player *player);
+KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
 
 KIT_API int Kit_UpdatePlayer(Kit_Player *player);
 KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);

@@ -8,17 +8,16 @@
 #include <SDL2/SDL.h>
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/utils/kitbuffer.h"
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/utils/kitringbuffer.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
-#define KIT_AUDIO_OUT_SIZE 64
 #define AUDIO_SYNC_THRESHOLD 0.05
 
 typedef struct Kit_AudioDecoder {
-    Kit_AudioFormat *format;
     SwrContext *swr;
     AVFrame *scratch_frame;
 } Kit_AudioDecoder;
@@ -63,24 +62,39 @@ int _FindChannelLayout(uint64_t channel_layout) {
     }
 }
 
-void _FindAudioFormat(enum AVSampleFormat fmt, int *bytes, bool *is_signed, unsigned int *format) {
+int _FindBytes(enum AVSampleFormat fmt) {
     switch(fmt) {
+        case AV_SAMPLE_FMT_U8P:
         case AV_SAMPLE_FMT_U8:
-            *bytes = 1;
-            *is_signed = false;
-            *format = AUDIO_U8;
-            break;
+            return 1;
+        case AV_SAMPLE_FMT_S32P:
         case AV_SAMPLE_FMT_S32:
-            *bytes = 4;
-            *is_signed = true;
-            *format = AUDIO_S32SYS;
-            break;
-        case AV_SAMPLE_FMT_S16:
+            return 4;
         default:
-            *bytes = 2;
-            *is_signed = true;
-            *format = AUDIO_S16SYS;
-            break;
+            return 2;
+    }
+}
+
+int _FindSDLSampleFormat(enum AVSampleFormat fmt) {
+    switch(fmt) {
+        case AV_SAMPLE_FMT_U8P:
+        case AV_SAMPLE_FMT_U8:
+            return AUDIO_U8;
+        case AV_SAMPLE_FMT_S32P:
+        case AV_SAMPLE_FMT_S32:
+            return AUDIO_S32SYS;
+        default:
+            return AUDIO_S16SYS;
+    }
+}
+
+bool _FindSignedness(enum AVSampleFormat fmt) {
+    switch(fmt) {
+        case AV_SAMPLE_FMT_U8P:
+        case AV_SAMPLE_FMT_U8:
+            return false;
+        default:
+            return true;
     }
 }
 
@@ -111,16 +125,16 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
         if(frame_finished) {
             dst_nb_samples = av_rescale_rnd(
                 audio_dec->scratch_frame->nb_samples,
-                audio_dec->format->samplerate,  // Target samplerate
+                dec->output.samplerate,  // Target samplerate
                 dec->codec_ctx->sample_rate,  // Source samplerate
                 AV_ROUND_UP);
 
             av_samples_alloc_array_and_samples(
                 &dst_data,
                 &dst_linesize,
-                audio_dec->format->channels,
+                dec->output.channels,
                 dst_nb_samples,
-                _FindAVSampleFormat(audio_dec->format->format),
+                _FindAVSampleFormat(dec->output.format),
                 0);
 
             len2 = swr_convert(
@@ -132,9 +146,9 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
 
             dst_bufsize = av_samples_get_buffer_size(
                 &dst_linesize,
-                audio_dec->format->channels,
+                dec->output.channels,
                 len2,
-                _FindAVSampleFormat(audio_dec->format->format), 1);
+                _FindAVSampleFormat(dec->output.format), 1);
 
             // Get presentation timestamp
             double pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
@@ -168,29 +182,24 @@ static void dec_close_audio_cb(Kit_Decoder *dec) {
     free(audio_dec);
 }
 
-Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index, Kit_AudioFormat *format) {
+Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     assert(src != NULL);
-    assert(format != NULL);
     if(stream_index < 0) {
         return NULL;
     }
+
+    Kit_LibraryState *state = Kit_GetLibraryState();
 
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
         src,
         stream_index,
-        KIT_AUDIO_OUT_SIZE,
-        free_out_audio_packet_cb);
+        state->audio_buf_frames,
+        free_out_audio_packet_cb,
+        state->thread_count);
     if(dec == NULL) {
         goto exit_0;
     }
-
-    // Find formats
-    format->samplerate = dec->codec_ctx->sample_rate;
-    format->is_enabled = true;
-    format->stream_index = stream_index;
-    format->channels = _FindChannelLayout(dec->codec_ctx->channel_layout);
-    _FindAudioFormat(dec->codec_ctx->sample_fmt, &format->bytes, &format->is_signed, &format->format);
 
     // ... then allocate the audio decoder
     Kit_AudioDecoder *audio_dec = calloc(1, sizeof(Kit_AudioDecoder));
@@ -205,12 +214,21 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index, Kit
         goto exit_2;
     }
 
+    // Set format configs
+    Kit_OutputFormat output;
+    memset(&output, 0, sizeof(Kit_OutputFormat));
+    output.samplerate = dec->codec_ctx->sample_rate;
+    output.channels = _FindChannelLayout(dec->codec_ctx->channel_layout);
+    output.bytes = _FindBytes(dec->codec_ctx->sample_fmt);
+    output.is_signed = _FindSignedness(dec->codec_ctx->sample_fmt);
+    output.format = _FindSDLSampleFormat(dec->codec_ctx->sample_fmt);
+
     // Create resampler
     audio_dec->swr = swr_alloc_set_opts(
         NULL,
-        _FindAVChannelLayout(format->channels), // Target channel layout
-        _FindAVSampleFormat(format->format), // Target fmt
-        format->samplerate, // Target samplerate
+        _FindAVChannelLayout(output.channels), // Target channel layout
+        _FindAVSampleFormat(output.format), // Target fmt
+        output.samplerate, // Target samplerate
         dec->codec_ctx->channel_layout, // Source channel layout
         dec->codec_ctx->sample_fmt, // Source fmt
         dec->codec_ctx->sample_rate, // Source samplerate
@@ -222,10 +240,10 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index, Kit
     }
 
     // Set callbacks and userdata, and we're go
-    audio_dec->format = format;
     dec->dec_decode = dec_decode_audio_cb;
     dec->dec_close = dec_close_audio_cb;
     dec->userdata = audio_dec;
+    dec->output = output;
     return dec;
 
 exit_3:
@@ -247,9 +265,8 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     }
 
     int ret = 0;
-    Kit_AudioDecoder *audio_dec = dec->userdata;
-    int bytes_per_sample = audio_dec->format->bytes * audio_dec->format->channels;
-    double bytes_per_second = bytes_per_sample * audio_dec->format->samplerate;
+    int bytes_per_sample = dec->output.bytes * dec->output.channels;
+    double bytes_per_second = bytes_per_sample * dec->output.samplerate;
     double sync_ts = _GetSystemTime() - dec->clock_sync;
 
     if(packet->pts > sync_ts + AUDIO_SYNC_THRESHOLD) {

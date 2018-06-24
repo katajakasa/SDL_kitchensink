@@ -5,17 +5,16 @@
 #include <libswscale/swscale.h>
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/utils/kitbuffer.h"
 #include "kitchensink/internal/video/kitvideo.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
-#define KIT_VIDEO_OUT_SIZE 2
 #define KIT_VIDEO_SYNC_THRESHOLD 0.01
 
 typedef struct Kit_VideoDecoder {
-    Kit_VideoFormat *format;
     struct SwsContext *sws;
     AVFrame *scratch_frame;
 } Kit_VideoDecoder;
@@ -33,7 +32,7 @@ static Kit_VideoPacket* _CreateVideoPacket(AVFrame *frame, double pts) {
     return p;
 }
 
-static unsigned int _FindPixelFormat(enum AVPixelFormat fmt) {
+static unsigned int _FindSDLPixelFormat(enum AVPixelFormat fmt) {
     switch(fmt) {
         case AV_PIX_FMT_YUV420P9:
         case AV_PIX_FMT_YUV420P10:
@@ -93,7 +92,7 @@ static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                     out_frame->linesize,
                     dec->codec_ctx->width,
                     dec->codec_ctx->height,
-                    _FindAVPixelFormat(video_dec->format->format),
+                    _FindAVPixelFormat(dec->output.format),
                     1);
 
             // Scale from source format to target format, don't touch the size
@@ -132,29 +131,24 @@ static void dec_close_video_cb(Kit_Decoder *dec) {
     free(video_dec);
 }
 
-Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index, Kit_VideoFormat *format) {
+Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     assert(src != NULL);
-    assert(format != NULL);
     if(stream_index < 0) {
         return NULL;
     }
+
+    Kit_LibraryState *state = Kit_GetLibraryState();
 
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
         src,
         stream_index,
-        KIT_VIDEO_OUT_SIZE,
-        free_out_video_packet_cb);
+        state->video_buf_frames,
+        free_out_video_packet_cb,
+        state->thread_count);
     if(dec == NULL) {
         goto exit_0;
     }
-
-    // Find formats
-    format->is_enabled = true;
-    format->width = dec->codec_ctx->width;
-    format->height = dec->codec_ctx->height;
-    format->stream_index = stream_index;
-    format->format = _FindPixelFormat(dec->codec_ctx->pix_fmt);
 
     // ... then allocate the video decoder
     Kit_VideoDecoder *video_dec = calloc(1, sizeof(Kit_VideoDecoder));
@@ -169,6 +163,13 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index, Kit
         goto exit_2;
     }
 
+    // Set format configs
+    Kit_OutputFormat output;
+    memset(&output, 0, sizeof(Kit_OutputFormat));
+    output.width = dec->codec_ctx->width;
+    output.height = dec->codec_ctx->height;
+    output.format = _FindSDLPixelFormat(dec->codec_ctx->pix_fmt);
+
     // Create scaler for handling format changes
     video_dec->sws = sws_getContext(
         dec->codec_ctx->width, // Source w
@@ -176,7 +177,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index, Kit
         dec->codec_ctx->pix_fmt, // Source fmt
         dec->codec_ctx->width, // Target w
         dec->codec_ctx->height, // Target h
-        _FindAVPixelFormat(format->format), // Target fmt
+        _FindAVPixelFormat(output.format), // Target fmt
         SWS_BILINEAR,
         NULL, NULL, NULL);
     if(video_dec->sws == NULL) {
@@ -185,10 +186,10 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index, Kit
     }
 
     // Set callbacks and userdata, and we're go
-    video_dec->format = format;
     dec->dec_decode = dec_decode_video_cb;
     dec->dec_close = dec_close_video_cb;
     dec->userdata = video_dec;
+    dec->output = output;
     return dec;
 
 exit_3:
@@ -210,7 +211,6 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
         return 0;
     }
 
-    Kit_VideoDecoder *video_dec = dec->userdata;
     double sync_ts = _GetSystemTime() - dec->clock_sync;
 
     // Check if we want the packet
@@ -241,7 +241,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
 
     // Update output texture with current video data.
     // Take formats into account.
-    switch(video_dec->format->format) {
+    switch(dec->output.format) {
         case SDL_PIXELFORMAT_YV12:
         case SDL_PIXELFORMAT_IYUV:
             SDL_UpdateYUVTexture(

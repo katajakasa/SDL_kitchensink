@@ -9,6 +9,9 @@
 
 static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {}
 
+static int max(int a, int b) { return a > b ? a : b; }
+static int min(int a, int b) { return a < b ? a : b; }
+
 int Kit_InitASS(Kit_LibraryState *state) {
 #ifdef USE_DYNAMIC_LIBASS
     state->ass_so_handle = SDL_LoadObject(DYNAMIC_LIBASS_NAME);
@@ -19,6 +22,11 @@ int Kit_InitASS(Kit_LibraryState *state) {
     load_libass(state->ass_so_handle);
 #endif
     state->libass_handle = ass_library_init();
+    state->thread_count = 1;
+    state->font_hinting = KIT_FONT_HINTING_NONE;
+    state->video_buf_frames = 3;
+    state->audio_buf_frames = 64;
+    state->subtitle_buf_frames = 64;
     ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     return 0;
 }
@@ -40,9 +48,9 @@ int Kit_Init(unsigned int flags) {
         goto exit_0;
     }
 
-    #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
     av_register_all();
-    #endif
+#endif
 
     if(flags & KIT_INIT_NETWORK) {
         avformat_network_init();
@@ -73,6 +81,45 @@ void Kit_Quit() {
         Kit_CloseASS(state);
     }
     state->init_flags = 0;
+}
+
+void Kit_SetHint(Kit_HintType type, int value) {
+    Kit_LibraryState *state = Kit_GetLibraryState();
+    switch(type) {
+        case KIT_HINT_THREAD_COUNT:
+            state->thread_count =  max(value, 1);
+            break;
+        case KIT_HINT_FONT_HINTING:
+            state->font_hinting = max(min(value, KIT_FONT_HINTING_COUNT), 0);
+            break;
+        case KIT_HINT_VIDEO_BUFFER_FRAMES:
+            state->video_buf_frames = min(value, 1);
+            break;
+        case KIT_HINT_AUDIO_BUFFER_FRAMES:
+            state->audio_buf_frames = min(value, 1);
+            break;
+        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
+            state->subtitle_buf_frames = min(value, 1);
+            break;
+    }
+}
+
+int Kit_GetHint(Kit_HintType type) {
+    Kit_LibraryState *state = Kit_GetLibraryState();
+    switch(type) {
+        case KIT_HINT_THREAD_COUNT:
+            return state->thread_count;
+        case KIT_HINT_FONT_HINTING:
+            return state->font_hinting;
+        case KIT_HINT_VIDEO_BUFFER_FRAMES:
+            return state->video_buf_frames;
+        case KIT_HINT_AUDIO_BUFFER_FRAMES:
+            return state->audio_buf_frames;
+        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
+            return state->subtitle_buf_frames;
+        default:
+            return 0;
+    }
 }
 
 void Kit_GetVersion(Kit_Version *version) {

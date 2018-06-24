@@ -11,26 +11,28 @@
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
+enum DecoderIndex {
+    KIT_VIDEO_DEC = 0,
+    KIT_AUDIO_DEC,
+    KIT_SUBTITLE_DEC,
+    KIT_DEC_COUNT
+};
+
 // Return 0 if stream is good but nothing else to do for now
 // Return -1 if there may still work to be done
 // Return 1 if there was an error or stream end
 static int _DemuxStream(const Kit_Player *player) {
     assert(player != NULL);
-
     AVFormatContext *format_ctx = player->src->format_ctx;
-    Kit_Decoder *decoders[] = {
-        player->video_dec,
-        player->audio_dec,
-        player->subtitle_dec
-    };
 
     // If any buffer is full, just stop here for now.
     // Since we don't know what kind of data is going to come out of av_read_frame, we really
     // want to make sure we are prepared for everything :)
-    for(int i = 0; i < 3; i++) {
-        if(decoders[i] == NULL)
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_Decoder *dec = player->decoders[i];
+        if(dec == NULL)
             continue;
-        if(!Kit_CanWriteDecoderInput(decoders[i]))
+        if(!Kit_CanWriteDecoderInput(dec))
             return 0;
     }
 
@@ -42,11 +44,12 @@ static int _DemuxStream(const Kit_Player *player) {
     }
 
     // Check if this is a packet we need to handle and pass it on
-    for(int i = 0; i < 3; i++) {
-        if(decoders[i] == NULL)
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_Decoder *dec = player->decoders[i];
+        if(dec == NULL)
             continue;
-        if(decoders[i]->stream_index == packet->stream_index) {
-            Kit_WriteDecoderInput(decoders[i], packet);
+        if(dec->stream_index == packet->stream_index) {
+            Kit_WriteDecoderInput(player->decoders[i], packet);
             return -1;
         }
     }
@@ -58,15 +61,11 @@ static int _DemuxStream(const Kit_Player *player) {
 }
 
 static bool _IsOutputEmpty(const Kit_Player *player) {
-    Kit_Decoder *decoders[] = {
-        player->video_dec,
-        player->audio_dec,
-        player->subtitle_dec
-    };
-    for(int i = 0; i < 3; i++) {
-        if(decoders[i] == NULL)
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_Decoder *dec = player->decoders[i];
+        if(dec == NULL)
             continue;
-        if(Kit_PeekDecoderOutput(decoders[i]))
+        if(Kit_PeekDecoderOutput(dec))
             return false;
     }
     return true;
@@ -106,9 +105,12 @@ static int _DecoderThread(void *ptr) {
                 }
 
                 // Run decoders for a bit
-                while(Kit_RunDecoder(player->video_dec) == 1);
-                while(Kit_RunDecoder(player->audio_dec) == 1);
-                while(Kit_RunDecoder(player->subtitle_dec) == 1);
+                for(int i = 0; i < KIT_DEC_COUNT; i++) {
+                    Kit_Decoder *dec = player->decoders[i];
+                    if(dec == NULL)
+                        continue;
+                    while(Kit_RunDecoder(dec) == 1);
+                }
 
                 // Free decoder thread lock.
                 SDL_UnlockMutex(player->dec_lock);
@@ -132,29 +134,38 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
                              int screen_w,
                              int screen_h) {
     assert(src != NULL);
+    assert(screen_w >= 0);
+    assert(screen_h >= 0);
+    
+    if(video_stream_index < 0 && subtitle_stream_index >= 0) {
+        Kit_SetError("Subtitle stream selected without video stream");
+        goto exit_0;
+    }
 
     Kit_Player *player = calloc(1, sizeof(Kit_Player));
     if(player == NULL) {
         Kit_SetError("Unable to allocate player");
-        return NULL;
-    }
-
-    // Initialize audio decoder
-    player->audio_dec = Kit_CreateAudioDecoder(src, audio_stream_index, &player->aformat);
-    if(player->audio_dec == NULL && audio_stream_index >= 0) {
         goto exit_0;
     }
 
-    // Initialize video decoder
-    player->video_dec = Kit_CreateVideoDecoder(src, video_stream_index, &player->vformat);
-    if(player->video_dec == NULL && video_stream_index >= 0) {
+    // Initialize audio decoder
+    player->decoders[KIT_AUDIO_DEC] = Kit_CreateAudioDecoder(src, audio_stream_index);
+    if(player->decoders[KIT_AUDIO_DEC] == NULL && audio_stream_index >= 0) {
         goto exit_1;
     }
 
-    // Initialize subtitle decoder
-    player->subtitle_dec = Kit_CreateSubtitleDecoder(
-        src, subtitle_stream_index,  &player->sformat, player->vformat.width, player->vformat.height, screen_w, screen_h);
-    if(player->subtitle_dec == NULL && subtitle_stream_index >= 0) {
+    // Initialize video decoder
+    player->decoders[KIT_VIDEO_DEC] = Kit_CreateVideoDecoder(src, video_stream_index);
+    if(player->decoders[KIT_VIDEO_DEC] == NULL && video_stream_index >= 0) {
+        goto exit_2;
+    }
+
+    // Initialize subtitle decoder.
+    Kit_OutputFormat output;
+    Kit_GetDecoderOutputFormat(player->decoders[KIT_VIDEO_DEC], &output);
+    player->decoders[KIT_SUBTITLE_DEC] = Kit_CreateSubtitleDecoder(
+        src, subtitle_stream_index, output.width, output.height, screen_w, screen_h);
+    if(player->decoders[KIT_SUBTITLE_DEC] == NULL && subtitle_stream_index >= 0) {
         goto exit_2;
     }
 
@@ -162,29 +173,28 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     player->dec_lock = SDL_CreateMutex();
     if(player->dec_lock == NULL) {
         Kit_SetError("Unable to create a decoder thread lock mutex: %s", SDL_GetError());
-        goto exit_3;
+        goto exit_2;
     }
 
     // Decoder thread
     player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
     if(player->dec_thread == NULL) {
         Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
-        goto exit_4;
+        goto exit_3;
     }
 
     player->src = src;
     return player;
 
-exit_4:
-    SDL_DestroyMutex(player->dec_lock);
 exit_3:
-    Kit_CloseDecoder(player->subtitle_dec);
+    SDL_DestroyMutex(player->dec_lock);
 exit_2:
-    Kit_CloseDecoder(player->video_dec);
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_CloseDecoder((Kit_Decoder*)player->decoders[i]);
+    }
 exit_1:
-    Kit_CloseDecoder(player->audio_dec);
-exit_0:
     free(player);
+exit_0:
     return NULL;
 }
 
@@ -197,9 +207,9 @@ void Kit_ClosePlayer(Kit_Player *player) {
     SDL_DestroyMutex(player->dec_lock);
 
     // Shutdown decoders
-    Kit_CloseDecoder(player->audio_dec);
-    Kit_CloseDecoder(player->video_dec);
-    Kit_CloseDecoder(player->subtitle_dec);
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_CloseDecoder((Kit_Decoder*)player->decoders[i]);
+    }
 
     // Free the player structure itself
     free(player);
@@ -207,35 +217,32 @@ void Kit_ClosePlayer(Kit_Player *player) {
 
 void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h) {
     assert(player != NULL);
-    if(player->subtitle_dec == NULL)
+    Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_DEC];
+    if(dec == NULL)
         return;
-    Kit_SetSubtitleDecoderSize(player->subtitle_dec, w, h);
+    Kit_SetSubtitleDecoderSize(dec, w, h);
 }
 
-int Kit_SetPlayerVideoStream(Kit_Player *player, int index) {
+int Kit_GetPlayerVideoStream(const Kit_Player *player) {
     assert(player != NULL);
-    if(player->video_dec == NULL)
-        return 1;
-    return Kit_SetDecoderStreamIndex(player->video_dec, index);
+    return Kit_GetDecoderStreamIndex(player->decoders[KIT_VIDEO_DEC]);
 }
 
-int Kit_SetPlayerAudioStream(Kit_Player *player, int index) {
+int Kit_GetPlayerAudioStream(const Kit_Player *player) {
     assert(player != NULL);
-    if(player->audio_dec == NULL)
-        return 1;
-    return Kit_SetDecoderStreamIndex(player->audio_dec, index);
+    return Kit_GetDecoderStreamIndex(player->decoders[KIT_AUDIO_DEC]);
 }
 
-int Kit_SetPlayerSubtitleStream(Kit_Player *player, int index) {
+int Kit_GetPlayerSubtitleStream(const Kit_Player *player) {
     assert(player != NULL);
-    if(player->subtitle_dec == NULL)
-        return 1;
-    return Kit_SetDecoderStreamIndex(player->subtitle_dec, index);
+    return Kit_GetDecoderStreamIndex(player->decoders[KIT_SUBTITLE_DEC]);
 }
 
 int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
     assert(player != NULL);
-    if(player->video_dec == NULL) {
+
+    Kit_Decoder *dec = player->decoders[KIT_VIDEO_DEC];
+    if(dec == NULL) {
         return 0;
     }
 
@@ -247,13 +254,15 @@ int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
-    return Kit_GetVideoDecoderData(player->video_dec, texture);
+    return Kit_GetVideoDecoderData(dec, texture);
 }
 
 int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length) {
     assert(player != NULL);
     assert(buffer != NULL);
-    if(player->audio_dec == NULL) {
+
+    Kit_Decoder *dec = player->decoders[KIT_AUDIO_DEC];
+    if(dec == NULL) {
         return 0;
     }
 
@@ -270,7 +279,7 @@ int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length
         return 0;
     }
 
-    return Kit_GetAudioDecoderData(player->audio_dec, buffer, length);
+    return Kit_GetAudioDecoderData(dec, buffer, length);
 }
 
 int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
@@ -280,7 +289,8 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     assert(targets != NULL);
     assert(limit >= 0);
 
-    if(player->subtitle_dec == NULL) {
+    Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_DEC];
+    if(dec == NULL) {
         return 0;
     }
 
@@ -292,55 +302,37 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
         return 0;
     }
 
-    return Kit_GetSubtitleDecoderData(player->subtitle_dec, texture, sources, targets, limit);
+    return Kit_GetSubtitleDecoderData(dec, texture, sources, targets, limit);
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     assert(player != NULL);
     assert(info != NULL);
 
-    Kit_Decoder *audio_dec = player->audio_dec;
-    Kit_Decoder *video_dec = player->video_dec;
-    Kit_Decoder *subtitle_dec = player->subtitle_dec;
-    AVCodecContext *acodec_ctx = audio_dec ? audio_dec->codec_ctx : NULL;
-    AVCodecContext *vcodec_ctx = video_dec ? video_dec->codec_ctx : NULL;
-    AVCodecContext *scodec_ctx = subtitle_dec ? subtitle_dec->codec_ctx : NULL;
-
-    // Reset everything to 0. We might not fill all fields.
-    memset(info, 0, sizeof(Kit_PlayerInfo));
-
-    if(acodec_ctx != NULL) {
-        strncpy(info->acodec, acodec_ctx->codec->name, KIT_CODECMAX-1);
-        strncpy(info->acodec_name, acodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
-        memcpy(&info->audio, &player->aformat, sizeof(Kit_AudioFormat));
-    }
-    if(vcodec_ctx != NULL) {
-        strncpy(info->vcodec, vcodec_ctx->codec->name, KIT_CODECMAX-1);
-        strncpy(info->vcodec_name, vcodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
-        memcpy(&info->video, &player->vformat, sizeof(Kit_VideoFormat));
-    }
-    if(scodec_ctx != NULL) {
-        strncpy(info->scodec, scodec_ctx->codec->name, KIT_CODECMAX-1);
-        strncpy(info->scodec_name, scodec_ctx->codec->long_name, KIT_CODECNAMEMAX-1);
-        memcpy(&info->subtitle, &player->sformat, sizeof(Kit_SubtitleFormat));
+    void *streams[] = {&info->video, &info->audio, &info->subtitle};
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_Decoder *dec = player->decoders[i];
+        Kit_PlayerStreamInfo *stream = streams[i];
+        Kit_GetDecoderCodecInfo(dec, &stream->codec);
+        Kit_GetDecoderOutputFormat(dec, &stream->output);
     }
 }
 
 static void _SetClockSync(Kit_Player *player) {
     if(SDL_LockMutex(player->dec_lock) == 0) {
         double sync = _GetSystemTime();
-        Kit_SetDecoderClockSync(player->video_dec, sync);
-        Kit_SetDecoderClockSync(player->audio_dec, sync);
-        Kit_SetDecoderClockSync(player->subtitle_dec, sync);
+        for(int i = 0; i < KIT_DEC_COUNT; i++) {
+            Kit_SetDecoderClockSync(player->decoders[i], sync);
+        }
         SDL_UnlockMutex(player->dec_lock);
     }
 }
 
 static void _ChangeClockSync(Kit_Player *player, double delta) {
     if(SDL_LockMutex(player->dec_lock) == 0) {
-        Kit_ChangeDecoderClockSync(player->video_dec, delta);
-        Kit_ChangeDecoderClockSync(player->audio_dec, delta);
-        Kit_ChangeDecoderClockSync(player->subtitle_dec, delta);
+        for(int i = 0; i < KIT_DEC_COUNT; i++) {
+            Kit_ChangeDecoderClockSync(player->decoders[i], delta);
+        }
         SDL_UnlockMutex(player->dec_lock);
     }
 }
@@ -416,9 +408,9 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
             return 1;
         } else {
             _ChangeClockSync(player, position - seek_set);
-            Kit_ClearDecoderBuffers(player->video_dec);
-            Kit_ClearDecoderBuffers(player->audio_dec);
-            Kit_ClearDecoderBuffers(player->subtitle_dec);
+            for(int i = 0; i < KIT_DEC_COUNT; i++) {
+                Kit_ClearDecoderBuffers(player->decoders[i]);
+            }
         }
 
         // That's it. Unlock and continue.
@@ -438,11 +430,11 @@ double Kit_GetPlayerDuration(const Kit_Player *player) {
 double Kit_GetPlayerPosition(const Kit_Player *player) {
     assert(player != NULL);
 
-    if(player->video_dec) {
-        return ((Kit_Decoder*)player->video_dec)->clock_pos;
+    if(player->decoders[KIT_VIDEO_DEC]) {
+        return ((Kit_Decoder*)player->decoders[KIT_VIDEO_DEC])->clock_pos;
     }
-    if(player->audio_dec) {
-        return ((Kit_Decoder*)player->audio_dec)->clock_pos;
+    if(player->decoders[KIT_AUDIO_DEC]) {
+        return ((Kit_Decoder*)player->decoders[KIT_AUDIO_DEC])->clock_pos;
     }
     return 0;
 }

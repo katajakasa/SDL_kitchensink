@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Print stream information
-    Kit_StreamInfo sinfo;
+    Kit_SourceStreamInfo sinfo;
     fprintf(stderr, "Source streams:\n");
     for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
         err = Kit_GetSourceStreamInfo(src, &sinfo, i);
@@ -90,25 +90,26 @@ int main(int argc, char *argv[]) {
     Kit_PlayerInfo pinfo;
     Kit_GetPlayerInfo(player, &pinfo);
 
-    if(!pinfo.audio.is_enabled) {
+    // Make sure there is audio in the file to play first.
+    if(Kit_GetPlayerAudioStream(player) == -1) {
         fprintf(stderr, "File contains no audio!\n");
         return 1;
     }
 
     fprintf(stderr, "Media information:\n");
     fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
-        pinfo.acodec,
-        pinfo.acodec_name,
-        pinfo.audio.samplerate,
-        pinfo.audio.channels,
-        pinfo.audio.bytes,
-        pinfo.audio.is_signed ? "signed" : "unsigned");
+        pinfo.audio.codec.name,
+        pinfo.audio.codec.description,
+        pinfo.audio.output.samplerate,
+        pinfo.audio.output.channels,
+        pinfo.audio.output.bytes,
+        pinfo.audio.output.is_signed ? "signed" : "unsigned");
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio.samplerate;
-    wanted_spec.format = pinfo.audio.format;
-    wanted_spec.channels = pinfo.audio.channels;
+    wanted_spec.freq = pinfo.audio.output.samplerate;
+    wanted_spec.format = pinfo.audio.output.format;
+    wanted_spec.channels = pinfo.audio.output.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 

@@ -13,9 +13,11 @@ static void free_in_video_packet_cb(void *packet) {
 }
 
 Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index, 
-                               int out_b_size, dec_free_packet_cb free_out_cb) {
+                               int out_b_size, dec_free_packet_cb free_out_cb,
+                               int thread_count) {
     assert(src != NULL);
     assert(out_b_size > 0);
+    assert(thread_count > 0);
 
     AVCodecContext *codec_ctx = NULL;
     AVCodec *codec = NULL;
@@ -49,6 +51,10 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
         Kit_SetError("Unable to copy audio codec context for stream %d", stream_index);
         goto exit_1;
     }
+
+    // Set thread count
+    codec_ctx->thread_count = thread_count;
+    codec_ctx->thread_type = FF_THREAD_FRAME;
 
     // Open the stream
     if(avcodec_open2(codec_ctx, codec, NULL) < 0) {
@@ -93,11 +99,30 @@ exit_0:
     return NULL;
 }
 
-int Kit_SetDecoderStreamIndex(Kit_Decoder *dec, int stream_index) {
-    if(dec == NULL)
+int Kit_GetDecoderCodecInfo(const Kit_Decoder *dec, Kit_Codec *codec) {
+    if(dec == NULL) {
+        memset(codec, 0, sizeof(Kit_Codec));
         return 1;
-    dec->stream_index = stream_index;
+    }
+    codec->threads = dec->codec_ctx->thread_count;
+    snprintf(codec->name, KIT_CODEC_NAME_MAX, "%s", dec->codec_ctx->codec->name);
+    snprintf(codec->description, KIT_CODEC_DESC_MAX, "%s", dec->codec_ctx->codec->long_name);
     return 0;
+}
+
+int Kit_GetDecoderOutputFormat(const Kit_Decoder *dec, Kit_OutputFormat *output) {
+    if(dec == NULL) {
+        memset(output, 0, sizeof(Kit_OutputFormat));
+        return 1;
+    }
+    memcpy(output, &dec->output, sizeof(Kit_OutputFormat));
+    return 0;
+}
+
+int Kit_GetDecoderStreamIndex(const Kit_Decoder *dec) {
+    if(dec == NULL)
+        return -1;
+    return dec->stream_index;
 }
 
 void Kit_SetDecoderClockSync(Kit_Decoder *dec, double sync) {

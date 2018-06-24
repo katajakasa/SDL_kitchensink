@@ -170,7 +170,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
         NULL, 1);
     ass_set_storage_size(ass_renderer, video_w, video_h);
     ass_set_frame_size(ass_renderer, screen_w, screen_h);
-    ass_set_hinting(ass_renderer, ASS_HINTING_LIGHT);
+    ass_set_hinting(ass_renderer, state->font_hinting);
 
     // Initialize libass track
     ASS_Track *ass_track = ass_new_track(state->libass_handle);

@@ -109,6 +109,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Allow Kit to use more threads
+    Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount() <= 2 ? SDL_GetCPUCount() : 2);
+    Kit_SetHint(KIT_HINT_FONT_HINTING, KIT_FONT_HINTING_LIGHT);
+
     // Open up the sourcefile.
     // This can be a local file, network url, ...
     src = Kit_CreateSourceFromUrl(filename);
@@ -118,7 +122,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Print stream information
-    Kit_StreamInfo sinfo;
+    Kit_SourceStreamInfo sinfo;
     fprintf(stderr, "Source streams:\n");
     for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
         err = Kit_GetSourceStreamInfo(src, &sinfo, i);
@@ -146,55 +150,61 @@ int main(int argc, char *argv[]) {
     Kit_PlayerInfo pinfo;
     Kit_GetPlayerInfo(player, &pinfo);
 
-    if(!pinfo.video.is_enabled) {
+    // Make sure there is video in the file to play first.
+    if(Kit_GetPlayerVideoStream(player) == -1) {
         fprintf(stderr, "File contains no video!\n");
         return 1;
     }
 
     fprintf(stderr, "Media information:\n");
-    if(pinfo.audio.is_enabled) {
-        fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
-            pinfo.acodec,
-            pinfo.acodec_name,
-            pinfo.audio.samplerate,
-            pinfo.audio.channels,
-            pinfo.audio.bytes,
-            pinfo.audio.is_signed ? "signed" : "unsigned");
+    if(Kit_GetPlayerAudioStream(player) >= 0) {
+        fprintf(stderr, " * Audio: %s (%s), threads=%d, %dHz, %dch, %db, %s\n",
+            pinfo.audio.codec.name,
+            pinfo.audio.codec.description,
+            pinfo.video.codec.threads,
+            pinfo.audio.output.samplerate,
+            pinfo.audio.output.channels,
+            pinfo.audio.output.bytes,
+            pinfo.audio.output.is_signed ? "signed" : "unsigned");
     }
-    fprintf(stderr, " * Video: %s (%s), %dx%d\n",
-        pinfo.vcodec,
-        pinfo.vcodec_name,
-        pinfo.video.width,
-        pinfo.video.height);
-    if(pinfo.subtitle.is_enabled) {
-        fprintf(stderr, " * Subtitle: %s (%s)\n",
-            pinfo.scodec,
-            pinfo.scodec_name);
+    if(Kit_GetPlayerVideoStream(player) >= 0) {
+        fprintf(stderr, " * Video: %s (%s), threads=%d, %dx%d\n",
+            pinfo.video.codec.name,
+            pinfo.video.codec.description,
+            pinfo.video.codec.threads,
+            pinfo.video.output.width,
+            pinfo.video.output.height);
+    }
+    if(Kit_GetPlayerSubtitleStream(player) >= 0) {
+        fprintf(stderr, " * Subtitle: %s (%s), threads=%d\n",
+            pinfo.subtitle.codec.name,
+            pinfo.subtitle.codec.description,
+            pinfo.video.codec.threads);
     }
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio.samplerate;
-    wanted_spec.format = pinfo.audio.format;
-    wanted_spec.channels = pinfo.audio.channels;
+    wanted_spec.freq = pinfo.audio.output.samplerate;
+    wanted_spec.format = pinfo.audio.output.format;
+    wanted_spec.channels = pinfo.audio.output.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
     // Print some format info
-    fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.format));
-    fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.format));
-    fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(pinfo.subtitle.format));
+    fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.output.format));
+    fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.output.format));
+    fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(pinfo.subtitle.output.format));
     fflush(stderr);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
         renderer,
-        pinfo.video.format,
+        pinfo.video.output.format,
         SDL_TEXTUREACCESS_STATIC,
-        pinfo.video.width,
-        pinfo.video.height);
+        pinfo.video.output.width,
+        pinfo.video.output.height);
     if(video_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
@@ -204,7 +214,7 @@ int main(int argc, char *argv[]) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
         renderer,
-        pinfo.subtitle.format,
+        pinfo.subtitle.output.format,
         SDL_TEXTUREACCESS_STATIC,
         ATLAS_WIDTH, ATLAS_HEIGHT);
     if(subtitle_tex == NULL) {
@@ -226,7 +236,7 @@ int main(int argc, char *argv[]) {
     int screen_w = 0;
     int screen_h = 0;
     SDL_GetWindowSize(window, &screen_w, &screen_h);
-    find_viewport_size(screen_w, screen_h, pinfo.video.width, pinfo.video.height, &size_w, &size_h);
+    find_viewport_size(screen_w, screen_h, pinfo.video.output.width, pinfo.video.output.height, &size_w, &size_h);
     SDL_RenderSetLogicalSize(renderer, size_w, size_h);
     Kit_SetPlayerScreenSize(player, size_w, size_h);
     bool fullscreen = false;
@@ -268,7 +278,8 @@ int main(int argc, char *argv[]) {
                     switch(event.window.event) {
                         case SDL_WINDOWEVENT_SIZE_CHANGED:
                             SDL_GetWindowSize(window, &screen_w, &screen_h);
-                            find_viewport_size(screen_w, screen_h, pinfo.video.width, pinfo.video.height, &size_w, &size_h);
+                            find_viewport_size(
+                                screen_w, screen_h, pinfo.video.output.width, pinfo.video.output.height, &size_w, &size_h);
                             SDL_RenderSetLogicalSize(renderer, size_w, size_h);
                             Kit_SetPlayerScreenSize(player, size_w, size_h);
                             break;

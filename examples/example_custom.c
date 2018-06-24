@@ -108,16 +108,17 @@ int main(int argc, char *argv[]) {
     Kit_PlayerInfo pinfo;
     Kit_GetPlayerInfo(player, &pinfo);
 
-    if(!pinfo.video.is_enabled) {
+    // Make sure there is video in the file to play first.
+    if(Kit_GetPlayerVideoStream(player) == -1) {
         fprintf(stderr, "File contains no video!\n");
         return 1;
     }
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio.samplerate;
-    wanted_spec.format = pinfo.audio.format;
-    wanted_spec.channels = pinfo.audio.channels;
+    wanted_spec.freq = pinfo.audio.output.samplerate;
+    wanted_spec.format = pinfo.audio.output.format;
+    wanted_spec.channels = pinfo.audio.output.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
@@ -125,10 +126,10 @@ int main(int argc, char *argv[]) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
         renderer,
-        pinfo.video.format,
+        pinfo.video.output.format,
         SDL_TEXTUREACCESS_STATIC,
-        pinfo.video.width,
-        pinfo.video.height);
+        pinfo.video.output.width,
+        pinfo.video.output.height);
     if(video_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
@@ -138,7 +139,7 @@ int main(int argc, char *argv[]) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
         renderer,
-        pinfo.subtitle.format,
+        pinfo.subtitle.output.format,
         SDL_TEXTUREACCESS_STATIC,
         ATLAS_WIDTH, ATLAS_HEIGHT);
     if(subtitle_tex == NULL) {
@@ -153,7 +154,7 @@ int main(int argc, char *argv[]) {
     Kit_PlayerPlay(player);
 
     // Get movie area size
-    SDL_RenderSetLogicalSize(renderer, pinfo.video.width, pinfo.video.height);
+    SDL_RenderSetLogicalSize(renderer, pinfo.video.output.width, pinfo.video.output.height);
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
