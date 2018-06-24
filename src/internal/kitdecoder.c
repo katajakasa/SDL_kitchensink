@@ -54,7 +54,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 
     // Set thread count
     codec_ctx->thread_count = thread_count;
-    codec_ctx->thread_type = FF_THREAD_FRAME;
+    codec_ctx->thread_type = FF_THREAD_SLICE;
 
     // Open the stream
     if(avcodec_open2(codec_ctx, codec, NULL) < 0) {
