@@ -9,7 +9,7 @@ compiler:
 script:
   - wget https://www.libsdl.org/release/SDL2-2.0.8.tar.gz -O - | tar -xz
   - cd SDL2-2.0.8 && CC=gcc-7 ./configure --prefix=/usr && make -j2 && sudo make install && cd ..
-  - cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=On -DUSE_DYNAMIC_LIBASS=Off -DCMAKE_C_COMPILER=/usr/bin/gcc-7 . 
+  - cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=On -DUSE_DYNAMIC_LIBASS=On -DCMAKE_C_COMPILER=/usr/bin/gcc-7 . 
   - build-wrapper-linux-x86-64 --out-dir bw-output make && sonar-scanner
 
 notifications:
