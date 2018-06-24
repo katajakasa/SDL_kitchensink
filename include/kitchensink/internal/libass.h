@@ -52,6 +52,7 @@ KIT_LOCAL void (*ass_free_track)(ASS_Track *track);
 KIT_LOCAL void (*ass_process_data)(ASS_Track *track, char *data, int size);
 KIT_LOCAL void (*ass_process_chunk)(ASS_Track *track, char *data, int size, long long timecode, long long duration);
 KIT_LOCAL void (*ass_add_font)(ASS_Library *library, char *name, char *data, int data_size);
+KIT_LOCAL void (*ass_set_storage_size)(ASS_Renderer *priv, int w, int h);
 
 KIT_LOCAL int load_libass(void *handle);
 

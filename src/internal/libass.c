@@ -19,6 +19,7 @@ int load_libass(void *handle) {
     ass_add_font = SDL_LoadFunction(handle, "ass_add_font");
     ass_process_codec_private = SDL_LoadFunction(handle, "ass_process_codec_private");
     ass_process_chunk = SDL_LoadFunction(handle, "ass_process_chunk");
+    ass_set_storage_size = SDL_LoadFunction(handle, "ass_set_storage_size");
     return 0;
 }
 
