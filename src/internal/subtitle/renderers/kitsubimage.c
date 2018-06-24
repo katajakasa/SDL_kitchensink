@@ -118,6 +118,7 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
     // Allocate image renderer internal context
     Kit_ImageSubtitleRenderer *img_ren = calloc(1, sizeof(Kit_ImageSubtitleRenderer));
     if(img_ren == NULL) {
+        Kit_SetError("Unable to allocate image subtitle renderer");
         goto exit_1;
     }
 

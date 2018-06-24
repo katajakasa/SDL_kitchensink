@@ -133,6 +133,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     // Next, allocate ASS subtitle renderer context.
     Kit_ASSSubtitleRenderer *ass_ren = calloc(1, sizeof(Kit_ASSSubtitleRenderer));
     if(ass_ren == NULL) {
+        Kit_SetError("Unable to allocate ass subtitle renderer");
         goto exit_1;
     }
 

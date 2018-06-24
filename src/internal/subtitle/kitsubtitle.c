@@ -134,10 +134,10 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
             subtitle_dec->renderer = Kit_CreateImageSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
             break;
         default:
+            Kit_SetError("Unrecognized subtitle format");
             break;
     }
     if(subtitle_dec->renderer == NULL) {
-        Kit_SetError("Unrecognized subtitle format");
         goto exit_2;
     }
 
