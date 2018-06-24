@@ -24,8 +24,6 @@ typedef struct Kit_SubtitleDecoder {
     Kit_SubtitleFormat *format;
     Kit_SubtitleRenderer *renderer;
     AVSubtitle scratch_frame;
-    int w;
-    int h;
     Kit_TextureAtlas *atlas;
 } Kit_SubtitleDecoder;
 
@@ -83,7 +81,7 @@ static void dec_close_subtitle_cb(Kit_Decoder *dec) {
     free(subtitle_dec);
 }
 
-Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, Kit_SubtitleFormat *format, int w, int h) {
+Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, Kit_SubtitleFormat *format, int video_w, int video_h, int screen_w, int screen_h) {
     assert(src != NULL);
     assert(format != NULL);
     if(stream_index < 0) {
@@ -99,6 +97,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         KIT_SUBTITLE_OUT_SIZE,
         free_out_subtitle_packet_cb);
     if(dec == NULL) {
+        Kit_SetError("Unable to allocate subtitle decoder");
         goto exit_0;
     }
 
@@ -110,6 +109,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
     // ... then allocate the subtitle decoder
     Kit_SubtitleDecoder *subtitle_dec = calloc(1, sizeof(Kit_SubtitleDecoder));
     if(subtitle_dec == NULL) {
+        Kit_SetError("Unable to allocate subtitle decoder");
         goto exit_1;
     }
 
@@ -123,7 +123,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         case AV_CODEC_ID_SSA:
         case AV_CODEC_ID_ASS:
             if(library_state->init_flags & KIT_INIT_ASS) {
-                ren = Kit_CreateASSSubtitleRenderer(dec, w, h);
+                ren = Kit_CreateASSSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
             } else {
                 format->is_enabled = false;
             }
@@ -132,7 +132,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         case AV_CODEC_ID_DVB_SUBTITLE:
         case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
         case AV_CODEC_ID_XSUB:
-            ren = Kit_CreateImageSubtitleRenderer(dec, w, h);
+            ren = Kit_CreateImageSubtitleRenderer(dec, video_w, video_h, screen_w, screen_h);
             break;
         default:
             format->is_enabled = false;
@@ -153,8 +153,6 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
     // Set callbacks and userdata, and we're go
     subtitle_dec->format = format;
     subtitle_dec->renderer = ren;
-    subtitle_dec->w = w;
-    subtitle_dec->h = h;
     subtitle_dec->atlas = atlas;
     dec->dec_decode = dec_decode_subtitle_cb;
     dec->dec_close = dec_close_subtitle_cb;
@@ -171,12 +169,10 @@ exit_0:
     return NULL;
 }
 
-void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int w, int h) {
+void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int screen_w, int screen_h) {
     assert(dec != NULL);
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
-    subtitle_dec->w = w;
-    subtitle_dec->h = h;
-    Kit_SetSubtitleRendererSize(subtitle_dec->renderer, w, h);
+    Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
 int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {

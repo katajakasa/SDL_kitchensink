@@ -9,6 +9,14 @@
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
 
+
+typedef struct Kit_ImageSubtitleRenderer {
+    int video_w;
+    int video_h;
+    float scale_x;
+    float scale_y;
+} Kit_ImageSubtitleRenderer;
+
 static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double start_pts, double end_pts) {
     assert(ren != NULL);
     assert(sub_src != NULL);
@@ -50,7 +58,7 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
 }
 
 static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
-    // Read any new packets to atlas
+    Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
     Kit_SubtitlePacket *packet = NULL;
 
     // Clean dead packets
@@ -66,10 +74,10 @@ static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
             }
             if(packet->surface != NULL) {
                 SDL_Rect target;
-                target.x = packet->x;
-                target.y = packet->y;
-                target.w = packet->surface->w;
-                target.h = packet->surface->h;
+                target.x = packet->x * img_ren->scale_x;
+                target.y = packet->y * img_ren->scale_y;
+                target.w = packet->surface->w * img_ren->scale_x;
+                target.h = packet->surface->h * img_ren->scale_y;
                 Kit_AddAtlasItem(atlas, packet->surface, &target);
             }
             Kit_AdvanceDecoderOutput(ren->dec);
@@ -83,21 +91,50 @@ static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
     return 0;
 }
 
-Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int w, int h) {
+static void ren_set_img_size_cb(Kit_SubtitleRenderer *ren, int w, int h) {
+    Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
+    img_ren->scale_x = (float)w / (float)img_ren->video_w;
+    img_ren->scale_y = (float)h / (float)img_ren->video_h;
+}
+
+static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
+    if(ren == NULL) return;
+    free(ren->userdata);
+}
+
+Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h) {
     assert(dec != NULL);
-    assert(w >= 0);
-    assert(h >= 0);
+    assert(video_w >= 0);
+    assert(video_h >= 0);
+    assert(screen_w >= 0);
+    assert(screen_h >= 0);
 
     // Allocate a new renderer
     Kit_SubtitleRenderer *ren = Kit_CreateSubtitleRenderer(dec);
     if(ren == NULL) {
-        return NULL;
+        goto exit_0;
+    }
+
+    // Allocate image renderer internal context
+    Kit_ImageSubtitleRenderer *img_ren = calloc(1, sizeof(Kit_ImageSubtitleRenderer));
+    if(img_ren == NULL) {
+        goto exit_1;
     }
 
     // Only renderer required, no other data.
+    img_ren->video_w = video_w;
+    img_ren->video_h = video_h;
+    img_ren->scale_x = (float)screen_w / (float)video_w;
+    img_ren->scale_y = (float)screen_h / (float)video_h;
     ren->ren_render = ren_render_image_cb;
     ren->ren_get_data = ren_get_img_data_cb;
-    ren->ren_close = NULL;
-    ren->userdata = NULL;
+    ren->ren_set_size = ren_set_img_size_cb;
+    ren->ren_close = ren_close_ass_cb;
+    ren->userdata = img_ren;
     return ren;
+
+exit_1:
+    Kit_CloseSubtitleRenderer(ren);
+exit_0:
+    return NULL;
 }

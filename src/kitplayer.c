@@ -153,7 +153,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
 
     // Initialize subtitle decoder
     player->subtitle_dec = Kit_CreateSubtitleDecoder(
-        src, subtitle_stream_index,  &player->sformat, screen_w, screen_h);
+        src, subtitle_stream_index,  &player->sformat, player->vformat.width, player->vformat.height, screen_w, screen_h);
     if(player->subtitle_dec == NULL && subtitle_stream_index >= 0) {
         goto exit_2;
     }

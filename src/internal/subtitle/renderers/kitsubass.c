@@ -110,10 +110,12 @@ static void ren_set_ass_size_cb(Kit_SubtitleRenderer *ren, int w, int h) {
     ass_set_frame_size(ass_ren->renderer, w, h);
 }
 
-Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int w, int h) {
+Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h) {
     assert(dec != NULL);
-    assert(w >= 0);
-    assert(h >= 0);
+    assert(video_w >= 0);
+    assert(video_h >= 0);
+    assert(screen_w >= 0);
+    assert(screen_h >= 0);
 
     // Make sure that libass library has been initialized + get handle
     Kit_LibraryState *state = Kit_GetLibraryState();
@@ -166,7 +168,8 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int w, int
         NULL, "sans-serif",
         ASS_FONTPROVIDER_AUTODETECT,
         NULL, 1);
-    ass_set_frame_size(ass_renderer, w, h);
+    ass_set_storage_size(ass_renderer, video_w, video_h);
+    ass_set_frame_size(ass_renderer, screen_w, screen_h);
     ass_set_hinting(ass_renderer, ASS_HINTING_LIGHT);
 
     // Initialize libass track
