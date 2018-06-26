@@ -3,9 +3,9 @@ project(SDL_kitchensink C)
 include(GNUInstallDirs)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-set(KIT_VERSION_MAJOR "0")
+set(KIT_VERSION_MAJOR "1")
 set(KIT_VERSION_MINOR "0")
-set(KIT_VERSION_PATCH "7")
+set(KIT_VERSION_PATCH "0")
 set(KIT_VERSION ${KIT_VERSION_MAJOR}.${KIT_VERSION_MINOR}.${KIT_VERSION_PATCH})
 add_definitions(
     -DKIT_VERSION_MAJOR=${KIT_VERSION_MAJOR}
@@ -20,7 +20,6 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -DNDEBUG")
 set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 
 option(BUILD_EXAMPLES "Build examples" OFF)
-option(BUILD_TESTS "Build unittests" OFF)
 option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" ON)
 option(USE_ASAN "Use AddressSanitizer" OFF)
 
@@ -36,10 +35,6 @@ set(INCLUDES
     ${SDL2_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIRS}
 )
-
-if(BUILD_TESTS)
-    add_subdirectory(tests)
-endif()
 
 if(USE_DYNAMIC_LIBASS)
     if(WIN32 OR MINGW OR MSYS)
