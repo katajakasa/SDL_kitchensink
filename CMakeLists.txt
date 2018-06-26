@@ -109,6 +109,9 @@ if(BUILD_EXAMPLES)
     target_link_libraries(custom SDL_kitchensink_static ${LIBRARIES})
 endif()
 
+# documentation target
+add_custom_target(docs COMMAND doxygen WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
 # Installation
 install(FILES ${PKG_CONFIG_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 install(FILES ${INSTALL_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitchensink)
