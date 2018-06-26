@@ -92,22 +92,48 @@ Make sure llvm is installed, then add ```-DUSE_ASAN=1``` to the cmake arguments 
 supported on all OSes (eg. windows).
 
 After building, you can run with the following (make sure to set correct llvm-symbolizer path):
-```ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./examplevideo <my videofile>```
+```
+ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./examplevideo <my videofile>
+```
 
-## 3. License
-
-MIT. Please see ```LICENSE``` for details.
-
-Note that FFmpeg has a rather complex license. Please take a look at [FFmpeg Legal page](http://ffmpeg.org/legal.html)
-for details.
-
-## 4. Why SDL_kitchensink
+## 3. Why SDL_kitchensink
 
 Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
 kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
-## 5. Examples
+## 4. Examples
 
 Please see examples directory. You can also take a look at unittests for some help.
 Note that examples are NOT meant for any kind of real life use; they are only meant to
 show simple use cases for the library.
+
+## 5. FFMPEG & licensing
+
+Note that FFmpeg has a rather complex license. Please take a look at 
+[FFmpeg Legal page](http://ffmpeg.org/legal.html) for details.
+
+## 6. License
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2018 Tuomas Virtanen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
