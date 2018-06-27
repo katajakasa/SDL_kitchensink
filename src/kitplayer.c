@@ -190,7 +190,7 @@ exit_3:
     SDL_DestroyMutex(player->dec_lock);
 exit_2:
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_CloseDecoder((Kit_Decoder*)player->decoders[i]);
+        Kit_CloseDecoder(player->decoders[i]);
     }
 exit_1:
     free(player);
@@ -208,7 +208,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
 
     // Shutdown decoders
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_CloseDecoder((Kit_Decoder*)player->decoders[i]);
+        Kit_CloseDecoder(player->decoders[i]);
     }
 
     // Free the player structure itself
