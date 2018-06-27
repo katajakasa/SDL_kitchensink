@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <SDL2/SDL_loadso.h>
+#include <SDL_loadso.h>
 
 #include <libavformat/avformat.h>
 

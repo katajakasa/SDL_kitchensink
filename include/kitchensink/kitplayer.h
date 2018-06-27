@@ -14,7 +14,7 @@
 #include "kitchensink/kitformat.h"
 #include "kitchensink/kitcodec.h"
 
-#include <SDL2/SDL_render.h>
+#include <SDL_render.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.7)
 project(SDL_kitchensink C)
 include(GNUInstallDirs)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -23,7 +23,7 @@ option(BUILD_EXAMPLES "Build examples" OFF)
 option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" ON)
 option(USE_ASAN "Use AddressSanitizer" OFF)
 
-find_package(SDL2)
+find_package(SDL2 REQUIRED)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
 
 set(LIBRARIES

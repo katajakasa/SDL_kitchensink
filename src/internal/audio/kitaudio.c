@@ -5,7 +5,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitlibstate.h"

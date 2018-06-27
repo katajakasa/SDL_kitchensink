@@ -1,7 +1,7 @@
 #ifndef KITVIDEO_H
 #define KITVIDEO_H
 
-#include <SDL2/SDL_render.h>
+#include <SDL_render.h>
 
 #include "kitchensink/kitconfig.h"
 #include "kitchensink/kitsource.h"

@@ -1,7 +1,7 @@
 #ifndef KITSUBTITLE_H
 #define KITSUBTITLE_H
 
-#include <SDL2/SDL_render.h>
+#include <SDL_render.h>
 
 #include "kitchensink/kitconfig.h"
 #include "kitchensink/kitsource.h"

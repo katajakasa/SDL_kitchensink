@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include <SDL2/SDL_mutex.h>
+#include <SDL_mutex.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 

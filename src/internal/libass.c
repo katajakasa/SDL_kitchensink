@@ -1,6 +1,6 @@
 #ifdef USE_DYNAMIC_LIBASS
 
-#include <SDL2/SDL_loadso.h>
+#include <SDL_loadso.h>
 #include "kitchensink/internal/libass.h"
 
 int load_libass(void *handle) {

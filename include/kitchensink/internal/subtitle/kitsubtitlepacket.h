@@ -2,7 +2,7 @@
 #define KITSUBTITLEPACKET_H
 
 #include <stdbool.h>
-#include <SDL2/SDL_surface.h>
+#include <SDL_surface.h>
 
 #include "kitchensink/kitconfig.h"
 

@@ -1,6 +1,6 @@
 #include <assert.h>
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <libavformat/avformat.h>
 
 #include "kitchensink/internal/utils/kitlog.h"

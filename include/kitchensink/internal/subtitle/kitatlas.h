@@ -2,9 +2,8 @@
 #define KITATLAS_H
 
 #include <stdbool.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_render.h>
+#include <SDL_rect.h>
+#include <SDL_render.h>
 
 #include "kitchensink/kitconfig.h"
 
