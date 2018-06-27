@@ -7,9 +7,6 @@
 #include "kitchensink/kitcodec.h"
 
 #include <SDL2/SDL_render.h>
-#include <SDL2/SDL_thread.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_mutex.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,8 +22,8 @@ typedef enum Kit_PlayerState {
 typedef struct Kit_Player {
     Kit_PlayerState state;   ///< Playback state
     void *decoders[3];       ///< Decoder contexts
-    SDL_Thread *dec_thread;  ///< Decoder thread
-    SDL_mutex *dec_lock;     ///< Decoder lock
+    void *dec_thread;        ///< Decoder thread
+    void *dec_lock;          ///< Decoder lock
     const Kit_Source *src;   ///< Reference to Audio/Video source
     double pause_started;    ///< Temporary flag for handling pauses
 } Kit_Player;
