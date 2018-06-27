@@ -5,6 +5,8 @@
 
 FFmpeg and SDL2 based library for audio and video playback, written in C99.
 
+Documentation is available at http://katajakasa.github.io/SDL_kitchensink/index.html
+
 Features:
 * Decoding video, audio and subtitles via FFmpeg
 * Dumping video and subtitle data on SDL_textures/SDL_Surfaces
