@@ -1,6 +1,14 @@
 #ifndef KITCONFIG_H
 #define KITCONFIG_H
 
+/**
+ * @brief Public API configurations
+ * 
+ * @file kitconfig.h
+ * @author Tuomas Virtanen
+ * @date 2018-06-25
+ */
+
 #if defined _WIN32 || defined __CYGWIN__
     #define KIT_DLL_IMPORT __declspec(dllimport)
     #define KIT_DLL_EXPORT __declspec(dllexport)

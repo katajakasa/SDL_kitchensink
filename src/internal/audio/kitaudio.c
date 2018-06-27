@@ -88,13 +88,13 @@ int _FindSDLSampleFormat(enum AVSampleFormat fmt) {
     }
 }
 
-bool _FindSignedness(enum AVSampleFormat fmt) {
+int _FindSignedness(enum AVSampleFormat fmt) {
     switch(fmt) {
         case AV_SAMPLE_FMT_U8P:
         case AV_SAMPLE_FMT_U8:
-            return false;
+            return 0;
         default:
-            return true;
+            return 1;
     }
 }
 

@@ -44,7 +44,7 @@ int Kit_Init(unsigned int flags) {
     Kit_LibraryState *state = Kit_GetLibraryState();
 
     if(state->init_flags != 0) {
-        Kit_SetError("Kitchensink is already initialized.");
+        Kit_SetError("SDL_kitchensink is already initialized");
         goto exit_0;
     }
 
@@ -57,6 +57,7 @@ int Kit_Init(unsigned int flags) {
     }
     if(flags & KIT_INIT_ASS) {
         if(Kit_InitASS(state) != 0) {
+            Kit_SetError("Failed to initialize libass");
             goto exit_1;
         }
     }

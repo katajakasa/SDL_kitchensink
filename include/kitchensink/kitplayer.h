@@ -11,8 +11,6 @@
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_mutex.h>
 
-#include <stdbool.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
