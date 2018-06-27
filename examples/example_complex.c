@@ -72,7 +72,6 @@ int main(int argc, char *argv[]) {
     // Audio playback
     SDL_AudioSpec wanted_spec, audio_spec;
     SDL_AudioDeviceID audio_dev;
-    char audiobuf[AUDIOBUFFER_SIZE];
 
     // Get filename to open
     if(argc != 2) {
@@ -228,18 +227,25 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
-    // Get movie area size
+    // Playback temporary data buffers
+    char audiobuf[AUDIOBUFFER_SIZE];
+    SDL_Rect sources[ATLAS_MAX];
+    SDL_Rect targets[ATLAS_MAX];
     int mouse_x = 0;
     int mouse_y = 0;
     int size_w = 0;
     int size_h = 0;
     int screen_w = 0;
     int screen_h = 0;
+    bool fullscreen = false;
+
+    // Get movie area size
     SDL_GetWindowSize(window, &screen_w, &screen_h);
     find_viewport_size(screen_w, screen_h, pinfo.video.output.width, pinfo.video.output.height, &size_w, &size_h);
     SDL_RenderSetLogicalSize(renderer, size_w, size_h);
     Kit_SetPlayerScreenSize(player, size_w, size_h);
-    bool fullscreen = false;
+    
+    // Run until playback is stopped
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -344,8 +350,6 @@ int main(int argc, char *argv[]) {
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
-        SDL_Rect sources[ATLAS_MAX];
-        SDL_Rect targets[ATLAS_MAX];
         int got = Kit_GetPlayerSubtitleData(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
             SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
