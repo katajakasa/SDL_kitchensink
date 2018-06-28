@@ -187,7 +187,8 @@ int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
     int ret = 0;
 
     // Check if texture size has changed
-    int texture_w, texture_h;
+    int texture_w;
+    int texture_h;
     if(SDL_QueryTexture(texture, NULL, NULL, &texture_w, &texture_h) == 0) {
         if(texture_w != atlas->w || texture_h != atlas->h) {
             Kit_ResetAtlasContent(atlas);

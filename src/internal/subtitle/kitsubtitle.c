@@ -34,7 +34,9 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(in_packet != NULL);
 
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
-    double pts, start, end;
+    double pts;
+    double start;
+    double end;
     int frame_finished;
     int len;
 
@@ -57,8 +59,8 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 subtitle_dec->scratch_frame.end_display_time = 30000;
             }
 
-            start = pts + subtitle_dec->scratch_frame.start_display_time / 1000.0f;
-            end = pts + subtitle_dec->scratch_frame.end_display_time / 1000.0f;
+            start = pts + subtitle_dec->scratch_frame.start_display_time / 1000.0F;
+            end = pts + subtitle_dec->scratch_frame.end_display_time / 1000.0F;
 
             // Create a packet. This should be filled by renderer.
             Kit_RunSubtitleRenderer(

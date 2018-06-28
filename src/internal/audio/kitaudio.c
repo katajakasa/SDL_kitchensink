@@ -110,9 +110,12 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
 
     Kit_AudioDecoder *audio_dec = dec->userdata;
     int frame_finished;
-    int len, len2;
+    int len;
+    int len2;
     int dst_linesize;
-    int dst_nb_samples, dst_bufsize;
+    int dst_nb_samples;
+    int dst_bufsize;
+    double pts;
     unsigned char **dst_data;
 
     // Decode as long as there is data
@@ -151,7 +154,7 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 _FindAVSampleFormat(dec->output.format), 1);
 
             // Get presentation timestamp
-            double pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
+            pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
             pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock

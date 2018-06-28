@@ -23,7 +23,9 @@ static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     unsigned char a = (img->color) & 0xFF;
     unsigned char *src = img->bitmap;
     unsigned char *dst = surface->pixels;
-    unsigned int x, y, rx;
+    unsigned int x;
+    unsigned int y;
+    unsigned int rx;
 
     for(y = 0; y < img->h; y++) {
         for(x = 0; x < img->w; x++) {

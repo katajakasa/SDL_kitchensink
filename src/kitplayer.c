@@ -382,7 +382,8 @@ void Kit_PlayerPause(Kit_Player *player) {
 
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
-    double position, duration;
+    double position;
+    double duration;
     int64_t seek_target;
     int flags = AVSEEK_FLAG_ANY;
 
