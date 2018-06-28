@@ -71,11 +71,34 @@ static bool _IsOutputEmpty(const Kit_Player *player) {
     return true;
 }
 
+static int _RunDecoder(Kit_Player *player) {
+    int got;
+    int ret = 0;
+
+    if(SDL_LockMutex(player->dec_lock) != 0) {
+        return ret;
+    }
+
+    while((got = _DemuxStream(player)) == -1);
+    if(got == 1 && _IsOutputEmpty(player)) {
+        ret = 1;
+        goto exit;
+    }
+
+    // Run decoders for a bit
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        while(Kit_RunDecoder(player->decoders[i]) == 1);
+    }
+
+exit:
+    SDL_UnlockMutex(player->dec_lock);
+    return ret;
+}
+
 static int _DecoderThread(void *ptr) {
     Kit_Player *player = ptr;
     bool is_running = true;
     bool is_playing = true;
-    int ret;
 
     while(is_running) {
         if(player->state == KIT_CLOSED) {
@@ -94,26 +117,10 @@ static int _DecoderThread(void *ptr) {
                 is_playing = false;
                 continue;
             }
-
-            // Get more data from demuxer, decode. Wait a bit if there's no more work for now.
-            if(SDL_LockMutex(player->dec_lock) == 0) {
-                while((ret = _DemuxStream(player)) == -1);
-                if(ret == 1 && _IsOutputEmpty(player)) {
-                    player->state = KIT_STOPPED;
-                    SDL_UnlockMutex(player->dec_lock);
-                    continue;
-                }
-
-                // Run decoders for a bit
-                for(int i = 0; i < KIT_DEC_COUNT; i++) {
-                    while(Kit_RunDecoder(player->decoders[i]) == 1);
-                }
-
-                // Free decoder thread lock.
-                SDL_UnlockMutex(player->dec_lock);
+            if(_RunDecoder(player) == 1) {
+                player->state = KIT_STOPPED;
+                continue;
             }
-
-            // We decoded as much as we could, sleep a bit.
             SDL_Delay(2);
         }
 
