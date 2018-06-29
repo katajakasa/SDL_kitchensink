@@ -14,6 +14,23 @@
 
 #define KIT_VIDEO_SYNC_THRESHOLD 0.01
 
+enum AVPixelFormat supported_list[] = {
+    AV_PIX_FMT_YUV420P,
+    AV_PIX_FMT_YUYV422,
+    AV_PIX_FMT_UYVY422,
+    AV_PIX_FMT_NV12,
+    AV_PIX_FMT_NV12,
+    AV_PIX_FMT_RGB24,
+    AV_PIX_FMT_BGR24,
+    AV_PIX_FMT_RGB555,
+    AV_PIX_FMT_BGR555,
+    AV_PIX_FMT_RGB565,
+    AV_PIX_FMT_BGR565,
+    AV_PIX_FMT_BGRA,
+    AV_PIX_FMT_RGBA,
+    AV_PIX_FMT_NONE
+};
+
 typedef struct Kit_VideoDecoder {
     struct SwsContext *sws;
     AVFrame *scratch_frame;
@@ -34,17 +51,16 @@ static Kit_VideoPacket* _CreateVideoPacket(AVFrame *frame, double pts) {
 
 static unsigned int _FindSDLPixelFormat(enum AVPixelFormat fmt) {
     switch(fmt) {
-        case AV_PIX_FMT_YUV420P9:
-        case AV_PIX_FMT_YUV420P10:
-        case AV_PIX_FMT_YUV420P12:
-        case AV_PIX_FMT_YUV420P14:
-        case AV_PIX_FMT_YUV420P16:
         case AV_PIX_FMT_YUV420P:
             return SDL_PIXELFORMAT_YV12;
         case AV_PIX_FMT_YUYV422:
             return SDL_PIXELFORMAT_YUY2;
         case AV_PIX_FMT_UYVY422:
             return SDL_PIXELFORMAT_UYVY;
+        case AV_PIX_FMT_NV12:
+            return SDL_PIXELFORMAT_NV12;
+        case AV_PIX_FMT_NV21:
+            return SDL_PIXELFORMAT_NV21;
         default:
             return SDL_PIXELFORMAT_RGBA32;
     }
@@ -52,12 +68,19 @@ static unsigned int _FindSDLPixelFormat(enum AVPixelFormat fmt) {
 
 static enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt) {
     switch(fmt) {
-        case SDL_PIXELFORMAT_IYUV: return AV_PIX_FMT_YUV420P;
         case SDL_PIXELFORMAT_YV12: return AV_PIX_FMT_YUV420P;
         case SDL_PIXELFORMAT_YUY2: return AV_PIX_FMT_YUYV422;
         case SDL_PIXELFORMAT_UYVY: return AV_PIX_FMT_UYVY422;
+        case SDL_PIXELFORMAT_NV12: return AV_PIX_FMT_NV12;
+        case SDL_PIXELFORMAT_NV21: return AV_PIX_FMT_NV21;
         case SDL_PIXELFORMAT_ARGB32: return AV_PIX_FMT_BGRA;
         case SDL_PIXELFORMAT_RGBA32: return AV_PIX_FMT_RGBA;
+        case SDL_PIXELFORMAT_BGR24: return AV_PIX_FMT_BGR24;
+        case SDL_PIXELFORMAT_RGB24: return AV_PIX_FMT_RGB24;
+        case SDL_PIXELFORMAT_RGB555: return AV_PIX_FMT_RGB555;
+        case SDL_PIXELFORMAT_BGR555: return AV_PIX_FMT_BGR555;
+        case SDL_PIXELFORMAT_RGB565: return AV_PIX_FMT_RGB565;
+        case SDL_PIXELFORMAT_BGR565: return AV_PIX_FMT_BGR565;
         default:
             return AV_PIX_FMT_NONE;
     }
@@ -163,12 +186,16 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         goto exit_2;
     }
 
+    // Find best output format for us
+    enum AVPixelFormat output_format = avcodec_find_best_pix_fmt_of_list(
+        supported_list, dec->codec_ctx->pix_fmt, 1, NULL);
+
     // Set format configs
     Kit_OutputFormat output;
     memset(&output, 0, sizeof(Kit_OutputFormat));
     output.width = dec->codec_ctx->width;
     output.height = dec->codec_ctx->height;
-    output.format = _FindSDLPixelFormat(dec->codec_ctx->pix_fmt);
+    output.format = _FindSDLPixelFormat(output_format);
 
     // Create scaler for handling format changes
     video_dec->sws = sws_getContext(
