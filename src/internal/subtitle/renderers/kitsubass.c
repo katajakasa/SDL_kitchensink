@@ -20,7 +20,7 @@ static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     unsigned char r = ((img->color) >> 24) & 0xFF;
     unsigned char g = ((img->color) >> 16) & 0xFF;
     unsigned char b = ((img->color) >>  8) & 0xFF;
-    unsigned char a = (img->color) & 0xFF;
+    unsigned char a = 0xFF - ((img->color) & 0xFF);
     unsigned char *src = img->bitmap;
     unsigned char *dst = surface->pixels;
     unsigned int x;
@@ -33,7 +33,7 @@ static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
             dst[rx + 0] = r;
             dst[rx + 1] = g;
             dst[rx + 2] = b;
-            dst[rx + 3] = ((255 - a) * src[x]) >> 8;
+            dst[rx + 3] = (a * src[x]) >> 8;
         }
         src += img->stride;
         dst += surface->pitch;
