@@ -137,17 +137,14 @@ static int64_t _RWGetSize(SDL_RWops *rw_ops) {
 static int64_t _RWSeekCallback(void *userdata, int64_t offset, int whence) {
     int rw_whence = 0;
 
-    // Looking for file size. Will return size of -1 if not supported.
-    if(whence == AVSEEK_SIZE) {
+    if(whence & AVSEEK_SIZE)
         return _RWGetSize(userdata);
-    }
-
-    // RW and normal seeks *should* be the same, but it's not guaranteed by docs.
-    switch(whence) {
-        case SEEK_CUR: rw_whence = RW_SEEK_CUR; break;
-        case SEEK_SET: rw_whence = RW_SEEK_SET; break;
-        case SEEK_END: rw_whence = RW_SEEK_END; break;
-    }
+    if((whence & ~AVSEEK_FORCE) == SEEK_CUR)
+        rw_whence = RW_SEEK_CUR;
+    if((whence & ~AVSEEK_FORCE) == SEEK_SET)
+        rw_whence = RW_SEEK_SET;
+    if((whence & ~AVSEEK_FORCE) == SEEK_END)
+        rw_whence = RW_SEEK_END;
 
     if(SDL_RWseek((SDL_RWops*)userdata, offset, rw_whence) < 0) {
         return -1;

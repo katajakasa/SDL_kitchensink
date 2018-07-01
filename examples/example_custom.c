@@ -24,8 +24,8 @@ int read_callback(void *userdata, uint8_t *buf, int buf_size) {
 
 int64_t seek_callback(void *userdata, int64_t offset, int whence) {
     FILE *fd =  (FILE*)userdata;
-    if(whence == 3) { // AVSEEK_SIZE
-        return -1; // Not supported
+    if(whence != SEEK_SET && whence != SEEK_END && whence != SEEK_CUR) {
+        return -1; // AVSEEK_SIZE, AVSEEK_FORCE Not supported
     }
     if(fseek(fd, offset, whence)) {
         return ftell(fd);

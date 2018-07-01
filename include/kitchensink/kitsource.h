@@ -87,6 +87,8 @@ typedef int (*Kit_ReadCallback)(void *userdata, uint8_t *buf, int size);
  * - SEEK_CUR: Reference position is the current position of the file pointer
  * - SEEK_END: Reference position is the end of the file
  * - AVSEEK_SIZE: Optional. Does not seek, instead finds the size of the source file.
+ * - AVSEEK_FORCE: Optional. Suggests that seeking should be done at any cost. May be passed alongside
+ *   any of the SEEK_* flags, eg. SEEK_SET|AVSEEK_FORCE.
  * 
  * The function must return the position (in bytes) we seeked to or <0 on error or on unsupported operation.
  * 
