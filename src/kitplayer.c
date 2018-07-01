@@ -301,15 +301,19 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
         return 0;
     }
 
-    // If paused or stopped, do nothing
+    // If paused, just return the current items
     if(player->state == KIT_PAUSED) {
-        return 0;
+        return Kit_GetSubtitleDecoderInfo(dec, texture, sources, targets, limit);
     }
+
+    // If stopped, do nothing.
     if(player->state == KIT_STOPPED) {
         return 0;
     }
 
-    return Kit_GetSubtitleDecoderData(dec, texture, sources, targets, limit);
+    // Refresh texture, then refresh rects and return number of items in the texture.
+    Kit_GetSubtitleDecoderTexture(dec, texture);
+    return Kit_GetSubtitleDecoderInfo(dec, texture, sources, targets, limit);
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {

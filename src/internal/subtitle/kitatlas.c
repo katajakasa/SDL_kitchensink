@@ -43,22 +43,7 @@ exit_0:
     return NULL;
 }
 
-void Kit_ResetAtlasContent(Kit_TextureAtlas *atlas) {
-    // Clear shelves & allocations on items
-    Kit_TextureAtlasItem *item;
-    memset(atlas->shelves, 0, atlas->max_shelves * sizeof(Kit_Shelf));
-    for(int i = 0; i < atlas->cur_items; i++) {
-        item = &atlas->items[i];
-        item->cur_shelf = -1;
-        item->cur_slot = -1;
-        item->is_copied = false;
-    }
-}
-
 void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas) {
-    for(int i = 0; i < atlas->cur_items; i++) {
-        SDL_FreeSurface(atlas->items[i].surface);
-    }
     atlas->cur_items = 0;
     memset(atlas->items, 0, atlas->max_items * sizeof(Kit_TextureAtlasItem));
     memset(atlas->shelves, 0, atlas->max_shelves * sizeof(Kit_Shelf));
@@ -66,26 +51,23 @@ void Kit_ClearAtlasContent(Kit_TextureAtlas *atlas) {
 
 void Kit_FreeAtlas(Kit_TextureAtlas *atlas) {
     assert(atlas != NULL);
-    for(int i = 0; i < atlas->cur_items; i++) {
-        SDL_FreeSurface(atlas->items[i].surface);
-    }
     free(atlas->items);
     free(atlas->shelves);
     free(atlas);
 }
 
-void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, int shelf, int slot, int x, int y) {
+void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, SDL_Surface *surface, int shelf, int slot, int x, int y) {
     assert(item != NULL);
 
     item->cur_shelf = shelf;
     item->cur_slot = slot;
     item->source.x = x;
     item->source.y = y;
-    item->source.w = item->surface->w;
-    item->source.h = item->surface->h;
+    item->source.w = surface->w;
+    item->source.h = surface->h;
 }
 
-int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
+int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, SDL_Surface *surface, Kit_TextureAtlasItem *item) {
     assert(atlas != NULL);
     assert(item != NULL);
 
@@ -111,12 +93,10 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
         total_reserved_h += shelf_h;
 
         // If the item fits, check if the space is better than previous one
-        if(item->surface->w <= (atlas->w - shelf_w) && (item->surface->h) <= shelf_h) {
-            if(shelf_h < best_shelf_h) {
-                best_shelf_h = shelf_h;
-                best_shelf_idx = shelf_idx;
-                best_shelf_y = total_reserved_h - shelf_h;
-            }
+        if(surface->w <= (atlas->w - shelf_w) && surface->h <= shelf_h && shelf_h < best_shelf_h) {
+            best_shelf_h = shelf_h;
+            best_shelf_idx = shelf_idx;
+            best_shelf_y = total_reserved_h - shelf_h;
         }
     }
 
@@ -124,19 +104,21 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
     if(best_shelf_idx != -1) {
         Kit_SetItemAllocation(
             item,
+            surface,
             best_shelf_idx,
             atlas->shelves[best_shelf_idx].count,
             atlas->shelves[best_shelf_idx].width,
             best_shelf_y);
-        atlas->shelves[best_shelf_idx].width += item->surface->w;
+        atlas->shelves[best_shelf_idx].width += surface->w;
         atlas->shelves[best_shelf_idx].count += 1;
         return 0;
-    } else if(total_remaining_h >= item->surface->h) {
-        atlas->shelves[shelf_idx].width = item->surface->w;
-        atlas->shelves[shelf_idx].height = item->surface->h;
+    } else if(total_remaining_h >= surface->h) {
+        atlas->shelves[shelf_idx].width = surface->w;
+        atlas->shelves[shelf_idx].height = surface->h;
         atlas->shelves[shelf_idx].count = 1;
         Kit_SetItemAllocation(
             item,
+            surface,
             shelf_idx,
             0,
             0,
@@ -147,105 +129,59 @@ int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, Kit_TextureAtlasItem *item) {
     return 1; // Can't fit!
 }
 
-int Kit_AllocateAtlasSurfaces(Kit_TextureAtlas *atlas) {
-    assert(atlas != NULL);
-
-    Kit_TextureAtlasItem *item;
-    for(int i = 0; i < atlas->cur_items; i++) {
-        item = &atlas->items[i];
-        if(item->cur_shelf > -1) // Stop if already allocated
-            continue;
-        if(Kit_FindFreeAtlasSlot(atlas, item) != 0) { // If nothing else helps, create a new slot
-            goto exit_0;
-        }
-    }
-    return 0;
-
-exit_0:
-    return 1;
-}
-
-void Kit_BlitAtlasSurfaces(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
+void Kit_CheckAtlasTextureSize(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
     assert(atlas != NULL);
     assert(texture != NULL);
 
-    Kit_TextureAtlasItem *item;
-    for(int i = 0; i < atlas->cur_items; i++) {
-        item = &atlas->items[i];
-        if(item->cur_shelf == -1) // Skip if not allocated
-            continue;
-        if(!item->is_copied) {
-            SDL_UpdateTexture(texture, &item->source, item->surface->pixels, item->surface->pitch);
-            item->is_copied = true;
-        }
-    }
-}
-
-int Kit_UpdateAtlasTexture(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
-    assert(atlas != NULL);
-    assert(texture != NULL);
-    int ret = 0;
-
-    // Check if texture size has changed
+    // Check if texture size has changed, and clear content if it has.
     int texture_w;
     int texture_h;
     if(SDL_QueryTexture(texture, NULL, NULL, &texture_w, &texture_h) == 0) {
-        if(texture_w != atlas->w || texture_h != atlas->h) {
-            Kit_ResetAtlasContent(atlas);
-        }
         atlas->w = texture_w;
         atlas->h = texture_h;
     }
-
-    // Allocate spots for all surfaces in the result texture. If there is not enough room for
-    // everything, we need to show it to the caller.
-    if(Kit_AllocateAtlasSurfaces(atlas) != 0) {
-        ret = 1;
-    }
-
-    // Blit unblitted surfaces to texture
-    Kit_BlitAtlasSurfaces(atlas, texture);
-    return ret;
 }
 
 int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit) {
     assert(atlas != NULL);
     assert(limit >= 0);
 
-    int count = 0;
-    for(int i = 0; i < min(atlas->cur_items, limit); i++) {
+    int max_count = min(atlas->cur_items, limit);
+    for(int i = 0; i < max_count; i++) {
         Kit_TextureAtlasItem *item = &atlas->items[i];
-        if(!item->is_copied)
-            continue;
-        
         if(sources != NULL)
-            memcpy(&sources[count], &item->source, sizeof(SDL_Rect));
+            memcpy(&sources[i], &item->source, sizeof(SDL_Rect));
         if(targets != NULL)
-            memcpy(&targets[count], &item->target, sizeof(SDL_Rect));
-
-        count++;
+            memcpy(&targets[i], &item->target, sizeof(SDL_Rect));
     }
-    return count;
+    return max_count;
 }
 
-int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Surface *surface, const SDL_Rect *target) {
+int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, SDL_Surface *surface, const SDL_Rect *target) {
     assert(atlas != NULL);
     assert(surface != NULL);
     assert(target != NULL);
 
-    Kit_TextureAtlasItem *item;
+    // Make sure there is still room
+    if(atlas->cur_items >= atlas->max_items)
+        return -1;
 
-    if(atlas->cur_items >= atlas->max_items) {
-        return -1; // Cannot fit, buffer full!
+    // Create a new item
+    Kit_TextureAtlasItem item;
+    memset(&item, 0, sizeof(Kit_TextureAtlasItem));
+    memcpy(&item.target, target, sizeof(SDL_Rect));
+    item.cur_shelf = -1;
+    item.cur_slot = -1;
+
+    // Allocate space for the new item
+    if(Kit_FindFreeAtlasSlot(atlas, surface, &item) != 0) {
+        return -1;
     }
 
-    item = &atlas->items[atlas->cur_items++];
-    item->cur_shelf = -1;
-    item->cur_slot = -1;
-    item->is_copied = false;
-    item->surface = surface;
-    item->surface->refcount++; // We dont want to needlessly copy; instead increase refcount.
-    memset(&item->source, 0, sizeof(SDL_Rect));
-    memcpy(&item->target, target, sizeof(SDL_Rect));
+    // And update texture with the surface
+    SDL_UpdateTexture(texture, &item.source, surface->pixels, surface->pitch);
+
+    // Room found, add item to the atlas
+    memcpy(&atlas->items[atlas->cur_items++], &item, sizeof(Kit_TextureAtlasItem));
     return 0;
 }

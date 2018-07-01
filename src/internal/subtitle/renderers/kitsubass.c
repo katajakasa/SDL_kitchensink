@@ -67,7 +67,7 @@ static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
     free(ass_ren);
 }
 
-static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
+static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
     Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
     SDL_Surface *dst = NULL;
     ASS_Image *src = NULL;
@@ -86,6 +86,7 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
 
         // There was some change, process images and add them to atlas
         Kit_ClearAtlasContent(atlas);
+        Kit_CheckAtlasTextureSize(atlas, texture);
         for(; src; src = src->next) {
             if(src->w == 0 || src->h == 0)
                 continue;
@@ -96,7 +97,7 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
             target.y = src->dst_y;
             target.w = dst->w;
             target.h = dst->h;
-            Kit_AddAtlasItem(atlas, dst, &target);
+            Kit_AddAtlasItem(atlas, texture, dst, &target);
             SDL_FreeSurface(dst);
         }
 

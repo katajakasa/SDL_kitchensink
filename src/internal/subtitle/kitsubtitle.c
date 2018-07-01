@@ -173,7 +173,7 @@ void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int screen_w, int screen_h) {
     Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
-int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 
@@ -181,17 +181,10 @@ int Kit_GetSubtitleDecoderData(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect 
     double sync_ts = _GetSystemTime() - dec->clock_sync;
 
     // Tell the renderer to render content to atlas
-    Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, sync_ts);
+    Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
+}
 
-    // Next, update the actual atlas texture contents. This may force the atlas to do partial or complete reordering
-    // OR it may simply be a texture update from cache.
-    if(Kit_UpdateAtlasTexture(subtitle_dec->atlas, texture) != 0) {
-        return -1;
-    }
-
-    // Next, get targets and sources of visible atlas items
-    int item_count = Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
-
-    // All done
-    return item_count;
+int Kit_GetSubtitleDecoderInfo(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    return Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
 }

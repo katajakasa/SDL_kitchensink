@@ -57,17 +57,20 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
     }
 }
 
-static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
+static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
     Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
     Kit_SubtitlePacket *packet = NULL;
 
-    // Clean dead packets
+    Kit_CheckAtlasTextureSize(atlas, texture);
     while((packet = Kit_PeekDecoderOutput(ren->dec)) != NULL) {
+        // Clear dead packets
         if(packet->pts_end < current_pts) {
             Kit_AdvanceDecoderOutput(ren->dec);
             Kit_FreeSubtitlePacket(packet);
             continue;
         }
+
+        // Show visible ones
         if(packet->pts_start < current_pts) {
             if(packet->clear) {
                 Kit_ClearAtlasContent(atlas);
@@ -78,7 +81,7 @@ static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
                 target.y = packet->y * img_ren->scale_y;
                 target.w = packet->surface->w * img_ren->scale_x;
                 target.h = packet->surface->h * img_ren->scale_y;
-                Kit_AddAtlasItem(atlas, packet->surface, &target);
+                Kit_AddAtlasItem(atlas, texture, packet->surface, &target);
             }
             Kit_AdvanceDecoderOutput(ren->dec);
             Kit_FreeSubtitlePacket(packet);

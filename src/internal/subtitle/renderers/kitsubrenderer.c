@@ -24,11 +24,11 @@ void Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *ren, void *src, double start_
         ren->ren_render(ren, src, start_pts, end_pts);
 }
 
-int Kit_GetSubtitleRendererData(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, double current_pts) {
+int Kit_GetSubtitleRendererData(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
     if(ren == NULL)
         return 0;
     if(ren->ren_get_data != NULL)
-        return ren->ren_get_data(ren, atlas, current_pts);
+        return ren->ren_get_data(ren, atlas, texture, current_pts);
     return 0;
 }
 
