@@ -155,6 +155,13 @@ int main(int argc, char *argv[]) {
                 case SDL_QUIT:
                     run = false;
                     break;
+                case SDL_KEYUP:
+                    if(event.key.keysym.sym == SDLK_RIGHT)
+                        Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) + 10);
+                    if(event.key.keysym.sym == SDLK_LEFT)
+                        Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) - 10);
+                    break;
+
             }
         }
 

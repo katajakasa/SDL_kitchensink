@@ -22,17 +22,6 @@ int read_callback(void *userdata, uint8_t *buf, int buf_size) {
     return -1;
 }
 
-int64_t seek_callback(void *userdata, int64_t offset, int whence) {
-    FILE *fd =  (FILE*)userdata;
-    if(whence != SEEK_SET && whence != SEEK_END && whence != SEEK_CUR) {
-        return -1; // AVSEEK_SIZE, AVSEEK_FORCE Not supported
-    }
-    if(fseek(fd, offset, whence)) {
-        return ftell(fd);
-    }
-    return -1;
-}
-
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
     const char* filename = NULL;
@@ -86,8 +75,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open up the custom source. Declare read & seek callbacks, and transport FD in userdata.
-    src = Kit_CreateSourceFromCustom(read_callback, seek_callback, fd);
+    // Open up the custom source. Declare read callback, and transport FD in userdata.
+    src = Kit_CreateSourceFromCustom(read_callback, NULL, fd);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -173,6 +162,12 @@ int main(int argc, char *argv[]) {
             switch(event.type) {
                 case SDL_QUIT:
                     run = false;
+                    break;
+                case SDL_KEYUP:
+                    if(event.key.keysym.sym == SDLK_RIGHT)
+                        Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) + 10);
+                    if(event.key.keysym.sym == SDLK_LEFT)
+                        Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) - 10);
                     break;
             }
         }
