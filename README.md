@@ -9,7 +9,7 @@ Documentation is available at http://katajakasa.github.io/SDL_kitchensink/
 
 Features:
 * Decoding video, audio and subtitles via FFmpeg
-* Dumping video and subtitle data on SDL_textures/SDL_Surfaces
+* Dumping video and subtitle data on SDL_textures
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
 * Synchronizing video & audio to clock
