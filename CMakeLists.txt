@@ -90,23 +90,27 @@ if(BUILD_EXAMPLES)
     add_executable(complex examples/example_complex.c)
     add_executable(simple examples/example_simple.c)
     add_executable(custom examples/example_custom.c)
+    add_executable(rwops examples/example_rwops.c)
 
     if(MINGW)
         target_link_libraries(audio mingw32)
         target_link_libraries(complex mingw32)
         target_link_libraries(simple mingw32)
         target_link_libraries(custom mingw32)
+        target_link_libraries(rwops mingw32)
     endif()
 
     set_property(TARGET audio PROPERTY C_STANDARD 99)
     set_property(TARGET complex PROPERTY C_STANDARD 99)
     set_property(TARGET simple PROPERTY C_STANDARD 99)
     set_property(TARGET custom PROPERTY C_STANDARD 99)
+    set_property(TARGET rwops PROPERTY C_STANDARD 99)
 
     target_link_libraries(audio SDL_kitchensink_static ${LIBRARIES})
     target_link_libraries(complex SDL_kitchensink_static ${LIBRARIES})
     target_link_libraries(simple SDL_kitchensink_static ${LIBRARIES})
     target_link_libraries(custom SDL_kitchensink_static ${LIBRARIES})
+    target_link_libraries(rwops SDL_kitchensink_static ${LIBRARIES})
 endif()
 
 # documentation target

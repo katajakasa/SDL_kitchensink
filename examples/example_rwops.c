@@ -14,25 +14,6 @@
 #define ATLAS_MAX 1024
 
 
-int read_callback(void *userdata, uint8_t *buf, int buf_size) {
-    FILE *fd = (FILE*)userdata;
-    if(!feof(fd)) {
-        return fread(buf, 1, buf_size, fd);
-    }
-    return -1;
-}
-
-int64_t seek_callback(void *userdata, int64_t offset, int whence) {
-    FILE *fd =  (FILE*)userdata;
-    if(whence == 3) { // AVSEEK_SIZE
-        return -1; // Not supported
-    }
-    if(fseek(fd, offset, whence)) {
-        return ftell(fd);
-    }
-    return -1;
-}
-
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
     const char* filename = NULL;
@@ -80,14 +61,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Open file with fopen. We then proceed to read this with our custom file handlers.
-    FILE *fd = fopen(filename, "rb");
-    if(fd == NULL) {
+    SDL_RWops *rw_ops = SDL_RWFromFile(filename, "rb");
+    if(rw_ops == NULL) {
         fprintf(stderr, "Unable to open file '%s' for reading\n", filename);
         return 1;
     }
 
-    // Open up the custom source. Declare read & seek callbacks, and transport FD in userdata.
-    src = Kit_CreateSourceFromCustom(read_callback, seek_callback, fd);
+    // Open up the SDL RWops source
+    src = Kit_CreateSourceFromRW(rw_ops);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -221,7 +202,7 @@ int main(int argc, char *argv[]) {
 
     Kit_ClosePlayer(player);
     Kit_CloseSource(src);
-    fclose(fd);
+    SDL_RWclose(rw_ops);
     Kit_Quit();
 
     SDL_DestroyTexture(subtitle_tex);
