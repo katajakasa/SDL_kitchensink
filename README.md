@@ -80,13 +80,7 @@ Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The fi
 
 Just add ```-DBUILD_EXAMPLES=1``` to cmake arguments and rebuild.
 
-### 2.4. Building unittests
-
-Make sure CUnit is installed, then add ```-DBUILD_UNITTESTS=1``` to the cmake arguments and rebuild.
-
-You can run unittests by running ```make unittest```.
-
-### 2.5. Building with AddressSanitizer
+### 2.4. Building with AddressSanitizer
 
 This is for development/debugging use only!
 
