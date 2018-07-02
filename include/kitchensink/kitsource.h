@@ -10,6 +10,7 @@
  */
 
 #include <inttypes.h>
+#include <SDL_rwops.h>
 #include "kitchensink/kitconfig.h"
 
 #ifdef __cplusplus
@@ -64,7 +65,7 @@ typedef struct Kit_SourceStreamInfo {
  * - buf, a buffer the data must be copied into
  * - size, how much data you are expected to provide at maximum.
  * 
- * The function must return the amount of bytes copied to the buffer.
+ * The function must return the amount of bytes copied to the buffer or <0 on error.
  * 
  * Note that this callback is passed directly to ffmpeg avio, so please refer to ffmpeg documentation
  * for any further details.
@@ -81,7 +82,15 @@ typedef int (*Kit_ReadCallback)(void *userdata, uint8_t *buf, int size);
  * - offset, an seeking offset in bytes
  * - whence, reference position for the offset.
  * 
- * The function must return the position (in bytes) we seeked to.
+ * Whence parameter can be one of the standard fseek values or optionally AVSEEK_SIZE.
+ * - SEEK_SET: Reference position is beginning of file
+ * - SEEK_CUR: Reference position is the current position of the file pointer
+ * - SEEK_END: Reference position is the end of the file
+ * - AVSEEK_SIZE: Optional. Does not seek, instead finds the size of the source file.
+ * - AVSEEK_FORCE: Optional. Suggests that seeking should be done at any cost. May be passed alongside
+ *   any of the SEEK_* flags, eg. SEEK_SET|AVSEEK_FORCE.
+ * 
+ * The function must return the position (in bytes) we seeked to or <0 on error or on unsupported operation.
  * 
  * Note that this callback is passed directly to ffmpeg avio, so please refer to ffmpeg documentation
  * for any further details.
@@ -124,7 +133,7 @@ KIT_API Kit_Source* Kit_CreateSourceFromUrl(const char *url);
  * 
  * For example:
  * ```
- * if(Kit_CreateSourceFromUrl(filename) == NULL) {
+ * if(Kit_CreateSourceFromCustom(read_fn, seek_fn, fp) == NULL) {
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }
@@ -136,6 +145,33 @@ KIT_API Kit_Source* Kit_CreateSourceFromUrl(const char *url);
  * @return Returns an initialized Kit_Source* on success or NULL on failure
  */
 KIT_API Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata);
+
+/**
+ * @brief Create a new source from SDL RWops struct
+ * 
+ * Can be used to read data from SDL compatible sources.
+ * 
+ * This function will return an initialized Kit_Source on success. Note that you need to manually
+ * free the source when it's no longer needed by calling Kit_CloseSource().
+ * 
+ * On failure, this function will return NULL, and further error data is available via Kit_GetError().
+ * 
+ * Note that the RWops struct must exist during the whole lifetime of the source, and you must take
+ * care of freeing the rwops after it's no longer needed.
+ * 
+ * For example:
+ * ```
+ * SDL_RWops *rw = SDL_RWFromFile("myvideo.mkv", "rb");
+ * if(Kit_CreateSourceFromRW(rw) == NULL) {
+ *     fprintf(stderr, "Error: %s\n", Kit_GetError());
+ *     return 1;
+ * }
+ * ```
+ * 
+ * @param rw_ops Initialized RWOps
+ * @return KIT_API* Kit_CreateSourceFromRW 
+ */
+KIT_API Kit_Source* Kit_CreateSourceFromRW(SDL_RWops *rw_ops);
 
 /**
  * @brief Closes a previously initialized source

@@ -12,6 +12,16 @@
 
 #define AVIO_BUF_SIZE 32768
 
+static int _ScanSource(AVFormatContext *format_ctx) {
+    av_opt_set_int(format_ctx, "probesize", INT_MAX, 0);
+    av_opt_set_int(format_ctx, "analyzeduration", INT_MAX, 0);
+    if(avformat_find_stream_info(format_ctx, NULL) < 0) {
+        Kit_SetError("Unable to fetch source information");
+        return 1;
+    }
+    return 0;
+}
+
 Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
     assert(url != NULL);
 
@@ -27,14 +37,11 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
         goto exit_0;
     }
 
-    av_opt_set_int(src->format_ctx, "probesize", INT_MAX, 0);
-    av_opt_set_int(src->format_ctx, "analyzeduration", INT_MAX, 0);
-
-    // Fetch stream information. This may potentially take a while.
-    if(avformat_find_stream_info((AVFormatContext *)src->format_ctx, NULL) < 0) {
-        Kit_SetError("Unable to fetch source information");
+    // Scan source information (may seek forwards)
+    if(_ScanSource(src->format_ctx)) {
         goto exit_1;
     }
+
     return src;
 
 exit_1:
@@ -81,13 +88,8 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
         goto exit_3;
     }
 
-    // Set probe opts for input scanning
-    av_opt_set_int(format_ctx, "probesize", INT_MAX, 0);
-    av_opt_set_int(format_ctx, "analyzeduration", INT_MAX, 0);
-
-    // Fetch stream information. This may potentially take a while.
-    if(avformat_find_stream_info(format_ctx, NULL) < 0) {
-        Kit_SetError("Unable to fetch source information");
+    // Scan source information (may seek forwards)
+    if(_ScanSource(format_ctx)) {
         goto exit_4;
     }
 
@@ -107,6 +109,53 @@ exit_1:
 exit_0:
     free(src);
     return NULL;
+}
+
+static int _RWReadCallback(void *userdata, uint8_t *buf, int size) {
+    return SDL_RWread((SDL_RWops*)userdata, buf, 1, size);
+}
+
+static int64_t _RWGetSize(SDL_RWops *rw_ops) {
+    int64_t current_pos;
+    int64_t max_pos;
+    
+    // First, see if tell works at all, and fail with -1 if it doesn't.
+    current_pos = SDL_RWtell(rw_ops);
+    if(current_pos < 0) {
+        return -1;
+    }
+
+    // Seek to end, get pos (this is the size), then return.
+    if(SDL_RWseek(rw_ops, 0, RW_SEEK_END) < 0) {
+        return -1; // Seek failed, never mind then
+    }
+    max_pos = SDL_RWtell(rw_ops);
+    SDL_RWseek(rw_ops, current_pos, RW_SEEK_SET);
+    return max_pos;
+}
+
+static int64_t _RWSeekCallback(void *userdata, int64_t offset, int whence) {
+    int rw_whence = 0;
+
+    if(whence & AVSEEK_SIZE)
+        return _RWGetSize(userdata);
+    if((whence & ~AVSEEK_FORCE) == SEEK_CUR)
+        rw_whence = RW_SEEK_CUR;
+    if((whence & ~AVSEEK_FORCE) == SEEK_SET)
+        rw_whence = RW_SEEK_SET;
+    if((whence & ~AVSEEK_FORCE) == SEEK_END)
+        rw_whence = RW_SEEK_END;
+
+    if(SDL_RWseek((SDL_RWops*)userdata, offset, rw_whence) < 0) {
+        return -1;
+    }
+
+    return SDL_RWtell((SDL_RWops*)userdata);
+}
+
+
+Kit_Source* Kit_CreateSourceFromRW(SDL_RWops *rw_ops) {
+    return Kit_CreateSourceFromCustom(_RWReadCallback, _RWSeekCallback, rw_ops);
 }
 
 void Kit_CloseSource(Kit_Source *src) {
