@@ -136,21 +136,17 @@ static int64_t _RWGetSize(SDL_RWops *rw_ops) {
 
 static int64_t _RWSeekCallback(void *userdata, int64_t offset, int whence) {
     int rw_whence = 0;
-
     if(whence & AVSEEK_SIZE)
         return _RWGetSize(userdata);
+
     if((whence & ~AVSEEK_FORCE) == SEEK_CUR)
         rw_whence = RW_SEEK_CUR;
-    if((whence & ~AVSEEK_FORCE) == SEEK_SET)
+    else if((whence & ~AVSEEK_FORCE) == SEEK_SET)
         rw_whence = RW_SEEK_SET;
-    if((whence & ~AVSEEK_FORCE) == SEEK_END)
+    else if((whence & ~AVSEEK_FORCE) == SEEK_END)
         rw_whence = RW_SEEK_END;
 
-    if(SDL_RWseek((SDL_RWops*)userdata, offset, rw_whence) < 0) {
-        return -1;
-    }
-
-    return SDL_RWtell((SDL_RWops*)userdata);
+    return SDL_RWseek((SDL_RWops*)userdata, offset, rw_whence);
 }
 
 
