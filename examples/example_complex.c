@@ -224,6 +224,10 @@ int main(int argc, char *argv[]) {
     // Make sure subtitle texture is in correct blendmode
     SDL_SetTextureBlendMode(subtitle_tex, SDL_BLENDMODE_BLEND);
 
+    // Clear screen with black
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
     // Start playback
     Kit_PlayerPlay(player);
 
@@ -339,10 +343,6 @@ int main(int argc, char *argv[]) {
                 SDL_PauseAudioDevice(audio_dev, 0);
             }
         }
-
-        // Clear screen with black
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
 
         // Refresh videotexture and render it
         Kit_GetPlayerVideoData(player, video_tex);
