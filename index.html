@@ -117,10 +117,7 @@ $(function() {
 </ol>
 <h3>2.3. Building examples</h3>
 <p>Just add <code>-DBUILD_EXAMPLES=1</code> to cmake arguments and rebuild.</p>
-<h3>2.4. Building unittests</h3>
-<p>Make sure CUnit is installed, then add <code>-DBUILD_UNITTESTS=1</code> to the cmake arguments and rebuild.</p>
-<p>You can run unittests by running <code>make unittest</code>.</p>
-<h3>2.5. Building with AddressSanitizer</h3>
+<h3>2.4. Building with AddressSanitizer</h3>
 <p>This is for development/debugging use only!</p>
 <p>Make sure llvm is installed, then add <code>-DUSE_ASAN=1</code> to the cmake arguments and rebuild. Note that ASAN is not supported on all OSes (eg. windows).</p>
 <p>After building, you can run with the following (make sure to set correct llvm-symbolizer path): </p><div class="fragment"><div class="line">ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./examplevideo &lt;my videofile&gt;</div></div><!-- fragment --><h2>3. Why SDL_kitchensink</h2>

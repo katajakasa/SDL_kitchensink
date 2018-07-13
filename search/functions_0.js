@@ -5,6 +5,7 @@ var searchData=
   ['kit_5fclosesource',['Kit_CloseSource',['../kitsource_8h.html#ae5b6e651789b308c594f7040a6e6bd2e',1,'kitsource.h']]],
   ['kit_5fcreateplayer',['Kit_CreatePlayer',['../kitplayer_8h.html#ae289e32c4b7247f1d9745f0efe69be88',1,'kitplayer.h']]],
   ['kit_5fcreatesourcefromcustom',['Kit_CreateSourceFromCustom',['../kitsource_8h.html#a4674541bc8c95db9500c8ac5a09149fe',1,'kitsource.h']]],
+  ['kit_5fcreatesourcefromrw',['Kit_CreateSourceFromRW',['../kitsource_8h.html#ad8166923af5475debcb1cf791d7f9168',1,'kitsource.h']]],
   ['kit_5fcreatesourcefromurl',['Kit_CreateSourceFromUrl',['../kitsource_8h.html#ab083f3d33cc9ba5ce5a78ce9782b3df7',1,'kitsource.h']]],
   ['kit_5fgetbestsourcestream',['Kit_GetBestSourceStream',['../kitsource_8h.html#afd339c3956193700466eddd51ddc7b70',1,'kitsource.h']]],
   ['kit_5fgeterror',['Kit_GetError',['../kiterror_8h.html#aa87517d3272e56a664be753f983a105e',1,'kiterror.h']]],

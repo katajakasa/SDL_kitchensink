@@ -10,6 +10,7 @@ var searchData=
   ['kit_5fcodec_5fname_5fmax',['KIT_CODEC_NAME_MAX',['../kitcodec_8h.html#a8df06194dd3ad7073060f3ffe5d95ee4',1,'kitcodec.h']]],
   ['kit_5fcreateplayer',['Kit_CreatePlayer',['../kitplayer_8h.html#ae289e32c4b7247f1d9745f0efe69be88',1,'kitplayer.h']]],
   ['kit_5fcreatesourcefromcustom',['Kit_CreateSourceFromCustom',['../kitsource_8h.html#a4674541bc8c95db9500c8ac5a09149fe',1,'kitsource.h']]],
+  ['kit_5fcreatesourcefromrw',['Kit_CreateSourceFromRW',['../kitsource_8h.html#ad8166923af5475debcb1cf791d7f9168',1,'kitsource.h']]],
   ['kit_5fcreatesourcefromurl',['Kit_CreateSourceFromUrl',['../kitsource_8h.html#ab083f3d33cc9ba5ce5a78ce9782b3df7',1,'kitsource.h']]],
   ['kit_5fdll_5fexport',['KIT_DLL_EXPORT',['../kitconfig_8h.html#af58c772c6f0da16b8258b23bd2253ec5',1,'kitconfig.h']]],
   ['kit_5fdll_5fimport',['KIT_DLL_IMPORT',['../kitconfig_8h.html#a6a6ecbe120951240795535a3622c3d4c',1,'kitconfig.h']]],
