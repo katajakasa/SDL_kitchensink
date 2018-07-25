@@ -73,7 +73,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     dec->codec_ctx = codec_ctx;
     dec->format_ctx = format_ctx;
 
-    // Allocate input/output ringbuffers and locks
+    // Allocate input/output ringbuffers
     for(int i = 0; i < 2; i++) {
         dec->buffer[i] = Kit_CreateBuffer(bsizes[i], free_hooks[i]);
         if(dec->buffer[i] == NULL) {
@@ -86,14 +86,12 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     dec->output_lock = SDL_CreateMutex();
     if(dec->output_lock == NULL) {
         Kit_SetError("Unable to allocate mutex for stream %d: %s", stream_index, SDL_GetError());
-        goto exit_4;
+        goto exit_3;
     }
 
     // That's that
     return dec;
 
-exit_4:
-    SDL_DestroyMutex(dec->output_lock);
 exit_3:
     for(int i = 0; i < KIT_DEC_BUF_COUNT; i++) {
         Kit_DestroyBuffer(dec->buffer[i]);
