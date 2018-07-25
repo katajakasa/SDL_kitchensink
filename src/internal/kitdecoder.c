@@ -47,9 +47,15 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 
     // Allocate a context for the codec
     codec_ctx = avcodec_alloc_context3(codec);
-    if(avcodec_copy_context(codec_ctx, format_ctx->streams[stream_index]->codec) != 0) {
-        Kit_SetError("Unable to copy audio codec context for stream %d", stream_index);
+    if(codec_ctx == NULL) {
+        Kit_SetError("Unable to allocate codec context for stream %d", stream_index);
         goto exit_1;
+    }
+
+    // Copy context from stream to target codec context
+    if(avcodec_copy_context(codec_ctx, format_ctx->streams[stream_index]->codec) != 0) {
+        Kit_SetError("Unable to copy codec context for stream %d", stream_index);
+        goto exit_2;
     }
 
     // Set thread count
