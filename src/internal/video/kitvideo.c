@@ -132,7 +132,11 @@ static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 out_frame->linesize);
 
             // Get presentation timestamp
+#ifndef FF_API_FRAME_GET_SET
             pts = av_frame_get_best_effort_timestamp(video_dec->scratch_frame);
+#else
+            pts = video_dec->scratch_frame->best_effort_timestamp;
+#endif
             pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock

@@ -155,7 +155,11 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 _FindAVSampleFormat(dec->output.format), 1);
 
             // Get presentation timestamp
+#ifndef FF_API_FRAME_GET_SET
             pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
+#else
+            pts = audio_dec->scratch_frame->best_effort_timestamp;
+#endif
             pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock
