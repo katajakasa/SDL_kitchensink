@@ -117,6 +117,7 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     int dst_bufsize;
     double pts;
     unsigned char **dst_data;
+    Kit_AudioPacket *out_packet;
 
     // Decode as long as there is data
     while(in_packet->size > 0) {
@@ -158,7 +159,7 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock
-            Kit_AudioPacket *out_packet = _CreateAudioPacket(
+            out_packet = _CreateAudioPacket(
                 (char*)dst_data[0], (size_t)dst_bufsize, pts);
             Kit_WriteDecoderOutput(dec, out_packet);
 

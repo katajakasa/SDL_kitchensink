@@ -98,18 +98,21 @@ static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(in_packet != NULL);
     
     Kit_VideoDecoder *video_dec = dec->userdata;
+    AVFrame *out_frame;
     int frame_finished;
-    
+    int len;
+    double pts;
+    Kit_VideoPacket *out_packet;
 
     while(in_packet->size > 0) {
-        int len = avcodec_decode_video2(dec->codec_ctx, video_dec->scratch_frame, &frame_finished, in_packet);
+        len = avcodec_decode_video2(dec->codec_ctx, video_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
             return;
         }
 
         if(frame_finished) {
             // Target frame
-            AVFrame *out_frame = av_frame_alloc();
+            out_frame = av_frame_alloc();
             av_image_alloc(
                     out_frame->data,
                     out_frame->linesize,
@@ -129,11 +132,11 @@ static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 out_frame->linesize);
 
             // Get presentation timestamp
-            double pts = av_frame_get_best_effort_timestamp(video_dec->scratch_frame);
+            pts = av_frame_get_best_effort_timestamp(video_dec->scratch_frame);
             pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
 
             // Lock, write to audio buffer, unlock
-            Kit_VideoPacket *out_packet = _CreateVideoPacket(out_frame, pts);
+            out_packet = _CreateVideoPacket(out_frame, pts);
             Kit_WriteDecoderOutput(dec, out_packet);
         }
         in_packet->size -= len;
