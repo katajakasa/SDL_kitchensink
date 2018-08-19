@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include <SDL_surface.h>
+#include <libavcodec/version.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/utils/kitlog.h"
@@ -165,7 +166,12 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     // Read fonts from attachment streams and give them to libass
     for(int j = 0; j < dec->format_ctx->nb_streams; j++) {
         AVStream *st = dec->format_ctx->streams[j];
-        if(st->codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+        AVCodecContext *codec = st->codec;
+#else
+        AVCodecParameters *codec = st->codecpar;
+#endif
+        if(codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
             const AVDictionaryEntry *tag = av_dict_get(
                 st->metadata,
                 "filename",
@@ -174,9 +180,9 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
             if(tag) {
                 ass_add_font(
                     state->libass_handle,
-                    tag->value, 
-                    (char*)st->codec->extradata,
-                    st->codec->extradata_size);
+                    tag->value,
+                    (char*)codec->extradata,
+                    codec->extradata_size);
             }
         }
     }
