@@ -19,7 +19,7 @@ enum AVPixelFormat supported_list[] = {
     AV_PIX_FMT_YUYV422,
     AV_PIX_FMT_UYVY422,
     AV_PIX_FMT_NV12,
-    AV_PIX_FMT_NV12,
+    AV_PIX_FMT_NV21,
     AV_PIX_FMT_RGB24,
     AV_PIX_FMT_BGR24,
     AV_PIX_FMT_RGB555,
