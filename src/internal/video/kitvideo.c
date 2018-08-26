@@ -73,7 +73,7 @@ static enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt) {
         case SDL_PIXELFORMAT_UYVY: return AV_PIX_FMT_UYVY422;
         case SDL_PIXELFORMAT_NV12: return AV_PIX_FMT_NV12;
         case SDL_PIXELFORMAT_NV21: return AV_PIX_FMT_NV21;
-        case SDL_PIXELFORMAT_ARGB32: return AV_PIX_FMT_BGRA;
+        case SDL_PIXELFORMAT_ARGB32: return AV_PIX_FMT_ARGB;
         case SDL_PIXELFORMAT_RGBA32: return AV_PIX_FMT_RGBA;
         case SDL_PIXELFORMAT_BGR24: return AV_PIX_FMT_BGR24;
         case SDL_PIXELFORMAT_RGB24: return AV_PIX_FMT_RGB24;
