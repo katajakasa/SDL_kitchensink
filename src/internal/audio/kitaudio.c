@@ -264,6 +264,14 @@ exit_0:
     return NULL;
 }
 
+double Kit_GetAudioDecoderPTS(Kit_Decoder *dec) {
+    Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
+    if(packet == NULL) {
+        return -1.0;
+    }
+    return packet->pts;
+}
+
 int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     assert(dec != NULL);
 

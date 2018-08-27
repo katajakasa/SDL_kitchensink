@@ -73,26 +73,32 @@ static bool _IsOutputEmpty(const Kit_Player *player) {
 
 static int _RunDecoder(Kit_Player *player) {
     int got;
-    int ret = 0;
+    bool has_room = true;
 
-    if(SDL_LockMutex(player->dec_lock) != 0) {
-        return ret;
-    }
+    do {
+        while((got = _DemuxStream(player)) == -1);
+        if(got == 1 && _IsOutputEmpty(player)) {
+            return 1;
+        }
 
-    while((got = _DemuxStream(player)) == -1);
-    if(got == 1 && _IsOutputEmpty(player)) {
-        ret = 1;
-        goto exit;
-    }
+        for(int i = 0; i < KIT_DEC_COUNT; i++) {
+            while(Kit_RunDecoder(player->decoders[i]) == 1);
+        }
 
-    // Run decoders for a bit
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        while(Kit_RunDecoder(player->decoders[i]) == 1);
-    }
+        // If there is no room in any decoder input, just stop here since it likely means that
+        // at least some decoder output is full.
+        for(int i = 0; i < KIT_DEC_COUNT; i++) {
+            Kit_Decoder *dec = player->decoders[i];
+            if(dec == NULL)
+                continue;
+            if(!Kit_CanWriteDecoderInput(dec)) {
+                has_room = false;
+                break;
+            }
+        }
+    } while(has_room);
 
-exit:
-    SDL_UnlockMutex(player->dec_lock);
-    return ret;
+    return 0;
 }
 
 static int _DecoderThread(void *ptr) {
@@ -109,18 +115,26 @@ static int _DecoderThread(void *ptr) {
             is_playing = true;
         }
         while(is_running && is_playing) {
-            if(player->state == KIT_CLOSED) {
-                is_running = false;
-                continue;
+            // Grab the decoder lock, and run demuxer & decoders for a bit.
+            if(SDL_LockMutex(player->dec_lock) == 0) {
+                if(player->state == KIT_CLOSED) {
+                    is_running = false;
+                    goto end_block;
+                }
+                if(player->state == KIT_STOPPED) {
+                    is_playing = false;
+                    goto end_block;
+                }
+                if(_RunDecoder(player) == 1) {
+                    player->state = KIT_STOPPED;
+                    goto end_block;
+                }
+
+end_block:
+                SDL_UnlockMutex(player->dec_lock);
             }
-            if(player->state == KIT_STOPPED) {
-                is_playing = false;
-                continue;
-            }
-            if(_RunDecoder(player) == 1) {
-                player->state = KIT_STOPPED;
-                continue;
-            }
+
+            // Delay to make sure this thread does not hog all cpu
             SDL_Delay(2);
         }
 
@@ -361,6 +375,7 @@ void Kit_PlayerPlay(Kit_Player *player) {
                 player->state = KIT_PLAYING;
                 break;
             case KIT_STOPPED:
+                _RunDecoder(player); // Fill some buffers before starting playback
                 _SetClockSync(player);
                 player->state = KIT_PLAYING;
                 break;
@@ -379,6 +394,9 @@ void Kit_PlayerStop(Kit_Player *player) {
             case KIT_PLAYING:
             case KIT_PAUSED:
                 player->state = KIT_STOPPED;
+                for(int i = 0; i < KIT_DEC_COUNT; i++) {
+                    Kit_ClearDecoderBuffers(player->decoders[i]);
+                }
                 break;
         }
         SDL_UnlockMutex(player->dec_lock);
@@ -414,15 +432,37 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
         if(seek_set < position) {
             flags |= AVSEEK_FLAG_BACKWARD;
         }
-        if(avformat_seek_file(format_ctx, -1, 0, seek_target, seek_target, flags) < 0) {
+
+        // First, tell ffmpeg to seek stream. If not capable, stop here.
+        // Failure here probably means that stream is unseekable someway, eg. streamed media
+        if(avformat_seek_file(format_ctx, -1, 0, seek_target, INT_MAX, flags) < 0) {
             Kit_SetError("Unable to seek source");
             SDL_UnlockMutex(player->dec_lock);
             return 1;
+        }
+
+        // Clean old buffers and try to fill them with new data
+        for(int i = 0; i < KIT_DEC_COUNT; i++) {
+            Kit_ClearDecoderBuffers(player->decoders[i]);
+        }
+        _RunDecoder(player);
+
+        // Try to get a precise seek position from the next audio/video frame
+        // (depending on which one is used to sync)
+        double precise_pts = -1.0F;
+        if(player->decoders[KIT_VIDEO_DEC] != NULL) {
+            precise_pts = Kit_GetVideoDecoderPTS(player->decoders[KIT_VIDEO_DEC]);
+        }
+        else if(player->decoders[KIT_AUDIO_DEC] != NULL) {
+            precise_pts = Kit_GetAudioDecoderPTS(player->decoders[KIT_AUDIO_DEC]);
+        }
+
+        // If we got a legit looking value, set it as seek value. Otherwise use
+        // the seek value we requested.
+        if(precise_pts >= 0) {
+            _ChangeClockSync(player, position - precise_pts);
         } else {
             _ChangeClockSync(player, position - seek_set);
-            for(int i = 0; i < KIT_DEC_COUNT; i++) {
-                Kit_ClearDecoderBuffers(player->decoders[i]);
-            }
         }
 
         // That's it. Unlock and continue.

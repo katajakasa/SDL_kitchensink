@@ -9,5 +9,6 @@
 
 KIT_LOCAL Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index);
 KIT_LOCAL int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture);
+KIT_LOCAL double Kit_GetVideoDecoderPTS(Kit_Decoder *dec);
 
 #endif // KITVIDEO_H

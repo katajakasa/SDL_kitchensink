@@ -236,6 +236,14 @@ exit_0:
     return NULL;
 }
 
+double Kit_GetVideoDecoderPTS(Kit_Decoder *dec) {
+    Kit_VideoPacket *packet = Kit_PeekDecoderOutput(dec);
+    if(packet == NULL) {
+        return -1.0;
+    }
+    return packet->pts;
+}
+
 int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
