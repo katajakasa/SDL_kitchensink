@@ -110,7 +110,6 @@ int main(int argc, char *argv[]) {
 
     // Allow Kit to use more threads
     Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount() <= 8 ? SDL_GetCPUCount() : 8);
-    Kit_SetHint(KIT_HINT_FONT_HINTING, KIT_FONT_HINTING_LIGHT);
 
     // Open up the sourcefile.
     // This can be a local file, network url, ...
