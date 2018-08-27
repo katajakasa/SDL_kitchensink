@@ -12,7 +12,9 @@
 #define ATLAS_WIDTH 4096
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
-
+#define MAX_STREAM_LIST_SIZE 32
+#define INITIAL_WINDOW_W 1280
+#define INITIAL_WINDOW_H 720
 
 void render_gui(SDL_Renderer *renderer, double percent) {
     // Get window size
@@ -61,6 +63,17 @@ int main(int argc, char *argv[]) {
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
 
+    // Stream index lists
+    int video_streams[MAX_STREAM_LIST_SIZE];
+    int audio_streams[MAX_STREAM_LIST_SIZE];
+    int subtitle_streams[MAX_STREAM_LIST_SIZE];
+    int max_audio_index = 0;
+    int max_video_index = 0;
+    int max_subtitle_index = 0;
+    int current_audio_index = 0;
+    int current_video_index = 0;
+    int current_subtitle_index = 0;
+
     // Events
     SDL_Event event;
     bool run = true;
@@ -88,7 +101,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Create a resizable window.
-    window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow(
+        filename,
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        INITIAL_WINDOW_W,
+        INITIAL_WINDOW_H,
+        SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a new window!\n");
         return 1;
@@ -135,14 +154,20 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(sinfo.type));
     }
 
+    // Find all streams for types
+    max_video_index = Kit_GetSourceStreamList(src, KIT_STREAMTYPE_VIDEO, video_streams, MAX_STREAM_LIST_SIZE);
+    max_audio_index = Kit_GetSourceStreamList(src, KIT_STREAMTYPE_AUDIO, audio_streams, MAX_STREAM_LIST_SIZE);
+    max_subtitle_index = Kit_GetSourceStreamList(src, KIT_STREAMTYPE_SUBTITLE, subtitle_streams, MAX_STREAM_LIST_SIZE);
+
     // Create the player. Pick best video, audio and subtitle streams, and set subtitle
     // rendering resolution to screen resolution.
     player = Kit_CreatePlayer(
         src,
-        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
-        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
-        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
-        1280, 720);
+        (max_video_index > 0) ? video_streams[0] : -1,
+        (max_audio_index > 0) ? audio_streams[0] : -1,
+        (max_subtitle_index > 0) ? subtitle_streams[0] : -1,
+        INITIAL_WINDOW_W,
+        INITIAL_WINDOW_H);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -266,6 +291,45 @@ int main(int argc, char *argv[]) {
                 case SDL_KEYUP:
                     if(event.key.keysym.sym == SDLK_ESCAPE) {
                         run = false;
+                    }
+                    else if(event.key.keysym.sym == SDLK_s) {
+                        current_subtitle_index++;
+                        if(current_subtitle_index >= max_subtitle_index)
+                            current_subtitle_index = 0;
+                        if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE, subtitle_streams[current_subtitle_index]) != 0) {
+                            fprintf(stderr, "Failed to set subtitle stream %d: %s\n",
+                                subtitle_streams[current_subtitle_index], Kit_GetError());
+                        } else {
+                            fprintf(stderr, "Setting subtitle stream %d\n", 
+                                subtitle_streams[current_subtitle_index]);
+                        }
+                        fflush(stderr);
+                    }
+                    else if(event.key.keysym.sym == SDLK_v) {
+                        current_video_index++;
+                        if(current_video_index >= max_video_index)
+                            current_video_index = 0;
+                        if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_VIDEO, video_streams[current_video_index]) != 0) {
+                            fprintf(stderr, "Failed to set video stream %d: %s\n",
+                                video_streams[current_video_index], Kit_GetError());
+                        } else {
+                            fprintf(stderr, "Setting video stream %d\n",
+                                video_streams[current_video_index]);
+                        }
+                        fflush(stderr);
+                    }
+                    else if(event.key.keysym.sym == SDLK_a) {
+                        current_audio_index++;
+                        if(current_audio_index >= max_audio_index)
+                            current_audio_index = 0;
+                        if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_AUDIO, audio_streams[current_audio_index]) != 0) {
+                            fprintf(stderr, "Failed to set audio stream %d: %s\n",
+                                audio_streams[current_audio_index], Kit_GetError());
+                        } else {
+                            fprintf(stderr, "Setting audio stream %d\n",
+                                audio_streams[current_audio_index]);
+                        }
+                        fflush(stderr);
                     }
                     break;
 

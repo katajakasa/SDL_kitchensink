@@ -28,7 +28,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 
     // Make sure index seems correct
     if(stream_index >= (int)format_ctx->nb_streams || stream_index < 0) {
-        Kit_SetError("Invalid stream %d", stream_index);
+        Kit_SetError("Stream id out of bounds for %d", stream_index);
         goto EXIT_0;
     }
     
@@ -124,6 +124,94 @@ EXIT_1:
     free(dec);
 EXIT_0:
     return NULL;
+}
+
+int Kit_ReInitDecoder(Kit_Decoder *dec, int stream_index) {
+    AVCodecContext *codec_ctx = NULL;
+    AVCodec *codec = NULL;
+    AVFormatContext *format_ctx = dec->format_ctx;
+    AVDictionary *codec_opts = NULL;
+    enum AVMediaType old_type;
+    enum AVMediaType new_type;
+    
+    // Make sure index seems correct
+    if(stream_index >= (int)format_ctx->nb_streams || stream_index < 0) {
+        Kit_SetError("Stream id out of bounds for %d", stream_index);
+        goto exit_0;
+    }
+
+    // New stream type must be the same as the old one
+    // We don't want to end up with eg. two audio streams :)
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+    old_type = format_ctx->streams[dec->stream_index]->codec->codec_type;
+    new_type = format_ctx->streams[stream_index]->codec->codec_type;
+#else
+    old_type = format_ctx->streams[dec->stream_index]->codecpar->codec_type;
+    new_type = format_ctx->streams[stream_index]->codecpar->codec_type;
+#endif
+    if(new_type != old_type) {
+        Kit_SetError("Invalid stream type for stream %d", stream_index);
+        goto exit_0;
+    }
+
+    // Find audio decoder
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+    codec = avcodec_find_decoder(format_ctx->streams[stream_index]->codec->codec_id);
+#else
+    codec = avcodec_find_decoder(format_ctx->streams[stream_index]->codecpar->codec_id);
+#endif
+    if(!codec) {
+        Kit_SetError("No suitable decoder found for stream %d", stream_index);
+        goto exit_0;
+    }
+
+    // Allocate a context for the codec
+    codec_ctx = avcodec_alloc_context3(codec);
+    if(codec_ctx == NULL) {
+        Kit_SetError("Unable to allocate codec context for stream %d", stream_index);
+        goto exit_0;
+    }
+
+    // Copy context from stream to target codec context
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+    if(avcodec_copy_context(codec_ctx, format_ctx->streams[stream_index]->codec) != 0)
+#else
+    if(avcodec_parameters_to_context(codec_ctx, format_ctx->streams[stream_index]->codecpar) < 0)
+#endif
+    {
+        Kit_SetError("Unable to copy codec context for stream %d", stream_index);
+        goto exit_1;
+    }
+
+    // Required by ffmpeg for now when using the new API.
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 48, 101)
+    codec_ctx->pkt_timebase = format_ctx->streams[stream_index]->time_base;
+#endif
+
+    // This is required for ass_process_chunk() support
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 100)
+    av_dict_set(&codec_opts, "sub_text_format", "ass", 0);
+#endif
+
+    // Open the stream
+    if(avcodec_open2(codec_ctx, codec, &codec_opts) < 0) {
+        Kit_SetError("Unable to open codec for stream %d", stream_index);
+        goto exit_1;
+    }
+
+    // Close current decoder since we have a good new decoder
+    avcodec_close(dec->codec_ctx);
+    avcodec_free_context(&dec->codec_ctx);
+
+    // Set index and codec
+    dec->stream_index = stream_index;
+    dec->codec_ctx = codec_ctx;
+    return 0;
+
+exit_1:
+    avcodec_free_context(&codec_ctx);
+exit_0:
+    return 1;
 }
 
 void Kit_CloseDecoder(Kit_Decoder *dec) {

@@ -471,6 +471,50 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     return 0;
 }
 
+int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index) {
+    Kit_Decoder *dec = NULL;
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            dec = player->decoders[KIT_AUDIO_DEC];
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            dec = player->decoders[KIT_VIDEO_DEC];
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            dec = player->decoders[KIT_SUBTITLE_DEC];
+            break;
+        default:
+            dec = NULL;
+    }
+
+    if(dec != NULL) {
+        return Kit_ReInitDecoder(dec, index);
+    }
+    return -1;
+}
+
+int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type) {
+    Kit_Decoder *dec = NULL;
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            dec = player->decoders[KIT_AUDIO_DEC];
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            dec = player->decoders[KIT_VIDEO_DEC];
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            dec = player->decoders[KIT_SUBTITLE_DEC];
+            break;
+        default:
+            dec = NULL;
+    }
+
+    if(dec != NULL) {
+        return dec->stream_index;
+    }
+    return -1;
+}
+
 double Kit_GetPlayerDuration(const Kit_Player *player) {
     assert(player != NULL);
 
