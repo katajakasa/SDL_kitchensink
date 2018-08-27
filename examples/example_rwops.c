@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 
     // Get filename to open
     if(argc != 2) {
-        fprintf(stderr, "Usage: custom <filename>\n");
+        fprintf(stderr, "Usage: rwops <filename>\n");
         return 0;
     }
     filename = argv[1];
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Create a resizable window.
-    window = SDL_CreateWindow("Example Player", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a new window!\n");
         return 1;
