@@ -110,7 +110,8 @@ typedef int64_t (*Kit_SeekCallback)(void *userdata, int64_t offset, int whence);
  * 
  * For example:
  * ```
- * if(Kit_CreateSourceFromUrl(filename) == NULL) {
+ * Kit_Source *src = Kit_CreateSourceFromUrl(filename);
+ * if(src == NULL) {
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }
@@ -133,7 +134,8 @@ KIT_API Kit_Source* Kit_CreateSourceFromUrl(const char *url);
  * 
  * For example:
  * ```
- * if(Kit_CreateSourceFromCustom(read_fn, seek_fn, fp) == NULL) {
+ * Kit_Source *src = Kit_CreateSourceFromCustom(read_fn, seek_fn, fp);
+ * if(src == NULL) {
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }
@@ -162,7 +164,8 @@ KIT_API Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_See
  * For example:
  * ```
  * SDL_RWops *rw = SDL_RWFromFile("myvideo.mkv", "rb");
- * if(Kit_CreateSourceFromRW(rw) == NULL) {
+ * Kit_Source *src = Kit_CreateSourceFromRW(rw);
+ * if(src == NULL) {
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }
