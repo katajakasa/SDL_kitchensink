@@ -30,7 +30,6 @@ Library requirements:
 * SDL2 (>=2.0.5)
 * FFmpeg (>=3.0)
 * libass (optional, supports runtime linking via SDL_LoadSO)
-* CUnit (optional, for unittests)
 
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions
 may or may not work; versions noted here are the only ones tested.
@@ -92,7 +91,7 @@ After building, you can run with the following (make sure to set correct llvm-sy
 ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./examplevideo <my videofile>
 ```
 
-## 3. Why SDL_kitchensink
+## 3. Why the name SDL_kitchensink
 
 Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
 kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
