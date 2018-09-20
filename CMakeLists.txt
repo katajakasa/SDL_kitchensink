@@ -20,7 +20,7 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2 -DNDEBUG")
 set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 
 option(BUILD_EXAMPLES "Build examples" OFF)
-option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" ON)
+option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" OFF)
 option(USE_ASAN "Use AddressSanitizer" OFF)
 
 find_package(SDL2 REQUIRED)
