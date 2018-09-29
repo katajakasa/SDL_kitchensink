@@ -12,7 +12,7 @@
 #include "kitchensink/internal/video/kitvideo.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
-#define KIT_VIDEO_SYNC_THRESHOLD 0.01
+#define KIT_VIDEO_SYNC_THRESHOLD 0.02
 
 enum AVPixelFormat supported_list[] = {
     AV_PIX_FMT_YUV420P,
@@ -248,6 +248,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 
+    Kit_VideoPacket *next_packet = NULL;
     Kit_VideoPacket *packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return 0;
@@ -261,15 +262,24 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
         return 0;
     } else if(packet->pts < sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
         // Video is lagging, skip until we find a good PTS to continue from.
+        LOG("V LAG %f < %f\n", packet->pts, sync_ts - KIT_VIDEO_SYNC_THRESHOLD);
+        Kit_AdvanceDecoderOutput(dec);
         while(packet != NULL) {
-            Kit_AdvanceDecoderOutput(dec);
-            free_out_video_packet_cb(packet);
-            packet = Kit_PeekDecoderOutput(dec);
+            next_packet = Kit_PeekDecoderOutput(dec);
+
+            // If next packet is valid, remove this one and jump to next.
+            if(next_packet != NULL) {
+                Kit_AdvanceDecoderOutput(dec);
+                free_out_video_packet_cb(packet);
+                packet = next_packet;
+            }
+
+            // If we still have NULL packet, stop here.
             if(packet == NULL) {
                 break;
-            } else {
-                dec->clock_pos = packet->pts;
             }
+
+            dec->clock_pos = packet->pts;
             if(packet->pts > sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
                 break;
             }

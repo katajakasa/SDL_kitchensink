@@ -15,7 +15,7 @@
 #include "kitchensink/internal/utils/kitringbuffer.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
-#define AUDIO_SYNC_THRESHOLD 0.05
+#define KIT_AUDIO_SYNC_THRESHOLD 0.05
 
 typedef struct Kit_AudioDecoder {
     SwrContext *swr;
@@ -275,6 +275,7 @@ double Kit_GetAudioDecoderPTS(Kit_Decoder *dec) {
 int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     assert(dec != NULL);
 
+    Kit_AudioPacket *next_packet = NULL;
     Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return 0;
@@ -285,20 +286,29 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     double bytes_per_second = bytes_per_sample * dec->output.samplerate;
     double sync_ts = _GetSystemTime() - dec->clock_sync;
 
-    if(packet->pts > sync_ts + AUDIO_SYNC_THRESHOLD) {
+    if(packet->pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
         return 0;
-    } else if(packet->pts < sync_ts - AUDIO_SYNC_THRESHOLD) {
+    } else if(packet->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
         // Audio is lagging, skip until good pts is found
+        LOG("A LAG %f < %f\n", packet->pts, sync_ts - KIT_AUDIO_SYNC_THRESHOLD);
+        Kit_AdvanceDecoderOutput(dec);
         while(1) {
-            Kit_AdvanceDecoderOutput(dec);
-            free_out_audio_packet_cb(packet);
-            packet = Kit_PeekDecoderOutput(dec);
+            next_packet = Kit_ReadDecoderOutput(dec);
+
+            // If next packet is valid, remove this one and jump to next.
+            if(next_packet != NULL) {
+                Kit_AdvanceDecoderOutput(dec);
+                free_out_audio_packet_cb(packet);
+                packet = next_packet;
+            }
+            
+            // If we still have NULL packet, stop here.
             if(packet == NULL) {
                 break;
-            } else {
-                dec->clock_pos = packet->pts;
             }
-            if(packet->pts > sync_ts - AUDIO_SYNC_THRESHOLD) {
+
+            dec->clock_pos = packet->pts;
+            if(packet->pts > sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
                 break;
             }
         }
