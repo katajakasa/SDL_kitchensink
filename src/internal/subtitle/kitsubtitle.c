@@ -59,12 +59,12 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
                 subtitle_dec->scratch_frame.end_display_time = 30000;
             }
 
-            start = pts + subtitle_dec->scratch_frame.start_display_time / 1000.0F;
-            end = pts + subtitle_dec->scratch_frame.end_display_time / 1000.0F;
+            start = subtitle_dec->scratch_frame.start_display_time / 1000.0F;
+            end = subtitle_dec->scratch_frame.end_display_time / 1000.0F;
 
             // Create a packet. This should be filled by renderer.
             Kit_RunSubtitleRenderer(
-                subtitle_dec->renderer, &subtitle_dec->scratch_frame, start, end);
+                subtitle_dec->renderer, &subtitle_dec->scratch_frame, pts, start, end);
 
             // Free subtitle since it has now been handled
             avsubtitle_free(&subtitle_dec->scratch_frame);

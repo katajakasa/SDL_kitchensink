@@ -20,6 +20,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     assert(thread_count > 0);
 
     AVCodecContext *codec_ctx = NULL;
+    AVDictionary *codec_opts = NULL;
     AVCodec *codec = NULL;
     AVFormatContext *format_ctx = src->format_ctx;
     int bsizes[2] = {BUFFER_IN_SIZE, out_b_size};
@@ -62,8 +63,13 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     codec_ctx->thread_count = thread_count;
     codec_ctx->thread_type = FF_THREAD_SLICE;
 
+    // This is required for ass_process_chunk() support
+    if(LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 100)) {
+        av_dict_set(&codec_opts, "sub_text_format", "ass", 0);
+    }
+
     // Open the stream
-    if(avcodec_open2(codec_ctx, codec, NULL) < 0) {
+    if(avcodec_open2(codec_ctx, codec, &codec_opts) < 0) {
         Kit_SetError("Unable to open codec for stream %d", stream_index);
         goto exit_2;
     }
@@ -98,6 +104,7 @@ exit_3:
     }
     avcodec_close(codec_ctx);
 exit_2:
+    av_dict_free(&codec_opts);
     avcodec_free_context(&codec_ctx);
 exit_1:
     free(dec);

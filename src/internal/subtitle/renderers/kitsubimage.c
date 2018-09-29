@@ -17,13 +17,15 @@ typedef struct Kit_ImageSubtitleRenderer {
     float scale_y;
 } Kit_ImageSubtitleRenderer;
 
-static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double start_pts, double end_pts) {
+static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double pts, double start, double end) {
     assert(ren != NULL);
     assert(sub_src != NULL);
 
     AVSubtitle *sub = sub_src;
     SDL_Surface *dst = NULL;
     SDL_Surface *src = NULL;
+    double start_pts = pts + start;
+    double end_pts = pts + end;
 
     // If this subtitle has no rects, we still need to clear screen from old subs
     if(sub->num_rects == 0) {

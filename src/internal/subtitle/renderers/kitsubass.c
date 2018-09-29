@@ -40,7 +40,7 @@ static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
     }
 }
 
-static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start_pts, double end_pts) {
+static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double pts, double start, double end) {
     assert(ren != NULL);
     assert(src != NULL);
 
@@ -48,11 +48,26 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double start
     AVSubtitle *sub = src;
 
     // Read incoming subtitle packets to libASS
+    long long start_ms = (start + pts) * 1000;
+    long long end_ms = end * 1000;
     if(Kit_LockDecoderOutput(ren->dec) == 0) {
         for(int r = 0; r < sub->num_rects; r++) {
             if(sub->rects[r]->ass == NULL)
                 continue;
-            ass_process_data(ass_ren->track, sub->rects[r]->ass, strlen(sub->rects[r]->ass));
+            if(LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57,25,100)) {
+                ass_process_data(
+                    ass_ren->track,
+                    sub->rects[r]->ass,
+                    strlen(sub->rects[r]->ass));
+            } else {
+                // This requires the sub_text_format codec_opt set for ffmpeg
+                ass_process_chunk(
+                    ass_ren->track,
+                    sub->rects[r]->ass,
+                    strlen(sub->rects[r]->ass),
+                    start_ms,
+                    end_ms);
+            }
         }
         Kit_UnlockDecoderOutput(ren->dec);
     }
