@@ -262,7 +262,6 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
         return 0;
     } else if(packet->pts < sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
         // Video is lagging, skip until we find a good PTS to continue from.
-        LOG("V LAG %f < %f\n", packet->pts, sync_ts - KIT_VIDEO_SYNC_THRESHOLD);
         Kit_AdvanceDecoderOutput(dec);
         while(packet != NULL) {
             next_packet = Kit_PeekDecoderOutput(dec);

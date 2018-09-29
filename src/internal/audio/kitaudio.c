@@ -290,7 +290,6 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
         return 0;
     } else if(packet->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
         // Audio is lagging, skip until good pts is found
-        LOG("A LAG %f < %f\n", packet->pts, sync_ts - KIT_AUDIO_SYNC_THRESHOLD);
         Kit_AdvanceDecoderOutput(dec);
         while(1) {
             next_packet = Kit_ReadDecoderOutput(dec);
