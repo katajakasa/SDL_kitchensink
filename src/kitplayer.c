@@ -435,7 +435,7 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
 
         // First, tell ffmpeg to seek stream. If not capable, stop here.
         // Failure here probably means that stream is unseekable someway, eg. streamed media
-        if(avformat_seek_file(format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, flags) < 0) {
+        if(avformat_seek_file(format_ctx, -1, seek_target, seek_target, INT64_MAX, flags) < 0) {
             Kit_SetError("Unable to seek source");
             SDL_UnlockMutex(player->dec_lock);
             return 1;
