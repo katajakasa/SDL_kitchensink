@@ -40,8 +40,12 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     }
 
     // Find audio decoder
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
     codec = avcodec_find_decoder(format_ctx->streams[stream_index]->codec->codec_id);
-    if(!codec) {
+#else
+    codec = avcodec_find_decoder(format_ctx->streams[stream_index]->codecpar->codec_id);
+#endif
+    if(codec == NULL) {
         Kit_SetError("No suitable decoder found for stream %d", stream_index);
         goto exit_1;
     }
@@ -53,11 +57,21 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
         goto exit_1;
     }
 
-    // Copy context from stream to target codec context
-    if(avcodec_copy_context(codec_ctx, format_ctx->streams[stream_index]->codec) != 0) {
+    // Copy params
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+    if(avcodec_copy_context(codec_ctx, format_ctx->streams[stream_index]->codec) != 0)
+#else
+    if(avcodec_parameters_to_context(codec_ctx, format_ctx->streams[stream_index]->codecpar) < 0)
+#endif
+    {
         Kit_SetError("Unable to copy codec context for stream %d", stream_index);
         goto exit_2;
     }
+
+    // Required by ffmpeg for now when using the new API.
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 48, 101)
+    codec_ctx->pkt_timebase = format_ctx->streams[stream_index]->time_base;
+#endif
 
     // Set thread count
     codec_ctx->thread_count = thread_count;
