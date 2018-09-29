@@ -300,11 +300,6 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
                 free_out_audio_packet_cb(packet);
                 packet = next_packet;
             }
-            
-            // If we still have NULL packet, stop here.
-            if(packet == NULL) {
-                break;
-            }
 
             dec->clock_pos = packet->pts;
             if(packet->pts > sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {

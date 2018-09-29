@@ -273,11 +273,6 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
                 packet = next_packet;
             }
 
-            // If we still have NULL packet, stop here.
-            if(packet == NULL) {
-                break;
-            }
-
             dec->clock_pos = packet->pts;
             if(packet->pts > sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
                 break;
