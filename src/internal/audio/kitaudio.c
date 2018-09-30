@@ -275,7 +275,6 @@ double Kit_GetAudioDecoderPTS(Kit_Decoder *dec) {
 int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     assert(dec != NULL);
 
-    Kit_AudioPacket *next_packet = NULL;
     Kit_AudioPacket *packet = NULL;
     int ret = 0;
     int bytes_per_sample = 0;
@@ -283,7 +282,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     double sync_ts = 0;
 
     // First, peek the next packet. Make sure we have something to read.
-    packet = next_packet = Kit_PeekDecoderOutput(dec);
+    packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return 0;
     }

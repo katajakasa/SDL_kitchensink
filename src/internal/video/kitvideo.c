@@ -248,13 +248,12 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 
-    Kit_VideoPacket *next_packet = NULL;
     Kit_VideoPacket *packet = NULL;
     double sync_ts = 0;
     unsigned int limit_rounds = 0;
 
     // First, peek the next packet. Make sure we have something to read.
-    packet = next_packet = Kit_PeekDecoderOutput(dec);
+    packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return 0;
     }
