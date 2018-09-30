@@ -18,6 +18,10 @@ Kit_Buffer* Kit_CreateBuffer(unsigned int size, Kit_BufferFreeCallback free_cb) 
     return b;
 }
 
+unsigned int Kit_GetBufferLength(const Kit_Buffer *buffer) {
+    return buffer->write_p - buffer->read_p;
+}
+
 void Kit_DestroyBuffer(Kit_Buffer *buffer) {
     if(buffer == NULL) return;
     Kit_ClearBuffer(buffer);

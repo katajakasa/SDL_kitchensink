@@ -249,38 +249,30 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(texture != NULL);
 
     Kit_VideoPacket *next_packet = NULL;
-    Kit_VideoPacket *packet = Kit_PeekDecoderOutput(dec);
+    Kit_VideoPacket *packet = NULL;
+    double sync_ts = 0;
+    unsigned int limit_rounds = 0;
+
+    // First, peek the next packet. Make sure we have something to read.
+    packet = next_packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return 0;
     }
 
-    double sync_ts = _GetSystemTime() - dec->clock_sync;
-
-    // Check if we want the packet
+    // If packet should not yet be played, stop here and wait.
+    // If packet should have already been played, skip it and try to find a better packet.
+    // For video, we *try* to return a frame, even if we are out of sync. It is better than
+    // not showing anything.
+    sync_ts = _GetSystemTime() - dec->clock_sync;
     if(packet->pts > sync_ts + KIT_VIDEO_SYNC_THRESHOLD) {
-        // Video is ahead, don't show yet.
         return 0;
-    } else if(packet->pts < sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
-        // Video is lagging, skip until we find a good PTS to continue from.
-        Kit_AdvanceDecoderOutput(dec);
-        while(packet != NULL) {
-            next_packet = Kit_PeekDecoderOutput(dec);
-
-            // If next packet is valid, remove this one and jump to next.
-            if(next_packet != NULL) {
-                Kit_AdvanceDecoderOutput(dec);
-                free_out_video_packet_cb(packet);
-                packet = next_packet;
-            }
-
-            dec->clock_pos = packet->pts;
-            if(packet->pts > sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
-                break;
-            }
-        }
     }
-
-    // If we have no viable packet, just skip
+    limit_rounds = Kit_GetDecoderOutputLength(dec);
+    while(packet != NULL && packet->pts < sync_ts - KIT_VIDEO_SYNC_THRESHOLD && --limit_rounds) {
+        Kit_AdvanceDecoderOutput(dec);
+        free_out_video_packet_cb(packet);
+        packet = Kit_PeekDecoderOutput(dec);
+    }
     if(packet == NULL) {
         return 0;
     }

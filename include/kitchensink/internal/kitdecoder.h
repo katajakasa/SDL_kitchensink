@@ -70,6 +70,7 @@ KIT_LOCAL void Kit_ForEachDecoderOutput(Kit_Decoder *dec, Kit_ForEachItemCallbac
 KIT_LOCAL int Kit_LockDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_UnlockDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_ClearDecoderOutput(Kit_Decoder *dec);
+KIT_LOCAL unsigned int Kit_GetDecoderOutputLength(Kit_Decoder *dec);
 
 
 #endif // KITDECODER_H

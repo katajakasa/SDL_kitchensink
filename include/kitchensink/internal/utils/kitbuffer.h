@@ -19,6 +19,7 @@ struct Kit_Buffer {
 KIT_LOCAL Kit_Buffer* Kit_CreateBuffer(unsigned int size, Kit_BufferFreeCallback free_cb);
 KIT_LOCAL void Kit_DestroyBuffer(Kit_Buffer *buffer);
 
+KIT_LOCAL unsigned int Kit_GetBufferLength(const Kit_Buffer *buffer);
 KIT_LOCAL void Kit_ClearBuffer(Kit_Buffer *buffer);
 KIT_LOCAL void* Kit_ReadBuffer(Kit_Buffer *buffer);
 KIT_LOCAL void* Kit_PeekBuffer(const Kit_Buffer *buffer);

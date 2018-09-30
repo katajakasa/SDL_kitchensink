@@ -276,39 +276,30 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     assert(dec != NULL);
 
     Kit_AudioPacket *next_packet = NULL;
-    Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
+    Kit_AudioPacket *packet = NULL;
+    int ret = 0;
+    int bytes_per_sample = 0;
+    double bytes_per_second = 0;
+    double sync_ts = 0;
+
+    // First, peek the next packet. Make sure we have something to read.
+    packet = next_packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return 0;
     }
 
-    int ret = 0;
-    int bytes_per_sample = dec->output.bytes * dec->output.channels;
-    double bytes_per_second = bytes_per_sample * dec->output.samplerate;
-    double sync_ts = _GetSystemTime() - dec->clock_sync;
-
+    // If packet should not yet be played, stop here and wait.
+    // If packet should have already been played, skip it and try to find a better packet.
+    // For audio, it is possible that we cannot find good packet. Then just don't read anything.
+    sync_ts = _GetSystemTime() - dec->clock_sync;
     if(packet->pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
         return 0;
-    } else if(packet->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
-        // Audio is lagging, skip until good pts is found
-        Kit_AdvanceDecoderOutput(dec);
-        while(1) {
-            next_packet = Kit_ReadDecoderOutput(dec);
-
-            // If next packet is valid, remove this one and jump to next.
-            if(next_packet != NULL) {
-                Kit_AdvanceDecoderOutput(dec);
-                free_out_audio_packet_cb(packet);
-                packet = next_packet;
-            }
-
-            dec->clock_pos = packet->pts;
-            if(packet->pts > sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
-                break;
-            }
-        }
     }
-
-    // If we have no viable packet, just skip
+    while(packet != NULL && packet->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
+        Kit_AdvanceDecoderOutput(dec);
+        free_out_audio_packet_cb(packet);
+        packet = Kit_PeekDecoderOutput(dec);
+    }
     if(packet == NULL) {
         return 0;
     }
@@ -316,18 +307,19 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     // Read data from packet ringbuffer
     if(len > 0) {
         ret = Kit_ReadRingBuffer(packet->rb, (char*)buf, len);
+        if(ret) {
+            bytes_per_sample = dec->output.bytes * dec->output.channels;
+            bytes_per_second = bytes_per_sample * dec->output.samplerate;
+            packet->pts += ((double)ret) / bytes_per_second;
+        }
     }
+    dec->clock_pos = packet->pts;
 
     // If ringbuffer is cleared, kill packet and advance buffer.
     // Otherwise forward the pts value for the current packet.
     if(Kit_GetRingBufferLength(packet->rb) == 0) {
         Kit_AdvanceDecoderOutput(dec);
-        dec->clock_pos = packet->pts;
         free_out_audio_packet_cb(packet);
-    } else {
-        packet->pts += ((double)ret) / bytes_per_second;
-        dec->clock_pos = packet->pts;
     }
-
     return ret;
 }

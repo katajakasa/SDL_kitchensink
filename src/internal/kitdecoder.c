@@ -75,7 +75,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 
     // Set thread count
     codec_ctx->thread_count = thread_count;
-    codec_ctx->thread_type = FF_THREAD_SLICE;
+    codec_ctx->thread_type = FF_THREAD_SLICE|FF_THREAD_FRAME;
 
     // This is required for ass_process_chunk() support
     if(LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 100)) {
@@ -285,6 +285,16 @@ void Kit_AdvanceDecoderOutput(Kit_Decoder *dec) {
         Kit_AdvanceBuffer(dec->buffer[KIT_DEC_BUF_OUT]);
         SDL_UnlockMutex(dec->output_lock);
     }
+}
+
+unsigned int Kit_GetDecoderOutputLength(Kit_Decoder *dec) {
+    assert(dec != NULL);
+    unsigned int len;
+    if(SDL_LockMutex(dec->output_lock) == 0) {
+        len = Kit_GetBufferLength(dec->buffer[KIT_DEC_BUF_OUT]);
+        SDL_UnlockMutex(dec->output_lock);
+    }
+    return len;
 }
 
 void Kit_ClearDecoderBuffers(Kit_Decoder *dec) {
