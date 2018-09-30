@@ -68,6 +68,17 @@ int Kit_WriteRingBuffer(Kit_RingBuffer *rb, const char* data, int len) {
     return 0;
 }
 
+static void _ReadRingBufferData(const Kit_RingBuffer *rb, char *data, const int len) {
+    int k;
+    if(len + rb->rpos > rb->size) {
+        k = (len + rb->rpos) % rb->size;
+        memcpy(data, rb->data + rb->rpos, len - k);
+        memcpy(data + (len - k), rb->data, k);
+    } else {
+        memcpy(data, rb->data + rb->rpos, len);
+    }
+}
+
 /**
   * Reads data from ringbuffer. If ringbuffer has less data than was requested,
   * only the available data will be read.
@@ -76,17 +87,10 @@ int Kit_WriteRingBuffer(Kit_RingBuffer *rb, const char* data, int len) {
   * @param len How much data do we want
   * @return Amount of data that was actually read.
   */
-int Kit_ReadRingBuffer(Kit_RingBuffer *rb, char* data, int len) {
-    int k;
+int Kit_ReadRingBuffer(Kit_RingBuffer *rb, char *data, int len) {
     len = (len > rb->len) ? rb->len : len;
     if(rb->len > 0) {
-        if(len + rb->rpos > rb->size) {
-            k = (len + rb->rpos) % rb->size;
-            memcpy(data, (rb->data + rb->rpos), len-k);
-            memcpy(data+(len-k), (rb->data), k);
-        } else {
-            memcpy(data, (rb->data + rb->rpos), len);
-        }
+        _ReadRingBufferData(rb, data, len);
         rb->len -= len;
         rb->rpos += len;
         if(rb->rpos >= rb->size) {
@@ -106,17 +110,10 @@ int Kit_ReadRingBuffer(Kit_RingBuffer *rb, char* data, int len) {
   * @param len How much data do we need
   * @return Amount of data actually read
   */
-int Kit_PeekRingBuffer(const Kit_RingBuffer *rb, char* data, int len) {
-    int k;
+int Kit_PeekRingBuffer(const Kit_RingBuffer *rb, char *data, int len) {
     len = (len > rb->len) ? rb->len : len;
     if(rb->len > 0) {
-        if(len + rb->rpos > rb->size) {
-            k = (len + rb->rpos) % rb->size;
-            memcpy(data, (rb->data + rb->rpos), len-k);
-            memcpy(data+(len-k), (rb->data), k);
-        } else {
-            memcpy(data, (rb->data + rb->rpos), len);
-        }
+        _ReadRingBufferData(rb, data, len);
         return len;
     }
     return 0;
