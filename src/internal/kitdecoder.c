@@ -289,7 +289,7 @@ void Kit_AdvanceDecoderOutput(Kit_Decoder *dec) {
 
 unsigned int Kit_GetDecoderOutputLength(Kit_Decoder *dec) {
     assert(dec != NULL);
-    unsigned int len;
+    unsigned int len = 0;
     if(SDL_LockMutex(dec->output_lock) == 0) {
         len = Kit_GetBufferLength(dec->buffer[KIT_DEC_BUF_OUT]);
         SDL_UnlockMutex(dec->output_lock);
