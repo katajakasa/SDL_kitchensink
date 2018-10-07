@@ -93,21 +93,25 @@ static void free_out_video_packet_cb(void *packet) {
     free(p);
 }
 
-static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(dec != NULL);
-    assert(in_packet != NULL);
+    
+    if(in_packet == NULL) {
+        return 0;
+    }
     
     Kit_VideoDecoder *video_dec = dec->userdata;
-    AVFrame *out_frame;
+    AVFrame *out_frame = NULL;
+    Kit_VideoPacket *out_packet = NULL;
     int frame_finished;
     int len;
     double pts;
-    Kit_VideoPacket *out_packet;
 
     while(in_packet->size > 0) {
         len = avcodec_decode_video2(dec->codec_ctx, video_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return;
+            return 0;
         }
 
         if(frame_finished) {
@@ -146,7 +150,63 @@ static void dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
         in_packet->size -= len;
         in_packet->data += len;
     }
+
+    return 0;
 }
+#else
+static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+    assert(dec != NULL);
+    assert(in_packet != NULL);
+
+    Kit_VideoDecoder *video_dec = dec->userdata;
+    AVFrame *out_frame = NULL;
+    Kit_VideoPacket *out_packet = NULL;
+    double pts;
+    int ret;
+
+    // Write packet to the decoder for handling.
+    ret = avcodec_send_packet(dec->codec_ctx, in_packet);
+    if(ret < 0) {
+        return 1;
+    }
+
+    // Pull decoded frames out when ready and if we have room in decoder output buffer
+    LOG("OUT\n");
+    while(!ret && Kit_CanWriteDecoderOutput(dec)) {
+        ret = avcodec_receive_frame(dec->codec_ctx, video_dec->scratch_frame);
+        LOG("DEC FRAME\n");
+        if(!ret) {
+            out_frame = av_frame_alloc();
+            av_image_alloc(
+                    out_frame->data,
+                    out_frame->linesize,
+                    dec->codec_ctx->width,
+                    dec->codec_ctx->height,
+                    _FindAVPixelFormat(dec->output.format),
+                    1);
+
+            // Scale from source format to target format, don't touch the size
+            sws_scale(
+                video_dec->sws,
+                (const unsigned char * const *)video_dec->scratch_frame->data,
+                video_dec->scratch_frame->linesize,
+                0,
+                dec->codec_ctx->height,
+                out_frame->data,
+                out_frame->linesize);
+
+            // Get presentation timestamp
+            pts = video_dec->scratch_frame->best_effort_timestamp;
+            pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
+
+            // Lock, write to audio buffer, unlock
+            out_packet = _CreateVideoPacket(out_frame, pts);
+            Kit_WriteDecoderOutput(dec, out_packet);
+        }
+    }
+    return 0;
+}
+#endif
 
 static void dec_close_video_cb(Kit_Decoder *dec) {
     if(dec == NULL) return;

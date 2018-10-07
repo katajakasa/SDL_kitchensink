@@ -29,9 +29,12 @@ static void free_out_subtitle_packet_cb(void *packet) {
     Kit_FreeSubtitlePacket((Kit_SubtitlePacket*)packet);
 }
 
-static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(dec != NULL);
-    assert(in_packet != NULL);
+
+    if(in_packet == NULL) {
+        return 0;
+    }
 
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     double pts;
@@ -43,7 +46,7 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     if(in_packet->size > 0) {
         len = avcodec_decode_subtitle2(dec->codec_ctx, &subtitle_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return;
+            return 0;
         }
 
         if(frame_finished) {
@@ -70,6 +73,7 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             avsubtitle_free(&subtitle_dec->scratch_frame);
         }
     }
+    return 0;
 }
 
 static void dec_close_subtitle_cb(Kit_Decoder *dec) {

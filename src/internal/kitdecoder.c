@@ -156,17 +156,18 @@ int Kit_RunDecoder(Kit_Decoder *dec) {
     }
 
     // Then, see if we have incoming data
-    in_packet = Kit_ReadDecoderInput(dec);
+    in_packet = Kit_PeekDecoderInput(dec);
     if(in_packet == NULL) {
         return 0;
     }
 
     // Run decoder with incoming packet
-    dec->dec_decode(dec, in_packet);
-
-    // Free raw packet before returning
-    av_packet_free(&in_packet);
-    return 1;
+    if(dec->dec_decode(dec, in_packet) == 0) {
+        Kit_AdvanceDecoderInput(dec);
+        av_packet_free(&in_packet);
+        return 1;
+    }
+    return 0;
 }
 
 // ---- Information API ----
@@ -228,6 +229,16 @@ AVPacket* Kit_ReadDecoderInput(Kit_Decoder *dec) {
     return Kit_ReadBuffer(dec->buffer[KIT_DEC_BUF_IN]);
 }
 
+AVPacket* Kit_PeekDecoderInput(Kit_Decoder *dec) {
+    assert(dec != NULL);
+    return Kit_PeekBuffer(dec->buffer[KIT_DEC_BUF_IN]);
+}
+
+void Kit_AdvanceDecoderInput(Kit_Decoder *dec) {
+    assert(dec != NULL);
+    Kit_AdvanceBuffer(dec->buffer[KIT_DEC_BUF_IN]);
+}
+
 void Kit_ClearDecoderInput(Kit_Decoder *dec) {
     Kit_ClearBuffer(dec->buffer[KIT_DEC_BUF_IN]);
 }
@@ -266,6 +277,16 @@ void* Kit_ReadDecoderOutput(Kit_Decoder *dec) {
     void *ret = NULL;
     if(SDL_LockMutex(dec->output_lock) == 0) {
         ret = Kit_ReadBuffer(dec->buffer[KIT_DEC_BUF_OUT]);
+        SDL_UnlockMutex(dec->output_lock);
+    }
+    return ret;
+}
+
+bool Kit_CanWriteDecoderOutput(Kit_Decoder *dec) {
+    assert(dec != NULL);
+    bool ret = false;
+    if(SDL_LockMutex(dec->output_lock) == 0) {
+        ret = !Kit_IsBufferFull(dec->buffer[KIT_DEC_BUF_OUT]);
         SDL_UnlockMutex(dec->output_lock);
     }
     return ret;
