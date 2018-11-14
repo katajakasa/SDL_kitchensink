@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Allow Kit to use more threads
-    Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount());
+    Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount() <= 4 ? SDL_GetCPUCount() : 4);
 
     // Lots of buffers for smooth playback (will eat up more memory, too).
     Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 5);
