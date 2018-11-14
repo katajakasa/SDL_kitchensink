@@ -214,7 +214,7 @@ static void dec_read_audio(Kit_Decoder *dec) {
             len = swr_convert(
                 audio_dec->swr,
                 dst_data,
-                audio_dec->scratch_frame->nb_samples,
+                dst_nb_samples,
                 (const unsigned char **)audio_dec->scratch_frame->extended_data,
                 audio_dec->scratch_frame->nb_samples);
 
