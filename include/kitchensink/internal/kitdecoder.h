@@ -21,7 +21,7 @@ enum {
 
 typedef struct Kit_Decoder Kit_Decoder;
 
-typedef void (*dec_decode_cb)(Kit_Decoder *dec, AVPacket *in_packet);
+typedef int (*dec_decode_cb)(Kit_Decoder *dec, AVPacket *in_packet);
 typedef void (*dec_close_cb)(Kit_Decoder *dec);
 typedef void (*dec_free_packet_cb)(void *packet);
 
@@ -61,8 +61,11 @@ KIT_LOCAL bool Kit_CanWriteDecoderInput(Kit_Decoder *dec);
 KIT_LOCAL int Kit_WriteDecoderInput(Kit_Decoder *dec, AVPacket *packet);
 KIT_LOCAL AVPacket* Kit_ReadDecoderInput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_ClearDecoderInput(Kit_Decoder *dec);
+KIT_LOCAL AVPacket* Kit_PeekDecoderInput(Kit_Decoder *dec);
+KIT_LOCAL void Kit_AdvanceDecoderInput(Kit_Decoder *dec);
 
 KIT_LOCAL int Kit_WriteDecoderOutput(Kit_Decoder *dec, void *packet);
+KIT_LOCAL bool Kit_CanWriteDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void* Kit_PeekDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void* Kit_ReadDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_AdvanceDecoderOutput(Kit_Decoder *dec);

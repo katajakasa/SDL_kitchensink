@@ -29,9 +29,12 @@ static void free_out_subtitle_packet_cb(void *packet) {
     Kit_FreeSubtitlePacket((Kit_SubtitlePacket*)packet);
 }
 
-static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+static int dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(dec != NULL);
-    assert(in_packet != NULL);
+
+    if(in_packet == NULL) {
+        return 0;
+    }
 
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     double pts;
@@ -43,7 +46,7 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     if(in_packet->size > 0) {
         len = avcodec_decode_subtitle2(dec->codec_ctx, &subtitle_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return;
+            return 0;
         }
 
         if(frame_finished) {
@@ -70,6 +73,7 @@ static void dec_decode_subtitle_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             avsubtitle_free(&subtitle_dec->scratch_frame);
         }
     }
+    return 0;
 }
 
 static void dec_close_subtitle_cb(Kit_Decoder *dec) {
@@ -173,14 +177,11 @@ void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int screen_w, int screen_h) {
     Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
-void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture) {
+void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture, double sync_ts) {
     assert(dec != NULL);
     assert(texture != NULL);
 
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
-    double sync_ts = _GetSystemTime() - dec->clock_sync;
-
-    // Tell the renderer to render content to atlas
     Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
 }
 

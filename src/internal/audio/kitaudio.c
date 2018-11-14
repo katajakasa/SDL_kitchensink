@@ -104,9 +104,13 @@ static void free_out_audio_packet_cb(void *packet) {
     free(p);
 }
 
-static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
+static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(dec != NULL);
-    assert(in_packet != NULL);
+
+    if(in_packet == NULL) {
+        return 0;
+    }
 
     Kit_AudioDecoder *audio_dec = dec->userdata;
     int frame_finished;
@@ -117,13 +121,13 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     int dst_bufsize;
     double pts;
     unsigned char **dst_data;
-    Kit_AudioPacket *out_packet;
+    Kit_AudioPacket *out_packet = NULL;
 
     // Decode as long as there is data
     while(in_packet->size > 0) {
         len = avcodec_decode_audio4(dec->codec_ctx, audio_dec->scratch_frame, &frame_finished, in_packet);
         if(len < 0) {
-            return;
+            return 0;
         }
 
         if(frame_finished) {
@@ -175,7 +179,77 @@ static void dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
         in_packet->size -= len;
         in_packet->data += len;
     }
+    return 0;
 }
+#else
+static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+    assert(dec != NULL);
+    assert(in_packet != NULL);
+
+    Kit_AudioDecoder *audio_dec = dec->userdata;
+    int ret;
+    int len;
+    int dst_linesize;
+    int dst_nb_samples;
+    int dst_bufsize;
+    double pts;
+    unsigned char **dst_data;
+    Kit_AudioPacket *out_packet = NULL;
+
+    // Write packet to the decoder for handling.
+    ret = avcodec_send_packet(dec->codec_ctx, in_packet);
+    if(ret < 0) {
+        return 1;
+    }
+
+    // Pull decoded frames out when ready and if we have room in decoder output buffer
+    while(!ret && Kit_CanWriteDecoderOutput(dec)) {
+        ret = avcodec_receive_frame(dec->codec_ctx, audio_dec->scratch_frame);
+        if(!ret) {
+            dst_nb_samples = av_rescale_rnd(
+                audio_dec->scratch_frame->nb_samples,
+                dec->output.samplerate,  // Target samplerate
+                dec->codec_ctx->sample_rate,  // Source samplerate
+                AV_ROUND_UP);
+
+            av_samples_alloc_array_and_samples(
+                &dst_data,
+                &dst_linesize,
+                dec->output.channels,
+                dst_nb_samples,
+                _FindAVSampleFormat(dec->output.format),
+                0);
+
+            len = swr_convert(
+                audio_dec->swr,
+                dst_data,
+                audio_dec->scratch_frame->nb_samples,
+                (const unsigned char **)audio_dec->scratch_frame->extended_data,
+                audio_dec->scratch_frame->nb_samples);
+
+            dst_bufsize = av_samples_get_buffer_size(
+                &dst_linesize,
+                dec->output.channels,
+                len,
+                _FindAVSampleFormat(dec->output.format), 1);
+
+            // Get presentation timestamp
+            pts = audio_dec->scratch_frame->best_effort_timestamp;
+            pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
+
+            // Lock, write to audio buffer, unlock
+            out_packet = _CreateAudioPacket(
+                (char*)dst_data[0], (size_t)dst_bufsize, pts);
+            Kit_WriteDecoderOutput(dec, out_packet);
+
+            // Free temps
+            av_freep(&dst_data[0]);
+            av_freep(&dst_data);
+        }
+    }
+    return 0;
+}
+#endif
 
 static void dec_close_audio_cb(Kit_Decoder *dec) {
     if(dec == NULL) return;

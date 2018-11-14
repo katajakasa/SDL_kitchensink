@@ -310,14 +310,15 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     assert(targets != NULL);
     assert(limit >= 0);
 
-    Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_DEC];
-    if(dec == NULL) {
+    Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_DEC];
+    Kit_Decoder *video_dec = player->decoders[KIT_VIDEO_DEC];
+    if(sub_dec == NULL || video_dec == NULL) {
         return 0;
     }
 
     // If paused, just return the current items
     if(player->state == KIT_PAUSED) {
-        return Kit_GetSubtitleDecoderInfo(dec, texture, sources, targets, limit);
+        return Kit_GetSubtitleDecoderInfo(sub_dec, texture, sources, targets, limit);
     }
 
     // If stopped, do nothing.
@@ -326,8 +327,8 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     }
 
     // Refresh texture, then refresh rects and return number of items in the texture.
-    Kit_GetSubtitleDecoderTexture(dec, texture);
-    return Kit_GetSubtitleDecoderInfo(dec, texture, sources, targets, limit);
+    Kit_GetSubtitleDecoderTexture(sub_dec, texture, video_dec->clock_pos);
+    return Kit_GetSubtitleDecoderInfo(sub_dec, texture, sources, targets, limit);
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
