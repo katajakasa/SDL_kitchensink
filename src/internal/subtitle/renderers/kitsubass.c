@@ -55,20 +55,20 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double pts, 
         for(int r = 0; r < sub->num_rects; r++) {
             if(sub->rects[r]->ass == NULL)
                 continue;
-            if(LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57,25,100)) {
-                ass_process_data(
-                    ass_ren->track,
-                    sub->rects[r]->ass,
-                    strlen(sub->rects[r]->ass));
-            } else {
-                // This requires the sub_text_format codec_opt set for ffmpeg
-                ass_process_chunk(
-                    ass_ren->track,
-                    sub->rects[r]->ass,
-                    strlen(sub->rects[r]->ass),
-                    start_ms,
-                    end_ms);
-            }
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57,25,100)
+            ass_process_data(
+                ass_ren->track,
+                sub->rects[r]->ass,
+                strlen(sub->rects[r]->ass));
+#else
+            // This requires the sub_text_format codec_opt set for ffmpeg
+            ass_process_chunk(
+                ass_ren->track,
+                sub->rects[r]->ass,
+                strlen(sub->rects[r]->ass),
+                start_ms,
+                end_ms);
+#endif
         }
         Kit_UnlockDecoderOutput(ren->dec);
     }

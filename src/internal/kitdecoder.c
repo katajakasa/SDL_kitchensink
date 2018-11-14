@@ -78,9 +78,9 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     codec_ctx->thread_type = FF_THREAD_SLICE|FF_THREAD_FRAME;
 
     // This is required for ass_process_chunk() support
-    if(LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 100)) {
-        av_dict_set(&codec_opts, "sub_text_format", "ass", 0);
-    }
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 100)
+    av_dict_set(&codec_opts, "sub_text_format", "ass", 0);
+#endif
 
     // Open the stream
     if(avcodec_open2(codec_ctx, codec, &codec_opts) < 0) {
