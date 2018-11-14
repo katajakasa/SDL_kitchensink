@@ -109,7 +109,11 @@ int main(int argc, char *argv[]) {
     }
 
     // Allow Kit to use more threads
-    Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount() <= 8 ? SDL_GetCPUCount() : 8);
+    Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount());
+
+    // Lots of buffers for smooth playback (will eat up more memory, too).
+    Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 5);
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 192);
 
     // Open up the sourcefile.
     // This can be a local file, network url, ...

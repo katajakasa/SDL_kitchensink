@@ -177,14 +177,11 @@ void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int screen_w, int screen_h) {
     Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
-void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture) {
+void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture, double sync_ts) {
     assert(dec != NULL);
     assert(texture != NULL);
 
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
-    double sync_ts = _GetSystemTime() - dec->clock_sync;
-
-    // Tell the renderer to render content to atlas
     Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
 }
 

@@ -94,13 +94,13 @@ void Kit_SetHint(Kit_HintType type, int value) {
             state->font_hinting = max(min(value, KIT_FONT_HINTING_COUNT), 0);
             break;
         case KIT_HINT_VIDEO_BUFFER_FRAMES:
-            state->video_buf_frames = min(value, 1);
+            state->video_buf_frames = max(value, 1);
             break;
         case KIT_HINT_AUDIO_BUFFER_FRAMES:
-            state->audio_buf_frames = min(value, 1);
+            state->audio_buf_frames = max(value, 1);
             break;
         case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
-            state->subtitle_buf_frames = min(value, 1);
+            state->subtitle_buf_frames = max(value, 1);
             break;
     }
 }

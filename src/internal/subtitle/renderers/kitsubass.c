@@ -88,7 +88,7 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
     SDL_Surface *dst = NULL;
     ASS_Image *src = NULL;
     int change = 0;
-    unsigned int now = current_pts * 1000;
+    long long now = current_pts * 1000;
 
     if(Kit_LockDecoderOutput(ren->dec) == 0) {
         // Tell ASS to render some images

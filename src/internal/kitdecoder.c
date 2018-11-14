@@ -6,7 +6,7 @@
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/kiterror.h"
 
-#define BUFFER_IN_SIZE 256
+#define BUFFER_IN_SIZE 384
 
 static void free_in_video_packet_cb(void *packet) {
     av_packet_free((AVPacket**)&packet);

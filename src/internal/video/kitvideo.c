@@ -154,27 +154,15 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     return 0;
 }
 #else
-static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
-    assert(dec != NULL);
-    assert(in_packet != NULL);
-
+static void dec_read_video(Kit_Decoder *dec) {
     Kit_VideoDecoder *video_dec = dec->userdata;
     AVFrame *out_frame = NULL;
     Kit_VideoPacket *out_packet = NULL;
     double pts;
-    int ret;
+    int ret = 0;
 
-    // Write packet to the decoder for handling.
-    ret = avcodec_send_packet(dec->codec_ctx, in_packet);
-    if(ret < 0) {
-        return 1;
-    }
-
-    // Pull decoded frames out when ready and if we have room in decoder output buffer
-    LOG("OUT\n");
     while(!ret && Kit_CanWriteDecoderOutput(dec)) {
         ret = avcodec_receive_frame(dec->codec_ctx, video_dec->scratch_frame);
-        LOG("DEC FRAME\n");
         if(!ret) {
             out_frame = av_frame_alloc();
             av_image_alloc(
@@ -204,6 +192,23 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             Kit_WriteDecoderOutput(dec, out_packet);
         }
     }
+}
+
+static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+    assert(dec != NULL);
+    assert(in_packet != NULL);
+
+    // Try to clear the buffer first. We might have too much content in the ffmpeg buffer,
+    /// so we want to clear it of outgoing data if we can.
+    dec_read_video(dec);
+
+    // Write packet to the decoder for handling.
+    if(avcodec_send_packet(dec->codec_ctx, in_packet) < 0) {
+        return 1;
+    }
+
+    // Some input data was put in succesfully, so try again to get frames.
+    dec_read_video(dec);
     return 0;
 }
 #endif
