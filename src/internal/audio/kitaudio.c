@@ -182,12 +182,8 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     return 0;
 }
 #else
-static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
-    assert(dec != NULL);
-    assert(in_packet != NULL);
-
+static void dec_read_audio(Kit_Decoder *dec) {
     Kit_AudioDecoder *audio_dec = dec->userdata;
-    int ret;
     int len;
     int dst_linesize;
     int dst_nb_samples;
@@ -195,12 +191,7 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     double pts;
     unsigned char **dst_data;
     Kit_AudioPacket *out_packet = NULL;
-
-    // Write packet to the decoder for handling.
-    ret = avcodec_send_packet(dec->codec_ctx, in_packet);
-    if(ret < 0) {
-        return 1;
-    }
+    int ret = 0;
 
     // Pull decoded frames out when ready and if we have room in decoder output buffer
     while(!ret && Kit_CanWriteDecoderOutput(dec)) {
@@ -247,6 +238,23 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
             av_freep(&dst_data);
         }
     }
+}
+
+static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
+    assert(dec != NULL);
+    assert(in_packet != NULL);
+
+    // Try to clear the buffer first. We might have too much content in the ffmpeg buffer,
+    /// so we want to clear it of outgoing data if we can.
+    dec_read_audio(dec);
+
+    // Write packet to the decoder for handling.
+    if(avcodec_send_packet(dec->codec_ctx, in_packet) < 0) {
+        return 1;
+    }
+
+    // Some input data was put in succesfully, so try again to get frames.
+    dec_read_audio(dec);
     return 0;
 }
 #endif
