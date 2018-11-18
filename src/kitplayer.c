@@ -91,7 +91,7 @@ static int _RunDecoder(Kit_Player *player) {
             Kit_Decoder *dec = player->decoders[i];
             if(dec == NULL)
                 continue;
-            if(!Kit_CanWriteDecoderInput(dec)) {
+            if(!Kit_CanWriteDecoderInput(dec) || got == 1) {
                 has_room = false;
                 break;
             }
