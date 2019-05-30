@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
 
     // Create an accelerated renderer. Enable vsync, so we don't need to play around with SDL_Delay.
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
-    if(window == NULL) {
+    if(renderer == NULL) {
         fprintf(stderr, "Unable to create a renderer!\n");
         return 1;
     }
