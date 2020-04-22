@@ -61,13 +61,13 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-xenial-7
+            - llvm-toolchain-xenial-9
             - sourceline: 'deb https://apt.kitware.com/ubuntu/ xenial main'
               key_url: 'https://apt.kitware.com/keys/kitware-archive-latest.asc'
             - sourceline: 'ppa:jonathonf/ffmpeg-4'
             - sourceline: 'ppa:litenstein/sdl2-xenial'
           packages:
-            - clang-7
+            - clang-9
             - cmake
             - cmake-data
             - libass-dev
@@ -78,19 +78,19 @@ matrix:
             - libavutil-dev
             - libsdl2-dev
       env:
-        - MATRIX_EVAL="CC=clang-7"
+        - MATRIX_EVAL="CC=clang-9"
     - os: linux
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-xenial-8
+            - llvm-toolchain-xenial-10
             - sourceline: 'deb https://apt.kitware.com/ubuntu/ xenial main'
               key_url: 'https://apt.kitware.com/keys/kitware-archive-latest.asc'
             - sourceline: 'ppa:jonathonf/ffmpeg-4'
             - sourceline: 'ppa:litenstein/sdl2-xenial'
           packages:
-            - clang-8
+            - clang-10
             - cmake
             - cmake-data
             - libass-dev
@@ -101,7 +101,7 @@ matrix:
             - libavutil-dev
             - libsdl2-dev
       env:
-        - MATRIX_EVAL="CC=clang-8"
+        - MATRIX_EVAL="CC=clang-10"
 
 before_install:
     - eval "${MATRIX_EVAL}"
