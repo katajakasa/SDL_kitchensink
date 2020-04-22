@@ -26,9 +26,6 @@ option(USE_ASAN "Use AddressSanitizer" OFF)
 find_package(SDL2 REQUIRED)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
 
-# Strip whitespace, this fixes compilation issues on travis with newer cmakes
-string(STRIP ${SDL2_LIBRARIES} SDL2_LIBRARIES)
-
 set(LIBRARIES
     ${SDL2_LIBRARIES}
     ${FFMPEG_LIBRARIES}
