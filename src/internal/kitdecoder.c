@@ -170,6 +170,13 @@ int Kit_RunDecoder(Kit_Decoder *dec) {
     return 0;
 }
 
+void Kit_ClearDecoderBuffers(Kit_Decoder *dec) {
+    if(dec == NULL) return;
+    Kit_ClearDecoderInput(dec);
+    Kit_ClearDecoderOutput(dec);
+    avcodec_flush_buffers(dec->codec_ctx);
+}
+
 // ---- Information API ----
 
 int Kit_GetDecoderCodecInfo(const Kit_Decoder *dec, Kit_Codec *codec) {
@@ -214,38 +221,38 @@ void Kit_ChangeDecoderClockSync(Kit_Decoder *dec, double sync) {
 
 // ---- Input buffer handling ----
 
-int Kit_WriteDecoderInput(Kit_Decoder *dec, AVPacket *packet) {
+int Kit_WriteDecoderInput(const Kit_Decoder *dec, AVPacket *packet) {
     assert(dec != NULL);
     return Kit_WriteBuffer(dec->buffer[KIT_DEC_BUF_IN], packet);
 }
 
-bool Kit_CanWriteDecoderInput(Kit_Decoder *dec) {
+bool Kit_CanWriteDecoderInput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     return !Kit_IsBufferFull(dec->buffer[KIT_DEC_BUF_IN]);
 }
 
-AVPacket* Kit_ReadDecoderInput(Kit_Decoder *dec) {
+AVPacket* Kit_ReadDecoderInput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     return Kit_ReadBuffer(dec->buffer[KIT_DEC_BUF_IN]);
 }
 
-AVPacket* Kit_PeekDecoderInput(Kit_Decoder *dec) {
+AVPacket* Kit_PeekDecoderInput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     return Kit_PeekBuffer(dec->buffer[KIT_DEC_BUF_IN]);
 }
 
-void Kit_AdvanceDecoderInput(Kit_Decoder *dec) {
+void Kit_AdvanceDecoderInput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     Kit_AdvanceBuffer(dec->buffer[KIT_DEC_BUF_IN]);
 }
 
-void Kit_ClearDecoderInput(Kit_Decoder *dec) {
+void Kit_ClearDecoderInput(const Kit_Decoder *dec) {
     Kit_ClearBuffer(dec->buffer[KIT_DEC_BUF_IN]);
 }
 
 // ---- Output buffer handling ----
 
-int Kit_WriteDecoderOutput(Kit_Decoder *dec, void *packet) {
+int Kit_WriteDecoderOutput(const Kit_Decoder *dec, void *packet) {
     assert(dec != NULL);
     int ret = 1;
     if(SDL_LockMutex(dec->output_lock) == 0) {
@@ -255,14 +262,14 @@ int Kit_WriteDecoderOutput(Kit_Decoder *dec, void *packet) {
     return ret;
 }
 
-void Kit_ClearDecoderOutput(Kit_Decoder *dec) {
+void Kit_ClearDecoderOutput(const Kit_Decoder *dec) {
     if(SDL_LockMutex(dec->output_lock) == 0) {
         Kit_ClearBuffer(dec->buffer[KIT_DEC_BUF_OUT]);
         SDL_UnlockMutex(dec->output_lock);
     }
 }
 
-void* Kit_PeekDecoderOutput(Kit_Decoder *dec) {
+void* Kit_PeekDecoderOutput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     void *ret = NULL;
     if(SDL_LockMutex(dec->output_lock) == 0) {
@@ -272,7 +279,7 @@ void* Kit_PeekDecoderOutput(Kit_Decoder *dec) {
     return ret;
 }
 
-void* Kit_ReadDecoderOutput(Kit_Decoder *dec) {
+void* Kit_ReadDecoderOutput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     void *ret = NULL;
     if(SDL_LockMutex(dec->output_lock) == 0) {
@@ -282,7 +289,7 @@ void* Kit_ReadDecoderOutput(Kit_Decoder *dec) {
     return ret;
 }
 
-bool Kit_CanWriteDecoderOutput(Kit_Decoder *dec) {
+bool Kit_CanWriteDecoderOutput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     bool ret = false;
     if(SDL_LockMutex(dec->output_lock) == 0) {
@@ -292,7 +299,7 @@ bool Kit_CanWriteDecoderOutput(Kit_Decoder *dec) {
     return ret;
 }
 
-void Kit_ForEachDecoderOutput(Kit_Decoder *dec, Kit_ForEachItemCallback cb, void *userdata) {
+void Kit_ForEachDecoderOutput(const Kit_Decoder *dec, Kit_ForEachItemCallback cb, void *userdata) {
     assert(dec != NULL);
     if(SDL_LockMutex(dec->output_lock) == 0) {
         Kit_ForEachItemInBuffer(dec->buffer[KIT_DEC_BUF_OUT], cb, userdata);
@@ -300,7 +307,7 @@ void Kit_ForEachDecoderOutput(Kit_Decoder *dec, Kit_ForEachItemCallback cb, void
     }
 }
 
-void Kit_AdvanceDecoderOutput(Kit_Decoder *dec) {
+void Kit_AdvanceDecoderOutput(const Kit_Decoder *dec) {
     assert(dec != NULL);
     if(SDL_LockMutex(dec->output_lock) == 0) {
         Kit_AdvanceBuffer(dec->buffer[KIT_DEC_BUF_OUT]);
@@ -308,7 +315,7 @@ void Kit_AdvanceDecoderOutput(Kit_Decoder *dec) {
     }
 }
 
-unsigned int Kit_GetDecoderOutputLength(Kit_Decoder *dec) {
+unsigned int Kit_GetDecoderOutputLength(const Kit_Decoder *dec) {
     assert(dec != NULL);
     unsigned int len = 0;
     if(SDL_LockMutex(dec->output_lock) == 0) {
@@ -316,13 +323,6 @@ unsigned int Kit_GetDecoderOutputLength(Kit_Decoder *dec) {
         SDL_UnlockMutex(dec->output_lock);
     }
     return len;
-}
-
-void Kit_ClearDecoderBuffers(Kit_Decoder *dec) {
-    if(dec == NULL) return;
-    Kit_ClearDecoderInput(dec);
-    Kit_ClearDecoderOutput(dec);
-    avcodec_flush_buffers(dec->codec_ctx);
 }
 
 int Kit_LockDecoderOutput(Kit_Decoder *dec) {

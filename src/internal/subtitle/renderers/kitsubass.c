@@ -137,7 +137,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     assert(screen_h >= 0);
 
     // Make sure that libass library has been initialized + get handle
-    Kit_LibraryState *state = Kit_GetLibraryState();
+    const Kit_LibraryState *state = Kit_GetLibraryState();
     if(state->libass_handle == NULL) {
         Kit_SetError("Libass library has not been initialized");
         return NULL;

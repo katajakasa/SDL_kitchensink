@@ -170,13 +170,13 @@ int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_SourceStreamInfo *info, i
     assert(src != NULL);
     assert(info != NULL);
 
-    AVFormatContext *format_ctx = (AVFormatContext *)src->format_ctx;
+    const AVFormatContext *format_ctx = (AVFormatContext *)src->format_ctx;
     if(index < 0 || index >= format_ctx->nb_streams) {
         Kit_SetError("Invalid stream index");
         return 1;
     }
 
-    AVStream *stream = format_ctx->streams[index];
+    const AVStream *stream = format_ctx->streams[index];
     enum AVMediaType codec_type;
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
     codec_type = stream->codec->codec_type;

@@ -232,7 +232,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         return NULL;
     }
 
-    Kit_LibraryState *state = Kit_GetLibraryState();
+    const Kit_LibraryState *state = Kit_GetLibraryState();
 
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(

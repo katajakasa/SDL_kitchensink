@@ -71,9 +71,10 @@ static bool _IsOutputEmpty(const Kit_Player *player) {
     return true;
 }
 
-static int _RunDecoder(Kit_Player *player) {
+static int _RunDecoder(const Kit_Player *player) {
     int got;
     bool has_room = true;
+    const Kit_Decoder *dec = NULL;
 
     do {
         while((got = _DemuxStream(player)) == -1);
@@ -88,7 +89,7 @@ static int _RunDecoder(Kit_Player *player) {
         // If there is no room in any decoder input, just stop here since it likely means that
         // at least some decoder output is full.
         for(int i = 0; i < KIT_DEC_COUNT; i++) {
-            Kit_Decoder *dec = player->decoders[i];
+            dec = player->decoders[i];
             if(dec == NULL)
                 continue;
             if(!Kit_CanWriteDecoderInput(dec) || got == 1) {
@@ -101,42 +102,38 @@ static int _RunDecoder(Kit_Player *player) {
     return 0;
 }
 
-static int _DecoderThread(void *ptr) {
-    Kit_Player *player = ptr;
-    bool is_running = true;
-    bool is_playing = true;
-
-    while(is_running) {
-        if(player->state == KIT_CLOSED) {
-            is_running = false;
-            continue;
-        }
-        if(player->state == KIT_PLAYING) {
-            is_playing = true;
-        }
-        while(is_running && is_playing) {
-            // Grab the decoder lock, and run demuxer & decoders for a bit.
-            if(SDL_LockMutex(player->dec_lock) == 0) {
-                if(player->state == KIT_CLOSED) {
-                    is_running = false;
-                    goto end_block;
-                }
-                if(player->state == KIT_STOPPED) {
-                    is_playing = false;
-                    goto end_block;
-                }
-                if(_RunDecoder(player) == 1) {
-                    player->state = KIT_STOPPED;
-                    goto end_block;
-                }
-
-end_block:
-                SDL_UnlockMutex(player->dec_lock);
+static void _TryWork(Kit_Player *player) {
+    /**
+     * \brief Run the decoders and demuxer as long as there is work. Returns when playback stops.
+     */
+    while(player->state == KIT_PLAYING || player->state == KIT_PAUSED) {
+        // Grab the decoder lock, and run demuxer & decoders for a bit.
+        if(SDL_LockMutex(player->dec_lock) == 0) {
+            if(_RunDecoder(player) == 1) {
+                player->state = KIT_STOPPED;
             }
-
-            // Delay to make sure this thread does not hog all cpu
-            SDL_Delay(2);
+            SDL_UnlockMutex(player->dec_lock);
         }
+
+        // Delay to make sure this thread does not hog all cpu
+        SDL_Delay(2);
+    }
+}
+
+static int _DecoderThread(void *ptr) {
+    /**
+     * \brief Decoder thread main, which runs as long as the player exists.
+     */
+    Kit_Player *player = ptr;
+
+    while(true) {
+        if(player->state == KIT_CLOSED) {
+            break;
+        }
+        
+        // This will block as long as there is something to demux/decode
+        // Returns when playback stops.
+        _TryWork(player);
 
         // Just idle while waiting for work.
         SDL_Delay(25);
@@ -334,24 +331,24 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     assert(player != NULL);
     assert(info != NULL);
+    const Kit_Decoder *dec = NULL;
+    Kit_PlayerStreamInfo *streams[] = {&info->video, &info->audio, &info->subtitle};
 
-    void *streams[] = {&info->video, &info->audio, &info->subtitle};
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_Decoder *dec = player->decoders[i];
-        Kit_PlayerStreamInfo *stream = streams[i];
-        Kit_GetDecoderCodecInfo(dec, &stream->codec);
-        Kit_GetDecoderOutputFormat(dec, &stream->output);
+        dec = player->decoders[i];
+        Kit_GetDecoderCodecInfo(dec, &streams[i]->codec);
+        Kit_GetDecoderOutputFormat(dec, &streams[i]->output);
     }
 }
 
-static void _SetClockSync(Kit_Player *player) {
+static void _SetClockSync(const Kit_Player *player) {
     double sync = _GetSystemTime();
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
         Kit_SetDecoderClockSync(player->decoders[i], sync);
     }
 }
 
-static void _ChangeClockSync(Kit_Player *player, double delta) {
+static void _ChangeClockSync(const Kit_Player *player, double delta) {
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
         Kit_ChangeDecoderClockSync(player->decoders[i], delta);
     }

@@ -106,7 +106,7 @@ void Kit_SetHint(Kit_HintType type, int value) {
 }
 
 int Kit_GetHint(Kit_HintType type) {
-    Kit_LibraryState *state = Kit_GetLibraryState();
+    const Kit_LibraryState *state = Kit_GetLibraryState();
     switch(type) {
         case KIT_HINT_THREAD_COUNT:
             return state->thread_count;
