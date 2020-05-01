@@ -90,7 +90,7 @@ supported on all OSes (eg. windows).
 
 After building, you can run with the following (make sure to set correct llvm-symbolizer path):
 ```
-ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./examplevideo <my videofile>
+ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./complex <my videofile>
 ```
 
 ## 3. Why the name SDL_kitchensink

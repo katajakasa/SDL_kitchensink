@@ -41,6 +41,10 @@ else()
     message(STATUS "NOT building static libraries")
 endif()
 
+if(USE_ASAN)
+    message(STATUS "DEVELOPMENT: AddressSanitizer enabled!")
+endif()
+
 find_package(SDL2 REQUIRED)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
 
@@ -73,15 +77,16 @@ FILE(GLOB INSTALL_HEADERS "include/kitchensink/*.h")
 
 include_directories(${INCLUDES})
 
-if(USE_ASAN)
-    set(LIBRARIES asan ${LIBRARIES})
-    message(STATUS "DEVELOPMENT: AddressSanitizer enabled!")
-endif()
-
 set(INSTALL_TARGETS "")
 
 if(BUILD_SHARED)
     add_library(SDL_kitchensink SHARED ${SOURCES})
+
+    if(USE_ASAN)
+        target_compile_options(SDL_kitchensink PRIVATE "-fsanitize=address")
+        target_link_libraries(SDL_kitchensink asan)
+    endif()
+
     target_link_libraries(SDL_kitchensink ${LIBRARIES})
 
     set_target_properties(SDL_kitchensink PROPERTIES VERSION ${KIT_VERSION})
@@ -93,21 +98,18 @@ if(BUILD_SHARED)
 
     set_property(TARGET SDL_kitchensink PROPERTY C_STANDARD 99)
 
-    if(USE_ASAN)
-        target_compile_options(SDL_kitchensink PRIVATE "-fsanitize=address")
-    endif()
-
     set(INSTALL_TARGETS SDL_kitchensink ${INSTALL_TARGETS})
 endif()
 
 if(BUILD_STATIC)
     add_library(SDL_kitchensink_static STATIC ${SOURCES})
-    set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
-    set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
 
     if(USE_ASAN)
         target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=address")
     endif()
+
+    set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
+    set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
 
     set(INSTALL_TARGETS SDL_kitchensink_static ${INSTALL_TARGETS})
 endif()
@@ -140,19 +142,22 @@ if(BUILD_EXAMPLES)
     set_property(TARGET custom PROPERTY C_STANDARD 99)
     set_property(TARGET rwops PROPERTY C_STANDARD 99)
 
+    # If we are building static, just link all libraries (ffmpeg, sdl, etc.)
+    # If building shared, link shared kitchensink + SDL2 (ffmpeg gets pulled by kitchensink)
     if(BUILD_STATIC)
-        target_link_libraries(audio SDL_kitchensink_static ${LIBRARIES})
-        target_link_libraries(complex SDL_kitchensink_static ${LIBRARIES})
-        target_link_libraries(simple SDL_kitchensink_static ${LIBRARIES})
-        target_link_libraries(custom SDL_kitchensink_static ${LIBRARIES})
-        target_link_libraries(rwops SDL_kitchensink_static ${LIBRARIES})
+        set(EXAMPLE_LIBRARIES SDL_kitchensink_static ${LIBRARIES})
     else()
-        target_link_libraries(audio SDL_kitchensink ${SDL2_LIBRARIES})
-        target_link_libraries(complex SDL_kitchensink ${SDL2_LIBRARIES})
-        target_link_libraries(simple SDL_kitchensink ${SDL2_LIBRARIES})
-        target_link_libraries(custom SDL_kitchensink ${SDL2_LIBRARIES})
-        target_link_libraries(rwops SDL_kitchensink ${SDL2_LIBRARIES})
+        set(EXAMPLE_LIBRARIES SDL_kitchensink ${SDL2_LIBRARIES})
     endif()
+    if(USE_ASAN)
+        set(EXAMPLE_LIBRARIES asan ${EXAMPLE_LIBRARIES})
+    endif()
+
+    target_link_libraries(audio ${EXAMPLE_LIBRARIES})
+    target_link_libraries(complex ${EXAMPLE_LIBRARIES})
+    target_link_libraries(simple ${EXAMPLE_LIBRARIES})
+    target_link_libraries(custom ${EXAMPLE_LIBRARIES})
+    target_link_libraries(rwops ${EXAMPLE_LIBRARIES})
 
     if(USE_ASAN)
         target_compile_options(audio PRIVATE "-fsanitize=address")
