@@ -52,6 +52,8 @@ pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ## 2. Compiling
 
 By default, both static and dynamic libraries are built.
+* Set BUILD_STATIC off if you don't want to build static library
+* Set BUILD_SHARED off if you don't want to build shared library
 * Dynamic library is called libSDL_kitchensink.dll or .so
 * Static library is called libSDL_kitchensink_static.a
 * If you build in debug mode (```-DCMAKE_BUILD_TYPE=Debug```), libraries will be postfixed with 'd'.
