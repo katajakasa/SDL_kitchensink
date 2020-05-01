@@ -211,6 +211,20 @@ KIT_API void Kit_CloseSource(Kit_Source *src);
  */
 KIT_API int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_SourceStreamInfo *info, int index);
 
+
+/**
+ * @brief Makes a list of stream indexes with requested type
+ * 
+ * This can be used to get all stream indexes of certain type, eg. all subtitle streams.
+ * 
+ * @param src Source to query from
+ * @param type Stream type to search
+ * @param list Integer list to insert into
+ * @param size Maximum size of the list
+ * @return Number of elements found 
+ */
+KIT_API int Kit_GetSourceStreamList(const Kit_Source *src, const Kit_StreamType type, int *list, int size);
+
 /**
  * @brief Gets the amount of streams in source
  * 
