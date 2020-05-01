@@ -6,6 +6,6 @@
 #include "kitchensink/kitconfig.h"
 
 KIT_LOCAL double _GetSystemTime();
-KIT_LOCAL bool attachment_is_font(AVStream *stream);
+KIT_LOCAL bool attachment_is_font(const AVStream *stream);
 
 #endif // KITHELPERS_H

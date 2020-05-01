@@ -95,7 +95,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         return NULL;
     }
 
-    Kit_LibraryState *state = Kit_GetLibraryState();
+    const Kit_LibraryState *state = Kit_GetLibraryState();
 
     // First the generic decoder component
     Kit_Decoder *dec = Kit_CreateDecoder(
@@ -173,7 +173,7 @@ exit_0:
 
 void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int screen_w, int screen_h) {
     assert(dec != NULL);
-    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
@@ -181,11 +181,11 @@ void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture, doubl
     assert(dec != NULL);
     assert(texture != NULL);
 
-    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
 }
 
 int Kit_GetSubtitleDecoderInfo(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
-    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     return Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
 }

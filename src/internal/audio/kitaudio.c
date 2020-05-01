@@ -278,7 +278,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
         return NULL;
     }
 
-    Kit_LibraryState *state = Kit_GetLibraryState();
+    const Kit_LibraryState *state = Kit_GetLibraryState();
 
     // First the generic decoder component ...
     Kit_Decoder *dec = Kit_CreateDecoder(
@@ -347,7 +347,7 @@ exit_0:
 }
 
 double Kit_GetAudioDecoderPTS(Kit_Decoder *dec) {
-    Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
+    const Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return -1.0;
     }

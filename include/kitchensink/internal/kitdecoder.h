@@ -57,23 +57,23 @@ KIT_LOCAL void Kit_ChangeDecoderClockSync(Kit_Decoder *dec, double sync);
 KIT_LOCAL int Kit_RunDecoder(Kit_Decoder *dec);
 KIT_LOCAL void Kit_ClearDecoderBuffers(Kit_Decoder *dec);
 
-KIT_LOCAL bool Kit_CanWriteDecoderInput(Kit_Decoder *dec);
-KIT_LOCAL int Kit_WriteDecoderInput(Kit_Decoder *dec, AVPacket *packet);
-KIT_LOCAL AVPacket* Kit_ReadDecoderInput(Kit_Decoder *dec);
-KIT_LOCAL void Kit_ClearDecoderInput(Kit_Decoder *dec);
-KIT_LOCAL AVPacket* Kit_PeekDecoderInput(Kit_Decoder *dec);
-KIT_LOCAL void Kit_AdvanceDecoderInput(Kit_Decoder *dec);
+KIT_LOCAL bool Kit_CanWriteDecoderInput(const Kit_Decoder *dec);
+KIT_LOCAL int Kit_WriteDecoderInput(const Kit_Decoder *dec, AVPacket *packet);
+KIT_LOCAL AVPacket* Kit_ReadDecoderInput(const Kit_Decoder *dec);
+KIT_LOCAL void Kit_ClearDecoderInput(const Kit_Decoder *dec);
+KIT_LOCAL AVPacket* Kit_PeekDecoderInput(const Kit_Decoder *dec);
+KIT_LOCAL void Kit_AdvanceDecoderInput(const Kit_Decoder *dec);
 
-KIT_LOCAL int Kit_WriteDecoderOutput(Kit_Decoder *dec, void *packet);
-KIT_LOCAL bool Kit_CanWriteDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL void* Kit_PeekDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL void* Kit_ReadDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL void Kit_AdvanceDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL void Kit_ForEachDecoderOutput(Kit_Decoder *dec, Kit_ForEachItemCallback foreach_cb, void *userdata);
+KIT_LOCAL int Kit_WriteDecoderOutput(const Kit_Decoder *dec, void *packet);
+KIT_LOCAL bool Kit_CanWriteDecoderOutput(const Kit_Decoder *dec);
+KIT_LOCAL void* Kit_PeekDecoderOutput(const Kit_Decoder *dec);
+KIT_LOCAL void* Kit_ReadDecoderOutput(const Kit_Decoder *dec);
+KIT_LOCAL void Kit_ClearDecoderOutput(const Kit_Decoder *dec);
+KIT_LOCAL void Kit_AdvanceDecoderOutput(const Kit_Decoder *dec);
+KIT_LOCAL void Kit_ForEachDecoderOutput(const Kit_Decoder *dec, Kit_ForEachItemCallback foreach_cb, void *userdata);
+KIT_LOCAL unsigned int Kit_GetDecoderOutputLength(const Kit_Decoder *dec);
+
 KIT_LOCAL int Kit_LockDecoderOutput(Kit_Decoder *dec);
 KIT_LOCAL void Kit_UnlockDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL void Kit_ClearDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL unsigned int Kit_GetDecoderOutputLength(Kit_Decoder *dec);
-
 
 #endif // KITDECODER_H

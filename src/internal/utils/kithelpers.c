@@ -17,8 +17,8 @@ double _GetSystemTime() {
     return (double)av_gettime() / 1000000.0;
 }
 
-bool attachment_is_font(AVStream *stream) {
-    AVDictionaryEntry *tag = av_dict_get(stream->metadata, "mimetype", NULL, AV_DICT_MATCH_CASE);
+bool attachment_is_font(const AVStream *stream) {
+    const AVDictionaryEntry *tag = av_dict_get(stream->metadata, "mimetype", NULL, AV_DICT_MATCH_CASE);
     if(tag) {
         for(int n = 0; font_mime[n]; n++) {
             if(av_strcasecmp(font_mime[n], tag->value) == 0) {
