@@ -17,12 +17,12 @@ typedef struct Kit_ASSSubtitleRenderer {
     ASS_Track *track;
 } Kit_ASSSubtitleRenderer;
 
-static void Kit_ProcessAssImage(SDL_Surface *surface, const ASS_Image *img) {
+static void Kit_ProcessAssImage(const SDL_Surface *surface, const ASS_Image *img) {
     unsigned char r = ((img->color) >> 24) & 0xFF;
     unsigned char g = ((img->color) >> 16) & 0xFF;
     unsigned char b = ((img->color) >>  8) & 0xFF;
     unsigned char a = 0xFF - ((img->color) & 0xFF);
-    unsigned char *src = img->bitmap;
+    const unsigned char *src = img->bitmap;
     unsigned char *dst = surface->pixels;
     unsigned int x;
     unsigned int y;
@@ -45,8 +45,8 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double pts, 
     assert(ren != NULL);
     assert(src != NULL);
 
-    Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
-    AVSubtitle *sub = src;
+    const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+    const AVSubtitle *sub = src;
 
     // Read incoming subtitle packets to libASS
     long long start_ms = (start + pts) * 1000;
@@ -84,9 +84,9 @@ static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
 }
 
 static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
-    Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+    const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
     SDL_Surface *dst = NULL;
-    ASS_Image *src = NULL;
+    const ASS_Image *src = NULL;
     int change = 0;
     long long now = current_pts * 1000;
 
@@ -125,7 +125,7 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
 }
 
 static void ren_set_ass_size_cb(Kit_SubtitleRenderer *ren, int w, int h) {
-    Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+    const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
     ass_set_frame_size(ass_ren->renderer, w, h);
 }
 
@@ -146,30 +146,31 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     // First allocate the generic decoder component
     Kit_SubtitleRenderer *ren = Kit_CreateSubtitleRenderer(dec);
     if(ren == NULL) {
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // Next, allocate ASS subtitle renderer context.
     Kit_ASSSubtitleRenderer *ass_ren = calloc(1, sizeof(Kit_ASSSubtitleRenderer));
     if(ass_ren == NULL) {
         Kit_SetError("Unable to allocate ass subtitle renderer");
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Initialize libass renderer
     ASS_Renderer *ass_renderer = ass_renderer_init(state->libass_handle);
     if(ass_renderer == NULL) {
         Kit_SetError("Unable to initialize libass renderer");
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Read fonts from attachment streams and give them to libass
+    const AVStream *st = NULL;
     for(int j = 0; j < dec->format_ctx->nb_streams; j++) {
-        AVStream *st = dec->format_ctx->streams[j];
+        st = dec->format_ctx->streams[j];
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
         AVCodecContext *codec = st->codec;
 #else
-        AVCodecParameters *codec = st->codecpar;
+        const AVCodecParameters *codec = st->codecpar;
 #endif
         if(codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
             const AVDictionaryEntry *tag = av_dict_get(
@@ -201,7 +202,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     ASS_Track *ass_track = ass_new_track(state->libass_handle);
     if(ass_track == NULL) {
         Kit_SetError("Unable to initialize libass track");
-        goto exit_3;
+        goto EXIT_3;
     }
 
     // Set up libass track headers (ffmpeg provides these)
@@ -222,12 +223,12 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     ren->userdata = ass_ren;
     return ren;
 
-exit_3:
+EXIT_3:
     ass_renderer_done(ass_renderer);
-exit_2:
+EXIT_2:
     free(ass_ren);
-exit_1:
+EXIT_1:
     Kit_CloseSubtitleRenderer(ren);
-exit_0:
+EXIT_0:
     return NULL;
 }

@@ -45,7 +45,7 @@ int Kit_Init(unsigned int flags) {
 
     if(state->init_flags != 0) {
         Kit_SetError("SDL_kitchensink is already initialized");
-        goto exit_0;
+        goto EXIT_0;
     }
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
@@ -58,17 +58,17 @@ int Kit_Init(unsigned int flags) {
     if(flags & KIT_INIT_ASS) {
         if(Kit_InitASS(state) != 0) {
             Kit_SetError("Failed to initialize libass");
-            goto exit_1;
+            goto EXIT_1;
         }
     }
 
     state->init_flags = flags;
     return 0;
 
-exit_1:
+EXIT_1:
     avformat_network_deinit();
 
-exit_0:
+EXIT_0:
     return 1;
 }
 

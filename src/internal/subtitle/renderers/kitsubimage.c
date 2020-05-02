@@ -21,7 +21,7 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
     assert(ren != NULL);
     assert(sub_src != NULL);
 
-    AVSubtitle *sub = sub_src;
+    const AVSubtitle *sub = sub_src;
     SDL_Surface *dst = NULL;
     SDL_Surface *src = NULL;
     double start_pts = pts + start;
@@ -35,8 +35,9 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
     }
 
     // Convert subtitle images from paletted to RGBA8888
+    const AVSubtitleRect *r = NULL;
     for(int n = 0; n < sub->num_rects; n++) {
-        AVSubtitleRect *r = sub->rects[n];
+        r = sub->rects[n];
         if(r->type != SUBTITLE_BITMAP)
             continue;
 
@@ -60,7 +61,7 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *ren, void *sub_src, double
 }
 
 static int ren_get_img_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
-    Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
+    const Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
     Kit_SubtitlePacket *packet = NULL;
 
     Kit_CheckAtlasTextureSize(atlas, texture);
@@ -117,14 +118,14 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
     // Allocate a new renderer
     Kit_SubtitleRenderer *ren = Kit_CreateSubtitleRenderer(dec);
     if(ren == NULL) {
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // Allocate image renderer internal context
     Kit_ImageSubtitleRenderer *img_ren = calloc(1, sizeof(Kit_ImageSubtitleRenderer));
     if(img_ren == NULL) {
         Kit_SetError("Unable to allocate image subtitle renderer");
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Only renderer required, no other data.
@@ -139,8 +140,8 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
     ren->userdata = img_ren;
     return ren;
 
-exit_1:
+EXIT_1:
     Kit_CloseSubtitleRenderer(ren);
-exit_0:
+EXIT_0:
     return NULL;
 }

@@ -182,8 +182,8 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     return 0;
 }
 #else
-static void dec_read_audio(Kit_Decoder *dec) {
-    Kit_AudioDecoder *audio_dec = dec->userdata;
+static void dec_read_audio(const Kit_Decoder *dec) {
+    const Kit_AudioDecoder *audio_dec = dec->userdata;
     int len;
     int dst_linesize;
     int dst_nb_samples;
@@ -288,20 +288,20 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
         free_out_audio_packet_cb,
         state->thread_count);
     if(dec == NULL) {
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // ... then allocate the audio decoder
     Kit_AudioDecoder *audio_dec = calloc(1, sizeof(Kit_AudioDecoder));
     if(audio_dec == NULL) {
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Create temporary audio frame
     audio_dec->scratch_frame = av_frame_alloc();
     if(audio_dec->scratch_frame == NULL) {
         Kit_SetError("Unable to initialize temporary audio frame");
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Set format configs
@@ -326,7 +326,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
 
     if(swr_init(audio_dec->swr) != 0) {
         Kit_SetError("Unable to initialize audio resampler context");
-        goto exit_3;
+        goto EXIT_3;
     }
 
     // Set callbacks and userdata, and we're go
@@ -336,17 +336,17 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     dec->output = output;
     return dec;
 
-exit_3:
+EXIT_3:
     av_frame_free(&audio_dec->scratch_frame);
-exit_2:
+EXIT_2:
     free(audio_dec);
-exit_1:
+EXIT_1:
     Kit_CloseDecoder(dec);
-exit_0:
+EXIT_0:
     return NULL;
 }
 
-double Kit_GetAudioDecoderPTS(Kit_Decoder *dec) {
+double Kit_GetAudioDecoderPTS(const Kit_Decoder *dec) {
     const Kit_AudioPacket *packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return -1.0;

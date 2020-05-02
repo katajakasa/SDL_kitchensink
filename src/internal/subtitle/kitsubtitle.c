@@ -106,14 +106,14 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         state->thread_count);
     if(dec == NULL) {
         Kit_SetError("Unable to allocate subtitle decoder");
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // ... then allocate the subtitle decoder
     Kit_SubtitleDecoder *subtitle_dec = calloc(1, sizeof(Kit_SubtitleDecoder));
     if(subtitle_dec == NULL) {
         Kit_SetError("Unable to allocate subtitle decoder");
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Set format. Note that is_enabled may be changed below ...
@@ -144,14 +144,14 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
             break;
     }
     if(subtitle_dec->renderer == NULL) {
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Allocate texture atlas for subtitle rectangles
     subtitle_dec->atlas = Kit_CreateAtlas();
     if(subtitle_dec->atlas == NULL) {
         Kit_SetError("Unable to allocate subtitle texture atlas");
-        goto exit_3;
+        goto EXIT_3;
     }
 
     // Set callbacks and userdata, and we're go
@@ -161,23 +161,23 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
     dec->output = output;
     return dec;
 
-exit_3:
+EXIT_3:
     Kit_CloseSubtitleRenderer(subtitle_dec->renderer);
-exit_2:
+EXIT_2:
     free(subtitle_dec);
-exit_1:
+EXIT_1:
     Kit_CloseDecoder(dec);
-exit_0:
+EXIT_0:
     return NULL;
 }
 
-void Kit_SetSubtitleDecoderSize(Kit_Decoder *dec, int screen_w, int screen_h) {
+void Kit_SetSubtitleDecoderSize(const Kit_Decoder *dec, int screen_w, int screen_h) {
     assert(dec != NULL);
     const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
-void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture, double sync_ts) {
+void Kit_GetSubtitleDecoderTexture(const Kit_Decoder *dec, SDL_Texture *texture, double sync_ts) {
     assert(dec != NULL);
     assert(texture != NULL);
 
@@ -185,7 +185,7 @@ void Kit_GetSubtitleDecoderTexture(Kit_Decoder *dec, SDL_Texture *texture, doubl
     Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
 }
 
-int Kit_GetSubtitleDecoderInfo(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetSubtitleDecoderInfo(const Kit_Decoder *dec, const SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
     const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     return Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
 }

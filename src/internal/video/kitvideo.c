@@ -154,8 +154,8 @@ static int dec_decode_video_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     return 0;
 }
 #else
-static void dec_read_video(Kit_Decoder *dec) {
-    Kit_VideoDecoder *video_dec = dec->userdata;
+static void dec_read_video(const Kit_Decoder *dec) {
+    const Kit_VideoDecoder *video_dec = dec->userdata;
     AVFrame *out_frame = NULL;
     Kit_VideoPacket *out_packet = NULL;
     double pts;
@@ -242,20 +242,20 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         free_out_video_packet_cb,
         state->thread_count);
     if(dec == NULL) {
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // ... then allocate the video decoder
     Kit_VideoDecoder *video_dec = calloc(1, sizeof(Kit_VideoDecoder));
     if(video_dec == NULL) {
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Create temporary video frame
     video_dec->scratch_frame = av_frame_alloc();
     if(video_dec->scratch_frame == NULL) {
         Kit_SetError("Unable to initialize temporary video frame");
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Find best output format for us
@@ -281,7 +281,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         NULL, NULL, NULL);
     if(video_dec->sws == NULL) {
         Kit_SetError("Unable to initialize video converter context");
-        goto exit_3;
+        goto EXIT_3;
     }
 
     // Set callbacks and userdata, and we're go
@@ -291,13 +291,13 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     dec->output = output;
     return dec;
 
-exit_3:
+EXIT_3:
     av_frame_free(&video_dec->scratch_frame);
-exit_2:
+EXIT_2:
     free(video_dec);
-exit_1:
+EXIT_1:
     Kit_CloseDecoder(dec);
-exit_0:
+EXIT_0:
     return NULL;
 }
 

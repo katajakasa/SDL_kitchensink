@@ -55,7 +55,7 @@ KIT_LOCAL void Kit_SetDecoderClockSync(Kit_Decoder *dec, double sync);
 KIT_LOCAL void Kit_ChangeDecoderClockSync(Kit_Decoder *dec, double sync);
 
 KIT_LOCAL int Kit_RunDecoder(Kit_Decoder *dec);
-KIT_LOCAL void Kit_ClearDecoderBuffers(Kit_Decoder *dec);
+KIT_LOCAL void Kit_ClearDecoderBuffers(const Kit_Decoder *dec);
 
 KIT_LOCAL bool Kit_CanWriteDecoderInput(const Kit_Decoder *dec);
 KIT_LOCAL int Kit_WriteDecoderInput(const Kit_Decoder *dec, AVPacket *packet);
@@ -73,7 +73,7 @@ KIT_LOCAL void Kit_AdvanceDecoderOutput(const Kit_Decoder *dec);
 KIT_LOCAL void Kit_ForEachDecoderOutput(const Kit_Decoder *dec, Kit_ForEachItemCallback foreach_cb, void *userdata);
 KIT_LOCAL unsigned int Kit_GetDecoderOutputLength(const Kit_Decoder *dec);
 
-KIT_LOCAL int Kit_LockDecoderOutput(Kit_Decoder *dec);
-KIT_LOCAL void Kit_UnlockDecoderOutput(Kit_Decoder *dec);
+KIT_LOCAL int Kit_LockDecoderOutput(const Kit_Decoder *dec);
+KIT_LOCAL void Kit_UnlockDecoderOutput(const Kit_Decoder *dec);
 
 #endif // KITDECODER_H

@@ -24,12 +24,13 @@ enum DecoderIndex {
 static int _DemuxStream(const Kit_Player *player) {
     assert(player != NULL);
     AVFormatContext *format_ctx = player->src->format_ctx;
+    const Kit_Decoder *dec = NULL;
 
     // If any buffer is full, just stop here for now.
     // Since we don't know what kind of data is going to come out of av_read_frame, we really
     // want to make sure we are prepared for everything :)
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_Decoder *dec = player->decoders[i];
+        dec = player->decoders[i];
         if(dec == NULL)
             continue;
         if(!Kit_CanWriteDecoderInput(dec))
@@ -45,7 +46,7 @@ static int _DemuxStream(const Kit_Player *player) {
 
     // Check if this is a packet we need to handle and pass it on
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_Decoder *dec = player->decoders[i];
+        dec = player->decoders[i];
         if(dec == NULL)
             continue;
         if(dec->stream_index == packet->stream_index) {
@@ -61,8 +62,9 @@ static int _DemuxStream(const Kit_Player *player) {
 }
 
 static bool _IsOutputEmpty(const Kit_Player *player) {
+    const Kit_Decoder *dec = NULL;
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_Decoder *dec = player->decoders[i];
+        dec = player->decoders[i];
         if(dec == NULL)
             continue;
         if(Kit_PeekDecoderOutput(dec))
@@ -154,25 +156,25 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     
     if(video_stream_index < 0 && subtitle_stream_index >= 0) {
         Kit_SetError("Subtitle stream selected without video stream");
-        goto exit_0;
+        goto EXIT_0;
     }
 
     Kit_Player *player = calloc(1, sizeof(Kit_Player));
     if(player == NULL) {
         Kit_SetError("Unable to allocate player");
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // Initialize audio decoder
     player->decoders[KIT_AUDIO_DEC] = Kit_CreateAudioDecoder(src, audio_stream_index);
     if(player->decoders[KIT_AUDIO_DEC] == NULL && audio_stream_index >= 0) {
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Initialize video decoder
     player->decoders[KIT_VIDEO_DEC] = Kit_CreateVideoDecoder(src, video_stream_index);
     if(player->decoders[KIT_VIDEO_DEC] == NULL && video_stream_index >= 0) {
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Initialize subtitle decoder.
@@ -181,35 +183,35 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     player->decoders[KIT_SUBTITLE_DEC] = Kit_CreateSubtitleDecoder(
         src, subtitle_stream_index, output.width, output.height, screen_w, screen_h);
     if(player->decoders[KIT_SUBTITLE_DEC] == NULL && subtitle_stream_index >= 0) {
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Decoder thread lock
     player->dec_lock = SDL_CreateMutex();
     if(player->dec_lock == NULL) {
         Kit_SetError("Unable to create a decoder thread lock mutex: %s", SDL_GetError());
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Decoder thread
     player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
     if(player->dec_thread == NULL) {
         Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
-        goto exit_3;
+        goto EXIT_3;
     }
 
     player->src = src;
     return player;
 
-exit_3:
+EXIT_3:
     SDL_DestroyMutex(player->dec_lock);
-exit_2:
+EXIT_2:
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
         Kit_CloseDecoder(player->decoders[i]);
     }
-exit_1:
+EXIT_1:
     free(player);
-exit_0:
+EXIT_0:
     return NULL;
 }
 

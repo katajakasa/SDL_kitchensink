@@ -13,7 +13,7 @@ static int min(int a, int b) {
 Kit_TextureAtlas* Kit_CreateAtlas() {
     Kit_TextureAtlas *atlas = calloc(1, sizeof(Kit_TextureAtlas));
     if(atlas == NULL) {
-        goto exit_0;
+        goto EXIT_0;
     }
     atlas->cur_items = 0;
     atlas->max_items = 1024;
@@ -24,22 +24,22 @@ Kit_TextureAtlas* Kit_CreateAtlas() {
     // Allocate items. These hold the surfaces that should be in atlas
     atlas->items = calloc(atlas->max_items, sizeof(Kit_TextureAtlasItem));
     if(atlas->items == NULL) {
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Allocate shelves. These describe the used space of the atlas
     atlas->shelves = calloc(atlas->max_shelves, sizeof(Kit_Shelf));
     if(atlas->shelves == NULL) {
-        goto exit_2;
+        goto EXIT_2;
     }
 
     return atlas;
 
-exit_2:
+EXIT_2:
     free(atlas->items);
-exit_1:
+EXIT_1:
     free(atlas);
-exit_0:
+EXIT_0:
     return NULL;
 }
 
@@ -56,7 +56,7 @@ void Kit_FreeAtlas(Kit_TextureAtlas *atlas) {
     free(atlas);
 }
 
-void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, SDL_Surface *surface, int shelf, int slot, int x, int y) {
+void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, const SDL_Surface *surface, int shelf, int slot, int x, int y) {
     assert(item != NULL);
 
     item->cur_shelf = shelf;
@@ -67,7 +67,7 @@ void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, SDL_Surface *surface, int
     item->source.h = surface->h;
 }
 
-int Kit_FindFreeAtlasSlot(Kit_TextureAtlas *atlas, SDL_Surface *surface, Kit_TextureAtlasItem *item) {
+int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surface, Kit_TextureAtlasItem *item) {
     assert(atlas != NULL);
     assert(item != NULL);
 
@@ -145,10 +145,11 @@ void Kit_CheckAtlasTextureSize(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
 int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit) {
     assert(atlas != NULL);
     assert(limit >= 0);
+    const Kit_TextureAtlasItem *item = NULL;
 
     int max_count = min(atlas->cur_items, limit);
     for(int i = 0; i < max_count; i++) {
-        Kit_TextureAtlasItem *item = &atlas->items[i];
+        item = &atlas->items[i];
         if(sources != NULL)
             memcpy(&sources[i], &item->source, sizeof(SDL_Rect));
         if(targets != NULL)

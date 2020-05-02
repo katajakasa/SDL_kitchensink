@@ -21,7 +21,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 
     AVCodecContext *codec_ctx = NULL;
     AVDictionary *codec_opts = NULL;
-    AVCodec *codec = NULL;
+    const AVCodec *codec = NULL;
     AVFormatContext *format_ctx = src->format_ctx;
     int bsizes[2] = {BUFFER_IN_SIZE, out_b_size};
     dec_free_packet_cb free_hooks[2] = {free_in_video_packet_cb, free_out_cb};
@@ -29,14 +29,14 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     // Make sure index seems correct
     if(stream_index >= (int)format_ctx->nb_streams || stream_index < 0) {
         Kit_SetError("Invalid stream %d", stream_index);
-        goto exit_0;
+        goto EXIT_0;
     }
     
     // Allocate decoder and make sure allocation was a success
     Kit_Decoder *dec = calloc(1, sizeof(Kit_Decoder));
     if(dec == NULL) {
         Kit_SetError("Unable to allocate kit decoder for stream %d", stream_index);
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // Find audio decoder
@@ -47,14 +47,14 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 #endif
     if(codec == NULL) {
         Kit_SetError("No suitable decoder found for stream %d", stream_index);
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Allocate a context for the codec
     codec_ctx = avcodec_alloc_context3(codec);
     if(codec_ctx == NULL) {
         Kit_SetError("Unable to allocate codec context for stream %d", stream_index);
-        goto exit_1;
+        goto EXIT_1;
     }
 
     // Copy params
@@ -65,7 +65,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 #endif
     {
         Kit_SetError("Unable to copy codec context for stream %d", stream_index);
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Required by ffmpeg for now when using the new API.
@@ -85,7 +85,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     // Open the stream
     if(avcodec_open2(codec_ctx, codec, &codec_opts) < 0) {
         Kit_SetError("Unable to open codec for stream %d", stream_index);
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Set index and codec
@@ -98,7 +98,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
         dec->buffer[i] = Kit_CreateBuffer(bsizes[i], free_hooks[i]);
         if(dec->buffer[i] == NULL) {
             Kit_SetError("Unable to allocate buffer for stream %d: %s", stream_index, SDL_GetError());
-            goto exit_3;
+            goto EXIT_3;
         }
     }
 
@@ -106,23 +106,23 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     dec->output_lock = SDL_CreateMutex();
     if(dec->output_lock == NULL) {
         Kit_SetError("Unable to allocate mutex for stream %d: %s", stream_index, SDL_GetError());
-        goto exit_3;
+        goto EXIT_3;
     }
 
     // That's that
     return dec;
 
-exit_3:
+EXIT_3:
     for(int i = 0; i < KIT_DEC_BUF_COUNT; i++) {
         Kit_DestroyBuffer(dec->buffer[i]);
     }
     avcodec_close(codec_ctx);
-exit_2:
+EXIT_2:
     av_dict_free(&codec_opts);
     avcodec_free_context(&codec_ctx);
-exit_1:
+EXIT_1:
     free(dec);
-exit_0:
+EXIT_0:
     return NULL;
 }
 
@@ -170,7 +170,7 @@ int Kit_RunDecoder(Kit_Decoder *dec) {
     return 0;
 }
 
-void Kit_ClearDecoderBuffers(Kit_Decoder *dec) {
+void Kit_ClearDecoderBuffers(const Kit_Decoder *dec) {
     if(dec == NULL) return;
     Kit_ClearDecoderInput(dec);
     Kit_ClearDecoderOutput(dec);
@@ -325,10 +325,10 @@ unsigned int Kit_GetDecoderOutputLength(const Kit_Decoder *dec) {
     return len;
 }
 
-int Kit_LockDecoderOutput(Kit_Decoder *dec) {
+int Kit_LockDecoderOutput(const Kit_Decoder *dec) {
     return SDL_LockMutex(dec->output_lock);
 }
 
-void Kit_UnlockDecoderOutput(Kit_Decoder *dec) {
+void Kit_UnlockDecoderOutput(const Kit_Decoder *dec) {
     SDL_UnlockMutex(dec->output_lock);
 }

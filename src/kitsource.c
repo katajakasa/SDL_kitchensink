@@ -34,19 +34,19 @@ Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
     // Attempt to open source
     if(avformat_open_input((AVFormatContext **)&src->format_ctx, url, NULL, NULL) < 0) {
         Kit_SetError("Unable to open source Url");
-        goto exit_0;
+        goto EXIT_0;
     }
 
     // Scan source information (may seek forwards)
     if(_ScanSource(src->format_ctx)) {
-        goto exit_1;
+        goto EXIT_1;
     }
 
     return src;
 
-exit_1:
+EXIT_1:
     avformat_close_input((AVFormatContext **)&src->format_ctx);
-exit_0:
+EXIT_0:
     free(src);
     return NULL;
 }
@@ -63,20 +63,20 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     uint8_t *avio_buf = av_malloc(AVIO_BUF_SIZE);
     if(avio_buf == NULL) {
         Kit_SetError("Unable to allocate avio buffer");
-        goto exit_0;
+        goto EXIT_0;
     }
 
     AVFormatContext *format_ctx = avformat_alloc_context();
     if(format_ctx == NULL) {
         Kit_SetError("Unable to allocate format context");
-        goto exit_1;
+        goto EXIT_1;
     }
 
     AVIOContext *avio_ctx = avio_alloc_context(
         avio_buf, AVIO_BUF_SIZE, 0, userdata, read_cb, 0, seek_cb);
     if(avio_ctx == NULL) {
         Kit_SetError("Unable to allocate avio context");
-        goto exit_2;
+        goto EXIT_2;
     }
 
     // Set the format as AVIO format
@@ -85,12 +85,12 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     // Attempt to open source
     if(avformat_open_input(&format_ctx, "", NULL, NULL) < 0) {
         Kit_SetError("Unable to open custom source");
-        goto exit_3;
+        goto EXIT_3;
     }
 
     // Scan source information (may seek forwards)
     if(_ScanSource(format_ctx)) {
-        goto exit_4;
+        goto EXIT_4;
     }
 
     // Set internals
@@ -98,15 +98,15 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     src->avio_ctx = avio_ctx;
     return src;
 
-exit_4:
+EXIT_4:
     avformat_close_input(&format_ctx);
-exit_3:
+EXIT_3:
     av_freep(&avio_ctx);
-exit_2:
+EXIT_2:
     avformat_free_context(format_ctx);
-exit_1:
+EXIT_1:
     av_freep(&avio_buf);
-exit_0:
+EXIT_0:
     free(src);
     return NULL;
 }
