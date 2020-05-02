@@ -301,8 +301,8 @@ EXIT_0:
     return NULL;
 }
 
-double Kit_GetVideoDecoderPTS(Kit_Decoder *dec) {
-    Kit_VideoPacket *packet = Kit_PeekDecoderOutput(dec);
+double Kit_GetVideoDecoderPTS(const Kit_Decoder *dec) {
+    const Kit_VideoPacket *packet = Kit_PeekDecoderOutput(dec);
     if(packet == NULL) {
         return -1.0;
     }

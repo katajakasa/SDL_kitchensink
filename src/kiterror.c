@@ -23,7 +23,7 @@ void Kit_SetError(const char* fmt, ...) {
     assert(fmt != NULL);
     va_list args;
     va_start(args, fmt);
-    vsnprintf(_error_message, KIT_ERRBUFSIZE, (char*)fmt, args);
+    vsnprintf(_error_message, KIT_ERRBUFSIZE, fmt, args);
     va_end(args);
     _error_available = true;
 }

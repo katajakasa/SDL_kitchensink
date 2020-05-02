@@ -158,7 +158,7 @@ int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect
     return max_count;
 }
 
-int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, SDL_Surface *surface, const SDL_Rect *target) {
+int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_Rect *target) {
     assert(atlas != NULL);
     assert(surface != NULL);
     assert(target != NULL);

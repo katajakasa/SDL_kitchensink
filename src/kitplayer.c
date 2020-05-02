@@ -237,7 +237,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
 
 void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h) {
     assert(player != NULL);
-    Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_DEC];
+    const Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_DEC];
     if(dec == NULL)
         return;
     Kit_SetSubtitleDecoderSize(dec, w, h);
@@ -310,7 +310,7 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     assert(limit >= 0);
 
     Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_DEC];
-    Kit_Decoder *video_dec = player->decoders[KIT_VIDEO_DEC];
+    const Kit_Decoder *video_dec = player->decoders[KIT_VIDEO_DEC];
     if(sub_dec == NULL || video_dec == NULL) {
         return 0;
     }
@@ -475,7 +475,7 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
 double Kit_GetPlayerDuration(const Kit_Player *player) {
     assert(player != NULL);
 
-    AVFormatContext *fmt_ctx = player->src->format_ctx;
+    const AVFormatContext *fmt_ctx = player->src->format_ctx;
     return (fmt_ctx->duration / AV_TIME_BASE);
 }
 
