@@ -309,7 +309,7 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     assert(targets != NULL);
     assert(limit >= 0);
 
-    Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_DEC];
+    const Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_DEC];
     const Kit_Decoder *video_dec = player->decoders[KIT_VIDEO_DEC];
     if(sub_dec == NULL || video_dec == NULL) {
         return 0;
