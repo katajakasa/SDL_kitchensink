@@ -22,6 +22,11 @@ are accepted.
 
 ## 1. Installation
 
+Nowadays you can find SDL_kitchensink in eg. linux repositories. Installation might be as simple as
+running the following (or your distributions' equivalent):
+
+```apt install libsdl-kitchensink libsdl-kitchensink-dev```
+
 ## 2. Library requirements
 
 Build requirements:
