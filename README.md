@@ -27,6 +27,9 @@ running the following (or your distributions' equivalent):
 
 ```apt install libsdl-kitchensink libsdl-kitchensink-dev```
 
+If you are running on windows/MSYS2 or on linux distributions where the package management does not
+have kitchensink, you will need to compile it yourself. Please see the "Compiling" section below.
+
 ## 2. Library requirements
 
 Build requirements:
