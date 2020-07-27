@@ -37,22 +37,22 @@ typedef enum {
     ASS_HINTING_NATIVE
 } ASS_Hinting;
 
-KIT_LOCAL ASS_Library* (*ass_library_init)(void);
-KIT_LOCAL void (*ass_library_done)(ASS_Library *priv);
-KIT_LOCAL void (*ass_process_codec_private)(ASS_Track *track, char *data, int size);
-KIT_LOCAL void (*ass_set_message_cb)(ASS_Library *priv, void (*msg_cb)(int level, const char *fmt, va_list args, void *data), void *data);
-KIT_LOCAL ASS_Renderer* (*ass_renderer_init)(ASS_Library *);
-KIT_LOCAL void (*ass_renderer_done)(ASS_Renderer *priv);
-KIT_LOCAL void (*ass_set_frame_size)(ASS_Renderer *priv, int w, int h);
-KIT_LOCAL void (*ass_set_hinting)(ASS_Renderer *priv, ASS_Hinting ht);
-KIT_LOCAL void (*ass_set_fonts)(ASS_Renderer *priv, const char *default_font, const char *default_family, int dfp, const char *config, int update);
-KIT_LOCAL ASS_Image* (*ass_render_frame)(ASS_Renderer *priv, ASS_Track *track, long long now, int *detect_change);
-KIT_LOCAL ASS_Track* (*ass_new_track)(ASS_Library *);
-KIT_LOCAL void (*ass_free_track)(ASS_Track *track);
-KIT_LOCAL void (*ass_process_data)(ASS_Track *track, char *data, int size);
-KIT_LOCAL void (*ass_process_chunk)(ASS_Track *track, char *data, int size, long long timecode, long long duration);
-KIT_LOCAL void (*ass_add_font)(ASS_Library *library, char *name, char *data, int data_size);
-KIT_LOCAL void (*ass_set_storage_size)(ASS_Renderer *priv, int w, int h);
+extern KIT_LOCAL ASS_Library* (*ass_library_init)(void);
+extern KIT_LOCAL void (*ass_library_done)(ASS_Library *priv);
+extern KIT_LOCAL void (*ass_process_codec_private)(ASS_Track *track, char *data, int size);
+extern KIT_LOCAL void (*ass_set_message_cb)(ASS_Library *priv, void (*msg_cb)(int level, const char *fmt, va_list args, void *data), void *data);
+extern KIT_LOCAL ASS_Renderer* (*ass_renderer_init)(ASS_Library *);
+extern KIT_LOCAL void (*ass_renderer_done)(ASS_Renderer *priv);
+extern KIT_LOCAL void (*ass_set_frame_size)(ASS_Renderer *priv, int w, int h);
+extern KIT_LOCAL void (*ass_set_hinting)(ASS_Renderer *priv, ASS_Hinting ht);
+extern KIT_LOCAL void (*ass_set_fonts)(ASS_Renderer *priv, const char *default_font, const char *default_family, int dfp, const char *config, int update);
+extern KIT_LOCAL ASS_Image* (*ass_render_frame)(ASS_Renderer *priv, ASS_Track *track, long long now, int *detect_change);
+extern KIT_LOCAL ASS_Track* (*ass_new_track)(ASS_Library *);
+extern KIT_LOCAL void (*ass_free_track)(ASS_Track *track);
+extern KIT_LOCAL void (*ass_process_data)(ASS_Track *track, char *data, int size);
+extern KIT_LOCAL void (*ass_process_chunk)(ASS_Track *track, char *data, int size, long long timecode, long long duration);
+extern KIT_LOCAL void (*ass_add_font)(ASS_Library *library, char *name, char *data, int data_size);
+extern KIT_LOCAL void (*ass_set_storage_size)(ASS_Renderer *priv, int w, int h);
 
 KIT_LOCAL int load_libass(void *handle);
 
