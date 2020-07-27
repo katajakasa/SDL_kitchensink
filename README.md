@@ -20,7 +20,9 @@ Note! Master branch is for the development of v1.0.0 series. v0 can be found in 
 rel-kitchensink-0 branch. v0 is no longer in active development and only bug- and security-fixes
 are accepted.
 
-## 1. Library requirements
+## 1. Installation
+
+## 2. Library requirements
 
 Build requirements:
 * CMake (>=3.0)
@@ -34,7 +36,7 @@ Library requirements:
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions
 may or may not work; versions noted here are the only ones tested.
 
-### 1.1. Debian / Ubuntu
+### 2.1. Debian / Ubuntu
 
 ```
 sudo apt-get install libsdl2-dev libavcodec-dev libavdevice-dev libavfilter-dev \
@@ -42,14 +44,14 @@ libavformat-dev libavresample-dev libavutil-dev libswresample-dev libswscale-dev
 libpostproc-dev libass-dev
 ```
 
-### 1.2. MSYS2 64bit
+### 2.2. MSYS2 64bit
 
 These are for x86_64. For 32bit installation, just change the package names a bit .
 ```
 pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ```
 
-## 2. Compiling
+## 3. Compiling
 
 By default, both static and dynamic libraries are built.
 * Set BUILD_STATIC off if you don't want to build static library
@@ -63,25 +65,25 @@ Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The fi
 * CMAKE_INSTALL_PREFIX/bin for binaries (.dll, .so)
 * CMAKE_INSTALL_PREFIX/include for headers
 
-### 2.1. Building the libraries on Debian/Ubuntu
+### 3.1. Building the libraries on Debian/Ubuntu
 
 1. ```mkdir build && cd build```
 2. ```cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
 3. ```make -j```
 4. ```sudo make install```
 
-### 2.2. Building the libraries on MSYS2
+### 3.2. Building the libraries on MSYS2
 
 1. ```mkdir build && cd build```
 2. ```cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
 3. ```make```
 4. ```make install```
 
-### 2.3. Building examples
+### 3.3. Building examples
 
 Just add ```-DBUILD_EXAMPLES=1``` to cmake arguments and rebuild.
 
-### 2.4. Building with AddressSanitizer
+### 3.4. Building with AddressSanitizer
 
 This is for development/debugging use only!
 
@@ -93,28 +95,35 @@ After building, you can run with the following (make sure to set correct llvm-sy
 ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./complex <my videofile>
 ```
 
-## 3. Why the name SDL_kitchensink
+## 4. Q&A
 
-Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
-kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
+Q: What's with the USE_DYNAMIC_LIBASS cmake flag ?
+* A: It can be used to link the libass dynamically when needed. This also makes it possible to build the
+     library without libass, if needed. Using this flag is not recommended however, and it will probably
+     be deprecated in the next major version(s). If you use it, you might need to also patch the library
+     path and name to match yours in kitchensink source.
 
-## 4. Examples
+Q: Why the name SDL_kitchensink
+* A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
+     kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
+
+## 5. Examples
 
 Please see examples directory. You can also take a look at unittests for some help.
 Note that examples are NOT meant for any kind of real life use; they are only meant to
 show simple use cases for the library.
 
-## 5. FFMPEG & licensing
+## 6. FFMPEG & licensing
 
 Note that FFmpeg has a rather complex license. Please take a look at 
 [FFmpeg Legal page](http://ffmpeg.org/legal.html) for details.
 
-## 6. License
+## 7. License
 
 ```
 The MIT License (MIT)
 
-Copyright (c) 2018 Tuomas Virtanen
+Copyright (c) 2020 Tuomas Virtanen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
