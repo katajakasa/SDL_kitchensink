@@ -48,7 +48,7 @@ may or may not work; versions noted here are the only ones tested.
 
 ```
 sudo apt-get install libsdl2-dev libavcodec-dev libavdevice-dev libavfilter-dev \
-libavformat-dev libavresample-dev libavutil-dev libswresample-dev libswscale-dev \
+libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
 libpostproc-dev libass-dev
 ```
 
