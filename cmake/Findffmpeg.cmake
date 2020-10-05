@@ -22,7 +22,6 @@ set(FFMPEG_COMPONENTS
     avformat
     avdevice
     avfilter
-    avresample
     avutil
     swresample
     swscale
