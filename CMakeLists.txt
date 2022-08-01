@@ -122,25 +122,7 @@ configure_file(
 )
 
 if(BUILD_EXAMPLES)
-    add_executable(audio examples/example_audio.c)
-    add_executable(complex examples/example_complex.c)
-    add_executable(simple examples/example_simple.c)
-    add_executable(custom examples/example_custom.c)
-    add_executable(rwops examples/example_rwops.c)
-
-    if(MINGW)
-        target_link_libraries(audio mingw32)
-        target_link_libraries(complex mingw32)
-        target_link_libraries(simple mingw32)
-        target_link_libraries(custom mingw32)
-        target_link_libraries(rwops mingw32)
-    endif()
-
-    set_property(TARGET audio PROPERTY C_STANDARD 99)
-    set_property(TARGET complex PROPERTY C_STANDARD 99)
-    set_property(TARGET simple PROPERTY C_STANDARD 99)
-    set_property(TARGET custom PROPERTY C_STANDARD 99)
-    set_property(TARGET rwops PROPERTY C_STANDARD 99)
+    list(APPEND EXAMPLE_TARGETS audio complex simple custom rwops)
 
     # If we are building static, just link all libraries (ffmpeg, sdl, etc.)
     # If building shared, link shared kitchensink + SDL2 (ffmpeg gets pulled by kitchensink)
@@ -153,19 +135,22 @@ if(BUILD_EXAMPLES)
         set(EXAMPLE_LIBRARIES asan ${EXAMPLE_LIBRARIES})
     endif()
 
-    target_link_libraries(audio ${EXAMPLE_LIBRARIES})
-    target_link_libraries(complex ${EXAMPLE_LIBRARIES})
-    target_link_libraries(simple ${EXAMPLE_LIBRARIES})
-    target_link_libraries(custom ${EXAMPLE_LIBRARIES})
-    target_link_libraries(rwops ${EXAMPLE_LIBRARIES})
+    foreach(TARGET ${EXAMPLE_TARGETS})
+        add_executable(${TARGET} examples/example_${TARGET}.c)
+        set_property(TARGET ${TARGET} PROPERTY C_STANDARD 99)
+        target_link_libraries(${TARGET} ${EXAMPLE_LIBRARIES})
 
-    if(USE_ASAN)
-        target_compile_options(audio PRIVATE "-fsanitize=address")
-        target_compile_options(complex PRIVATE "-fsanitize=address")
-        target_compile_options(simple PRIVATE "-fsanitize=address")
-        target_compile_options(custom PRIVATE "-fsanitize=address")
-        target_compile_options(rwops PRIVATE "-fsanitize=address")
-    endif()
+        if(MINGW)
+            # If we are compiling with mingw, remember to link in mingw libs and set console mode
+            # This way stdout/stderr are handled correctly.
+            target_link_libraries(${TARGET} mingw32)
+            set_target_properties(${TARGET} PROPERTIES LINK_FLAGS "-mconsole")
+        endif()
+
+        if(USE_ASAN)
+            target_compile_options(${TARGET} PRIVATE "-fsanitize=address")
+        endif()
+    endforeach()
 endif()
 
 # documentation target
