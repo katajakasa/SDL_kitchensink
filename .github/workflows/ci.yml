@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+  repository_dispatch:
+    types: [run_build]
+
+jobs:
+  ci:
+    name: Run CI on ${{ matrix.config.name }}
+    runs-on: ubuntu-latest
+    env:
+      CC: ${{ matrix.config.cc }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "gcc 10",   cc: gcc-10   }
+          - { name: "gcc 11",   cc: gcc-11   }
+          - { name: "clang 11", cc: clang-11 }
+          - { name: "clang 12", cc: clang-12 }
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev \
+          libswresample-dev libswscale-dev libass-dev clang-tidy ${{ matrix.config.cc }}
+
+    - name: Build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DUSE_TIDY=1 -DBUILD_EXAMPLES=1 ..
+        make -j2

@@ -1,7 +1,6 @@
 # SDL_kitchensink
 
-[![Build Status](https://travis-ci.org/katajakasa/SDL_kitchensink.svg?branch=master)](https://travis-ci.org/katajakasa/SDL_kitchensink)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sdl_kitchensink&metric=alert_status)](https://sonarcloud.io/dashboard?id=sdl_kitchensink)
+[![CI](https://github.com/katajakasa/SDL_kitchensink/actions/workflows/ci.yml/badge.svg)](https://github.com/katajakasa/SDL_kitchensink/actions/workflows/ci.yml)
 
 FFmpeg and SDL2 based library for audio and video playback, written in C99.
 
@@ -47,9 +46,8 @@ may or may not work; versions noted here are the only ones tested.
 ### 2.1. Debian / Ubuntu
 
 ```
-sudo apt-get install libsdl2-dev libavcodec-dev libavdevice-dev libavfilter-dev \
-libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
-libpostproc-dev libass-dev
+sudo apt-get install libsdl2-dev libavcodec-dev libavformat-dev \
+    libavutil-dev libswresample-dev libswscale-dev libass-dev
 ```
 
 ### 2.2. MSYS2 64bit
