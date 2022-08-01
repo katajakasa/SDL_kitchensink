@@ -32,10 +32,10 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get -y install libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev \
-          libswresample-dev libswscale-dev libass-dev ${{ matrix.config.cc }}
+          libswresample-dev libswscale-dev libass-dev clang-tidy ${{ matrix.config.cc }}
 
     - name: Build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=1 ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DUSE_TIDY=1 -DBUILD_EXAMPLES=1 ..
         make -j2
