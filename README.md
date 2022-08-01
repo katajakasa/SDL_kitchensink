@@ -44,9 +44,8 @@ may or may not work; versions noted here are the only ones tested.
 ### 2.1. Debian / Ubuntu
 
 ```
-sudo apt-get install libsdl2-dev libavcodec-dev libavdevice-dev libavfilter-dev \
-libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
-libpostproc-dev libass-dev
+sudo apt-get install libsdl2-dev libavcodec-dev libavformat-dev \
+    libavutil-dev libswresample-dev libswscale-dev libass-dev
 ```
 
 ### 2.2. MSYS2 64bit
