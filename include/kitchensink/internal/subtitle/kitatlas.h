@@ -8,8 +8,6 @@
 #include "kitchensink/kitconfig.h"
 
 typedef struct Kit_TextureAtlasItem {
-    int cur_shelf; //< Current shelf number in cache
-    int cur_slot; //< Current slot on shelf in cache
     SDL_Rect source; //< Source coordinates on cache surface
     SDL_Rect target; //< Target coordinates on output surface
 } Kit_TextureAtlasItem;
