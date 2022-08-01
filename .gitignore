@@ -34,6 +34,10 @@
 # VSCode
 .vscode
 
+# CLion
+.idea
+cmake-build-*
+
 # Other
 build/
 docs/
