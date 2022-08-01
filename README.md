@@ -1,5 +1,7 @@
 # SDL_kitchensink
 
+[![CI](https://github.com/katajakasa/SDL_kitchensink/actions/workflows/ci.yml/badge.svg)](https://github.com/katajakasa/SDL_kitchensink/actions/workflows/ci.yml)
+
 FFmpeg and SDL2 based library for audio and video playback, written in C99.
 
 Documentation is available at http://katajakasa.github.io/SDL_kitchensink/
