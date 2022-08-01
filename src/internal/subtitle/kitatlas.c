@@ -1,7 +1,6 @@
 #include <assert.h>
 
 #include "kitchensink/internal/subtitle/kitatlas.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 static int min(int a, int b) {
     if(a < b)
@@ -56,11 +55,9 @@ void Kit_FreeAtlas(Kit_TextureAtlas *atlas) {
     free(atlas);
 }
 
-void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, const SDL_Surface *surface, int shelf, int slot, int x, int y) {
+void Kit_SetItemAllocation(Kit_TextureAtlasItem *item, const SDL_Surface *surface, int x, int y) {
     assert(item != NULL);
 
-    item->cur_shelf = shelf;
-    item->cur_slot = slot;
     item->source.x = x;
     item->source.y = y;
     item->source.w = surface->w;
@@ -100,13 +97,11 @@ int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surf
         }
     }
 
-    // If existing shelf found, put the item there. Otherwise create a new shelf.
+    // If existing shelf found, put the item there. Otherwise, create a new shelf.
     if(best_shelf_idx != -1) {
         Kit_SetItemAllocation(
             item,
             surface,
-            best_shelf_idx,
-            atlas->shelves[best_shelf_idx].count,
             atlas->shelves[best_shelf_idx].width,
             best_shelf_y);
         atlas->shelves[best_shelf_idx].width += surface->w;
@@ -119,8 +114,6 @@ int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surf
         Kit_SetItemAllocation(
             item,
             surface,
-            shelf_idx,
-            0,
             0,
             total_reserved_h);
         return 0;
@@ -171,8 +164,6 @@ int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Su
     Kit_TextureAtlasItem item;
     memset(&item, 0, sizeof(Kit_TextureAtlasItem));
     memcpy(&item.target, target, sizeof(SDL_Rect));
-    item.cur_shelf = -1;
-    item.cur_slot = -1;
 
     // Allocate space for the new item
     if(Kit_FindFreeAtlasSlot(atlas, surface, &item) != 0) {
