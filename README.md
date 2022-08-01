@@ -1,8 +1,5 @@
 # SDL_kitchensink
 
-[![Build Status](https://travis-ci.org/katajakasa/SDL_kitchensink.svg?branch=master)](https://travis-ci.org/katajakasa/SDL_kitchensink)
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=sdl_kitchensink&metric=alert_status)](https://sonarcloud.io/dashboard?id=sdl_kitchensink)
-
 FFmpeg and SDL2 based library for audio and video playback, written in C99.
 
 Documentation is available at http://katajakasa.github.io/SDL_kitchensink/
