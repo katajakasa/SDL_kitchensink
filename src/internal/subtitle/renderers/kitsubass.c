@@ -16,10 +16,10 @@ typedef struct Kit_ASSSubtitleRenderer {
 } Kit_ASSSubtitleRenderer;
 
 static void Kit_ProcessAssImage(const SDL_Surface *surface, const ASS_Image *img) {
-    unsigned char r = ((img->color) >> 24) & 0xFF;
-    unsigned char g = ((img->color) >> 16) & 0xFF;
-    unsigned char b = ((img->color) >>  8) & 0xFF;
-    unsigned char a = 0xFF - ((img->color) & 0xFF);
+    const unsigned char r = ((img->color) >> 24) & 0xFF;
+    const unsigned char g = ((img->color) >> 16) & 0xFF;
+    const unsigned char b = ((img->color) >>  8) & 0xFF;
+    const unsigned char a = 0xFF - ((img->color) & 0xFF);
     const unsigned char *src = img->bitmap;
     unsigned char *dst = surface->pixels;
     unsigned int x;
@@ -84,6 +84,7 @@ static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
 static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
     const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
     SDL_Surface *dst = NULL;
+    int dst_w = 0, dst_h = 0;
     const ASS_Image *src = NULL;
     int change = 0;
     long long now = current_pts * 1000;
@@ -104,7 +105,15 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
         for(; src; src = src->next) {
             if(src->w == 0 || src->h == 0)
                 continue;
-            dst = SDL_CreateRGBSurfaceWithFormat(0, src->w, src->h, 32, SDL_PIXELFORMAT_RGBA32);
+
+            // Don't recreate surface if we already have correctly sized one.
+            if(dst == NULL || dst_w != src->w || dst_h != src->h) {
+                dst_w = src->w;
+                dst_h = src->h;
+                SDL_FreeSurface(dst);
+                dst = SDL_CreateRGBSurfaceWithFormat(0, dst_w, dst_h, 32, SDL_PIXELFORMAT_RGBA32);
+            }
+
             Kit_ProcessAssImage(dst, src);
             SDL_Rect target;
             target.x = src->dst_x;
@@ -112,12 +121,12 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atla
             target.w = dst->w;
             target.h = dst->h;
             Kit_AddAtlasItem(atlas, texture, dst, &target);
-            SDL_FreeSurface(dst);
         }
 
         Kit_UnlockDecoderOutput(ren->dec);
     }
 
+    SDL_FreeSurface(dst);
     ren->dec->clock_pos = current_pts;
     return 0;
 }
