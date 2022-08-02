@@ -17,7 +17,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
                                int thread_count) {
     assert(src != NULL);
     assert(out_b_size > 0);
-    assert(thread_count > 0);
+    assert(thread_count >= 0);
 
     AVCodecContext *codec_ctx = NULL;
     AVDictionary *codec_opts = NULL;
@@ -61,9 +61,15 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
 
     codec_ctx->pkt_timebase = format_ctx->streams[stream_index]->time_base;
 
-    // Set thread count
+    // Set threading, if possible
     codec_ctx->thread_count = thread_count;
-    codec_ctx->thread_type = FF_THREAD_SLICE|FF_THREAD_FRAME;
+    if(codec->capabilities | AV_CODEC_CAP_FRAME_THREADS) {
+        codec_ctx->thread_type = FF_THREAD_FRAME;
+    } else if(codec->capabilities | AV_CODEC_CAP_SLICE_THREADS) {
+        codec_ctx->thread_type = FF_THREAD_SLICE;
+    } else {
+        codec_ctx->thread_count = 1;  // Disable threading
+    }
 
     // This is required for ass_process_chunk()
     av_dict_set(&codec_opts, "sub_text_format", "ass", 0);

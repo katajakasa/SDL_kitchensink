@@ -42,7 +42,7 @@ typedef struct Kit_Version {
  */
 typedef enum Kit_HintType {
     KIT_HINT_FONT_HINTING, ///< Set font hinting mode (currently used for libass)
-    KIT_HINT_THREAD_COUNT, ///< Set thread count for ffmpeg (1 by default)
+    KIT_HINT_THREAD_COUNT, ///< Set thread count for ffmpeg (1 by default). Set to 0 for autodetect.
     KIT_HINT_VIDEO_BUFFER_FRAMES, ///< Video output buffer frames (3 by default)
     KIT_HINT_AUDIO_BUFFER_FRAMES, ///< Audio output buffers (64 by default)
     KIT_HINT_SUBTITLE_BUFFER_FRAMES ///< Subtitle output buffers (64 by default, used by image subtitles)
@@ -90,7 +90,7 @@ KIT_API int Kit_Init(unsigned int flags);
 KIT_API void Kit_Quit();
 
 /**
- * @brief Sets a librarywide hint
+ * @brief Sets a library-wide hint
  * 
  * This can be used to set hints on how the library should behave. See Kit_HintType
  * for all the options.
