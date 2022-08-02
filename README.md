@@ -32,12 +32,12 @@ have kitchensink, you will need to compile it yourself. Please see the "Compilin
 ## 2. Library requirements
 
 Build requirements:
-* CMake (>=3.0)
+* CMake (>=3.7)
 * GCC (C99 support required)
 
 Library requirements:
-* SDL2 (>=2.0.5)
-* FFmpeg (>=3.0)
+* SDL2 2.0.5 or newer
+* FFmpeg 3.2 or newer
 * libass (optional, supports runtime linking via SDL_LoadSO)
 
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions

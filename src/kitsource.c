@@ -176,12 +176,7 @@ int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_SourceStreamInfo *info, i
     }
 
     const AVStream *stream = format_ctx->streams[index];
-    enum AVMediaType codec_type;
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
-    codec_type = stream->codec->codec_type;
-#else
-    codec_type = stream->codecpar->codec_type;
-#endif
+    enum AVMediaType codec_type = stream->codecpar->codec_type;
     switch(codec_type) {
         case AVMEDIA_TYPE_UNKNOWN: info->type = KIT_STREAMTYPE_UNKNOWN; break;
         case AVMEDIA_TYPE_DATA: info->type = KIT_STREAMTYPE_DATA; break;

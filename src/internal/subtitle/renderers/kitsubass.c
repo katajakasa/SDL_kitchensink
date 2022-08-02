@@ -53,12 +53,7 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double pts, 
         for(int r = 0; r < sub->num_rects; r++) {
             if(sub->rects[r]->ass == NULL)
                 continue;
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57,25,100)
-            ass_process_data(
-                ass_ren->track,
-                sub->rects[r]->ass,
-                strlen(sub->rects[r]->ass));
-#else
+
             // This requires the sub_text_format codec_opt set for ffmpeg
             ass_process_chunk(
                 ass_ren->track,
@@ -66,7 +61,6 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double pts, 
                 strlen(sub->rects[r]->ass),
                 start_ms,
                 end_ms);
-#endif
         }
         Kit_UnlockDecoderOutput(ren->dec);
     }
@@ -174,11 +168,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
     const AVStream *st = NULL;
     for(int j = 0; j < dec->format_ctx->nb_streams; j++) {
         st = dec->format_ctx->streams[j];
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
-        AVCodecContext *codec = st->codec;
-#else
         const AVCodecParameters *codec = st->codecpar;
-#endif
         if(codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
             const AVDictionaryEntry *tag = av_dict_get(
                 st->metadata,
