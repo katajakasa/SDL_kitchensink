@@ -73,7 +73,7 @@ typedef struct Kit_SourceStreamInfo {
 typedef int (*Kit_ReadCallback)(void *userdata, uint8_t *buf, int size);
 
 /**
- * @brief Callback function type for seeking data strema
+ * @brief Callback function type for seeking data stream
  * 
  * Used by Kit_CreateSourceFromCustom() for seeking a user defined source.
  * 
