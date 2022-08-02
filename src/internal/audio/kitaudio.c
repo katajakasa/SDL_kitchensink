@@ -102,84 +102,6 @@ static void free_out_audio_packet_cb(void *packet) {
     free(p);
 }
 
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(57, 48, 101)
-static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
-    assert(dec != NULL);
-
-    if(in_packet == NULL) {
-        return 0;
-    }
-
-    Kit_AudioDecoder *audio_dec = dec->userdata;
-    int frame_finished;
-    int len;
-    int len2;
-    int dst_linesize;
-    int dst_nb_samples;
-    int dst_bufsize;
-    double pts;
-    unsigned char **dst_data;
-    Kit_AudioPacket *out_packet = NULL;
-
-    // Decode as long as there is data
-    while(in_packet->size > 0) {
-        len = avcodec_decode_audio4(dec->codec_ctx, audio_dec->scratch_frame, &frame_finished, in_packet);
-        if(len < 0) {
-            return 0;
-        }
-
-        if(frame_finished) {
-            dst_nb_samples = av_rescale_rnd(
-                audio_dec->scratch_frame->nb_samples,
-                dec->output.samplerate,  // Target samplerate
-                dec->codec_ctx->sample_rate,  // Source samplerate
-                AV_ROUND_UP);
-
-            av_samples_alloc_array_and_samples(
-                &dst_data,
-                &dst_linesize,
-                dec->output.channels,
-                dst_nb_samples,
-                _FindAVSampleFormat(dec->output.format),
-                0);
-
-            len2 = swr_convert(
-                audio_dec->swr,
-                dst_data,
-                audio_dec->scratch_frame->nb_samples,
-                (const unsigned char **)audio_dec->scratch_frame->extended_data,
-                audio_dec->scratch_frame->nb_samples);
-
-            dst_bufsize = av_samples_get_buffer_size(
-                &dst_linesize,
-                dec->output.channels,
-                len2,
-                _FindAVSampleFormat(dec->output.format), 1);
-
-            // Get presentation timestamp
-#ifndef FF_API_FRAME_GET_SET
-            pts = av_frame_get_best_effort_timestamp(audio_dec->scratch_frame);
-#else
-            pts = audio_dec->scratch_frame->best_effort_timestamp;
-#endif
-            pts *= av_q2d(dec->format_ctx->streams[dec->stream_index]->time_base);
-
-            // Lock, write to audio buffer, unlock
-            out_packet = _CreateAudioPacket(
-                (char*)dst_data[0], (size_t)dst_bufsize, pts);
-            Kit_WriteDecoderOutput(dec, out_packet);
-
-            // Free temps
-            av_freep(&dst_data[0]);
-            av_freep(&dst_data);
-        }
-
-        in_packet->size -= len;
-        in_packet->data += len;
-    }
-    return 0;
-}
-#else
 static void dec_read_audio(const Kit_Decoder *dec) {
     const Kit_AudioDecoder *audio_dec = dec->userdata;
     int len;
@@ -255,7 +177,6 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     dec_read_audio(dec);
     return 0;
 }
-#endif
 
 static void dec_close_audio_cb(Kit_Decoder *dec) {
     if(dec == NULL) return;
