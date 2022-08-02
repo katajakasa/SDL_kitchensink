@@ -72,13 +72,11 @@ int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surf
     int shelf_h;
     int total_remaining_h = atlas->h;
     int total_reserved_h = 0;
-
-    // First, try to look for a good, existing shelf
     int best_shelf_idx = -1;
     int best_shelf_h = atlas->h;
     int best_shelf_y = 0;
     
-    // Try to find a good shelf to put this item in
+    // Try to find a good, existing shelf to put this item in.
     int shelf_idx;
     for(shelf_idx = 0; shelf_idx < atlas->max_shelves; shelf_idx++) {
         shelf_w = atlas->shelves[shelf_idx].width;
