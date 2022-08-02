@@ -8,9 +8,7 @@
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitbuffer.h"
 #include "kitchensink/internal/video/kitvideo.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 #define KIT_VIDEO_SYNC_THRESHOLD 0.02
 

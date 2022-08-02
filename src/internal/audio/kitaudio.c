@@ -10,10 +10,8 @@
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitbuffer.h"
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/utils/kitringbuffer.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 #define KIT_AUDIO_SYNC_THRESHOLD 0.05
 

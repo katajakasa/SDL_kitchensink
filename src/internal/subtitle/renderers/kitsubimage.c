@@ -4,7 +4,6 @@
 #include <SDL_surface.h>
 
 #include "kitchensink/kiterror.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"

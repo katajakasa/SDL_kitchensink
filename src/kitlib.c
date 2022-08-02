@@ -1,9 +1,10 @@
 #include <assert.h>
+#ifdef USE_DYNAMIC_LIBASS
 #include <SDL_loadso.h>
+#endif
 
 #include <libavformat/avformat.h>
 
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/kitchensink.h"
 #include "kitchensink/internal/kitlibstate.h"
 

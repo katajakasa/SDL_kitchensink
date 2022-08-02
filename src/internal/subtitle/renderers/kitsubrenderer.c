@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <assert.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"

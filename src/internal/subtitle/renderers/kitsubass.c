@@ -5,9 +5,7 @@
 #include <libavcodec/version.h>
 
 #include "kitchensink/kiterror.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubass.h"

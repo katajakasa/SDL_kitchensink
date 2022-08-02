@@ -3,11 +3,8 @@
 #include <SDL.h>
 #include <libavformat/avformat.h>
 
-#include "kitchensink/internal/utils/kitlog.h"
-
 #include "kitchensink/kiterror.h"
 #include "kitchensink/kitlib.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/kitsubtitle.h"
@@ -15,7 +12,6 @@
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubass.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
-#include "kitchensink/internal/utils/kithelpers.h"
 
 
 typedef struct Kit_SubtitleDecoder {

@@ -9,7 +9,6 @@
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/subtitle/kitsubtitle.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 enum DecoderIndex {
     KIT_VIDEO_DEC = 0,
