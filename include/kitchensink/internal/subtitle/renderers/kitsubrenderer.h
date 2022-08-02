@@ -4,10 +4,10 @@
 #include <SDL_render.h>
 
 #include "kitchensink/kitsource.h"
+#include "kitchensink/internal/subtitle/kitatlas.h"
+#include "kitchensink/internal/kitdecoder.h"
 
 typedef struct Kit_SubtitleRenderer Kit_SubtitleRenderer;
-typedef struct Kit_TextureAtlas Kit_TextureAtlas;
-typedef struct Kit_Decoder Kit_Decoder;
 
 typedef void (*ren_render_cb)(Kit_SubtitleRenderer *ren, void *src, double pts, double start, double end);
 typedef int (*ren_get_data_cb)(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts);
