@@ -108,8 +108,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Allow Kit to use more threads
-    Kit_SetHint(KIT_HINT_THREAD_COUNT, SDL_GetCPUCount() <= 4 ? SDL_GetCPUCount() : 4);
+    // Set to 0 to allow ffmpeg decide thread count.
+    Kit_SetHint(KIT_HINT_THREAD_COUNT, 0);
 
     // Lots of buffers for smooth playback (will eat up more memory, too).
     Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 5);

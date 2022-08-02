@@ -89,7 +89,7 @@ void Kit_SetHint(Kit_HintType type, int value) {
     Kit_LibraryState *state = Kit_GetLibraryState();
     switch(type) {
         case KIT_HINT_THREAD_COUNT:
-            state->thread_count =  max(value, 1);
+            state->thread_count =  max(value, 0);
             break;
         case KIT_HINT_FONT_HINTING:
             state->font_hinting = max(min(value, KIT_FONT_HINTING_COUNT), 0);
