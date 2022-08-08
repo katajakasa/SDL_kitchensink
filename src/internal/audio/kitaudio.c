@@ -165,7 +165,7 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
     assert(in_packet != NULL);
 
     // Try to clear the buffer first. We might have too much content in the ffmpeg buffer,
-    /// so we want to clear it of outgoing data if we can.
+    // so we want to clear it of outgoing data if we can.
     dec_read_audio(dec);
 
     // Write packet to the decoder for handling.
@@ -173,7 +173,7 @@ static int dec_decode_audio_cb(Kit_Decoder *dec, AVPacket *in_packet) {
         return 1;
     }
 
-    // Some input data was put in succesfully, so try again to get frames.
+    // Some input data was put in successfully, so try again to get frames.
     dec_read_audio(dec);
     return 0;
 }
@@ -316,7 +316,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     dec->clock_pos = packet->pts;
 
     // If ringbuffer is cleared, kill packet and advance buffer.
-    // Otherwise forward the pts value for the current packet.
+    // Otherwise, forward the pts value for the current packet.
     if(Kit_GetRingBufferLength(packet->rb) == 0) {
         Kit_AdvanceDecoderOutput(dec);
         free_out_audio_packet_cb(packet);

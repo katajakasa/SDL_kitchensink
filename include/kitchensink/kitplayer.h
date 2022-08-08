@@ -63,7 +63,7 @@ typedef struct Kit_PlayerInfo {
 /**
  * @brief Creates a new player from a source.
  * 
- * Creates a new player from the given source. The source must be previously succesfully
+ * Creates a new player from the given source. The source must be previously successfully
  * initialized by calling either Kit_CreateSourceFromUrl() or Kit_CreateSourceFromCustom(), 
  * and it must not be used by any other player. Source must stay valid during the whole 
  * playback (as in, don't close it while stuff is playing).
@@ -78,7 +78,7 @@ typedef struct Kit_PlayerInfo {
  * or pick them automatically by using Kit_GetBestSourceStream().
  * 
  * On success, this will return an initialized Kit_Player which can later be freed by Kit_ClosePlayer().
- * On error, NULL is returned and a more detailed error is availably via Kit_GetError().
+ * On error, NULL is returned and a more detailed error is available via Kit_GetError().
  * 
  * For example:
  * ```
@@ -192,7 +192,7 @@ KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
  * Note that the output texture must be previously allocated and valid. Make sure to have large
  * enough a texture for the rendering resolution you picked! If your rendering resolution if 4k,
  * then make sure to have texture sized 4096x4096 etc. This gives the texture room to handle the
- * worst case subtitle textures. If your resolutions is too small, this function will return
+ * worst case subtitle textures. If your resolution is too small, this function will return
  * value -1. At that point you can replace your current texture with a bigger one on the fly.
  * 
  * Note that the texture format for the atlas texture *MUST* be SDL_PIXELFORMAT_RGBA32 and
@@ -215,7 +215,7 @@ KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
  * 
  * @param player Player instance
  * @param texture A previously allocated texture
- * @param sources List of source rectangles to copy fropm
+ * @param sources List of source rectangles to copy from
  * @param targets List of target rectangles to render
  * @param limit Defines the maximum size of your rectangle lists
  * @return Number of sources or <0 on error
@@ -234,7 +234,7 @@ KIT_API int Kit_GetPlayerSubtitleData(Kit_Player *player,
  * Outputted audio data will be precisely what is described by the output format struct given
  * by Kit_GetPlayerInfo().
  * 
- * This function will attemt to read the maximum allowed amount of data allowed by the length
+ * This function will attempt to read the maximum allowed amount of data allowed by the length
  * argument. It is possible however that there is not enough data available, at which point
  * this function will read less and return value may differ from maximum allowed value.
  * Return value 0 should be taken as a hint that there is nothing available.

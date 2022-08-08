@@ -11,7 +11,7 @@ Kit_SubtitlePacket* Kit_CreateSubtitlePacket(
     p->y = pos_y;
     p->surface = surface;
     if(p->surface != NULL) {
-        p->surface->refcount++; // We dont want to needlessly copy; instead increase refcount.
+        p->surface->refcount++; // We don't want to needlessly copy; instead increase refcount.
     }
     p->clear = clear;
     return p;

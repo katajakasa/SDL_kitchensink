@@ -27,7 +27,7 @@ typedef enum Kit_StreamType {
     KIT_STREAMTYPE_VIDEO, ///< Video stream
     KIT_STREAMTYPE_AUDIO, ///< Audio stream
     KIT_STREAMTYPE_DATA, ///< Data stream
-    KIT_STREAMTYPE_SUBTITLE, ///< Subtitle streawm
+    KIT_STREAMTYPE_SUBTITLE, ///< Subtitle stream
     KIT_STREAMTYPE_ATTACHMENT ///< Attachment stream (images, etc)
 } Kit_StreamType;
 

@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 

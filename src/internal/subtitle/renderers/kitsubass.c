@@ -2,7 +2,6 @@
 #include <stdlib.h>
 
 #include <SDL_surface.h>
-#include <libavcodec/version.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitlibstate.h"
