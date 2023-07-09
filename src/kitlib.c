@@ -4,6 +4,7 @@
 #endif
 
 #include <libavformat/avformat.h>
+#include "libavcodec/avcodec.h"
 
 #include "kitchensink/kitchensink.h"
 #include "kitchensink/internal/kitlibstate.h"

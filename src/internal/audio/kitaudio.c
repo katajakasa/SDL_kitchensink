@@ -13,6 +13,10 @@
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/utils/kitringbuffer.h"
 
+#if LIBAVUTIL_VERSION_MAJOR < 58
+#define OLD_CHANNEL_LAYOUT
+#endif
+
 #define KIT_AUDIO_SYNC_THRESHOLD 0.05
 
 typedef struct Kit_AudioDecoder {
@@ -27,7 +31,7 @@ typedef struct Kit_AudioPacket {
 } Kit_AudioPacket;
 
 
-Kit_AudioPacket* _CreateAudioPacket(const char* data, size_t len, double pts) {
+static Kit_AudioPacket* _CreateAudioPacket(const char* data, size_t len, double pts) {
     Kit_AudioPacket *p = calloc(1, sizeof(Kit_AudioPacket));
     p->rb = Kit_CreateRingBuffer(len);
     Kit_WriteRingBuffer(p->rb, data, len);
@@ -35,7 +39,7 @@ Kit_AudioPacket* _CreateAudioPacket(const char* data, size_t len, double pts) {
     return p;
 }
 
-enum AVSampleFormat _FindAVSampleFormat(int format) {
+static enum AVSampleFormat _FindAVSampleFormat(int format) {
     switch(format) {
         case AUDIO_U8: return AV_SAMPLE_FMT_U8;
         case AUDIO_S16SYS: return AV_SAMPLE_FMT_S16;
@@ -44,7 +48,8 @@ enum AVSampleFormat _FindAVSampleFormat(int format) {
     }
 }
 
-int64_t _FindAVChannelLayout(int channels) {
+#ifdef OLD_CHANNEL_LAYOUT
+static int64_t _FindAVChannelLayout(int channels) {
     switch(channels) {
         case 1: return AV_CH_LAYOUT_MONO;
         case 2: return AV_CH_LAYOUT_STEREO;
@@ -52,15 +57,30 @@ int64_t _FindAVChannelLayout(int channels) {
     }
 }
 
-int _FindChannelLayout(uint64_t channel_layout) {
+static int _FindChannelLayout(uint64_t channel_layout) {
     switch(channel_layout) {
         case AV_CH_LAYOUT_MONO: return 1;
         case AV_CH_LAYOUT_STEREO: return 2;
         default: return 2;
     }
 }
+#else
+static void _FindAVChannelLayout(AVChannelLayout *layout, int channels) {
+    switch(channels) {
+        case 1: *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
+        case 2: *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+        default: *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+    }
+}
 
-int _FindBytes(enum AVSampleFormat fmt) {
+static int _FindChannelLayout(const AVChannelLayout *channel_layout) {
+    if (channel_layout->nb_channels > 2)
+        return 2;
+    return channel_layout->nb_channels;
+}
+#endif
+
+static int _FindBytes(enum AVSampleFormat fmt) {
     switch(fmt) {
         case AV_SAMPLE_FMT_U8P:
         case AV_SAMPLE_FMT_U8:
@@ -73,7 +93,7 @@ int _FindBytes(enum AVSampleFormat fmt) {
     }
 }
 
-int _FindSDLSampleFormat(enum AVSampleFormat fmt) {
+static int _FindSDLSampleFormat(enum AVSampleFormat fmt) {
     switch(fmt) {
         case AV_SAMPLE_FMT_U8P:
         case AV_SAMPLE_FMT_U8:
@@ -86,7 +106,7 @@ int _FindSDLSampleFormat(enum AVSampleFormat fmt) {
     }
 }
 
-int _FindSignedness(enum AVSampleFormat fmt) {
+static int _FindSignedness(enum AVSampleFormat fmt) {
     switch(fmt) {
         case AV_SAMPLE_FMT_U8P:
         case AV_SAMPLE_FMT_U8:
@@ -227,12 +247,17 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     Kit_OutputFormat output;
     memset(&output, 0, sizeof(Kit_OutputFormat));
     output.samplerate = dec->codec_ctx->sample_rate;
+#ifdef OLD_CHANNEL_LAYOUT
     output.channels = _FindChannelLayout(dec->codec_ctx->channel_layout);
+#else
+    output.channels = _FindChannelLayout(&dec->codec_ctx->ch_layout);
+#endif
     output.bytes = _FindBytes(dec->codec_ctx->sample_fmt);
     output.is_signed = _FindSignedness(dec->codec_ctx->sample_fmt);
     output.format = _FindSDLSampleFormat(dec->codec_ctx->sample_fmt);
 
     // Create resampler
+#ifdef OLD_CHANNEL_LAYOUT
     audio_dec->swr = swr_alloc_set_opts(
         NULL,
         _FindAVChannelLayout(output.channels), // Target channel layout
@@ -242,6 +267,23 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
         dec->codec_ctx->sample_fmt, // Source fmt
         dec->codec_ctx->sample_rate, // Source samplerate
         0, NULL);
+#else
+    AVChannelLayout layout;
+    _FindAVChannelLayout(&layout, output.channels);
+     int swr_ok = swr_alloc_set_opts2(
+            &audio_dec->swr,
+            &layout, // Target channel layout
+            _FindAVSampleFormat(output.format), // Target fmt
+            output.samplerate, // Target sample rate
+            &dec->codec_ctx->ch_layout, // Source channel layout
+            dec->codec_ctx->sample_fmt, // Source fmt
+            dec->codec_ctx->sample_rate, // Source sample rate
+            0, NULL);
+     if (swr_ok != 0) {
+         Kit_SetError("Unable to initialize audio resampler context");
+         goto EXIT_3;
+     }
+#endif
 
     if(swr_init(audio_dec->swr) != 0) {
         Kit_SetError("Unable to initialize audio resampler context");
