@@ -203,6 +203,8 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     memset(&output, 0, sizeof(Kit_OutputFormat));
     output.width = dec->codec_ctx->width;
     output.height = dec->codec_ctx->height;
+    output.aspect_ratio_num = dec->codec_ctx->sample_aspect_ratio.num;
+    output.aspect_ratio_den = dec->codec_ctx->sample_aspect_ratio.den;
     output.format = _FindSDLPixelFormat(output_format);
 
     // Create scaler for handling format changes

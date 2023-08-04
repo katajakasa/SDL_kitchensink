@@ -17,13 +17,15 @@ extern "C" {
  * @brief Contains information about the data format coming out from the player
  */
 typedef struct Kit_OutputFormat {
-    unsigned int format; ///< SDL Format (SDL_PixelFormat if video/subtitle, SDL_AudioFormat if audio)
-    int is_signed;       ///< Signedness, 1 = signed, 0 = unsigned (if audio)
-    int bytes;           ///< Bytes per sample per channel (if audio)
-    int samplerate;      ///< Sampling rate (if audio)
-    int channels;        ///< Channels (if audio)
-    int width;           ///< Width in pixels (if video)
-    int height;          ///< Height in pixels (if video)
+    unsigned int format;  ///< SDL Format (SDL_PixelFormat if video/subtitle, SDL_AudioFormat if audio)
+    int is_signed;        ///< Signedness, 1 = signed, 0 = unsigned (if audio)
+    int bytes;            ///< Bytes per sample per channel (if audio)
+    int samplerate;       ///< Sampling rate (if audio)
+    int channels;         ///< Channels (if audio)
+    int width;            ///< Width in pixels (if video)
+    int height;           ///< Height in pixels (if video)
+    int aspect_ratio_num; ///< Aspect ratio numerator (if video)
+    int aspect_ratio_den; ///< Aspect ratio denominator (if video)
 } Kit_OutputFormat;
 
 #ifdef __cplusplus
