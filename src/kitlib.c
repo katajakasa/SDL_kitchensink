@@ -11,6 +11,9 @@
 
 static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {}
 
+#undef min
+#undef max
+
 static int max(int a, int b) { return a > b ? a : b; }
 static int min(int a, int b) { return a < b ? a : b; }
 

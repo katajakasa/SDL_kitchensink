@@ -2,6 +2,8 @@
 
 #include "kitchensink/internal/subtitle/kitatlas.h"
 
+#undef min
+
 static int min(int a, int b) {
     if(a < b)
         return a;
