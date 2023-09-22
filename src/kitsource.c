@@ -110,7 +110,7 @@ EXIT_0:
 }
 
 static int _RWReadCallback(void *userdata, uint8_t *buf, int size) {
-    int bytes_read = SDL_RWread((SDL_RWops*)userdata, buf, 1, size);
+    size_t bytes_read = SDL_RWread((SDL_RWops*)userdata, buf, 1, size);
     return bytes_read == 0 ? AVERROR_EOF : bytes_read;
 }
 
