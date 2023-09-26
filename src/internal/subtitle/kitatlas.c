@@ -2,9 +2,7 @@
 
 #include "kitchensink/internal/subtitle/kitatlas.h"
 
-#undef min
-
-static int min(int a, int b) {
+static int Kit_min(int a, int b) {
     if(a < b)
         return a;
     return b;
@@ -140,7 +138,7 @@ int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect
     assert(limit >= 0);
     const Kit_TextureAtlasItem *item = NULL;
 
-    int max_count = min(atlas->cur_items, limit);
+    int max_count = Kit_min(atlas->cur_items, limit);
     for(int i = 0; i < max_count; i++) {
         item = &atlas->items[i];
         if(sources != NULL)
