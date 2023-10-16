@@ -84,6 +84,34 @@ static enum AVPixelFormat _FindAVPixelFormat(unsigned int fmt) {
     }
 }
 
+static struct SwsContext* _GetSwsContext(
+    struct SwsContext *old_context,
+    int src_w,
+    int src_h,
+    int dst_w,
+    int dst_h,
+    enum AVPixelFormat in_fmt,
+    enum AVPixelFormat out_fmt
+) {
+    struct SwsContext* new_context = sws_getCachedContext(
+        old_context,
+        src_w,
+        src_h,
+        in_fmt,
+        dst_w,
+        dst_h,
+        out_fmt,
+        SWS_BILINEAR,
+        NULL,
+        NULL,
+        NULL
+    );
+    if(new_context == NULL) {
+        Kit_SetError("Unable to initialize video converter context");
+    }
+    return new_context;
+}
+
 static void free_out_video_packet_cb(void *packet) {
     Kit_VideoPacket *p = packet;
     av_freep(&p->frame->data[0]);
@@ -92,7 +120,7 @@ static void free_out_video_packet_cb(void *packet) {
 }
 
 static void dec_read_video(const Kit_Decoder *dec) {
-    const Kit_VideoDecoder *video_dec = dec->userdata;
+    Kit_VideoDecoder *video_dec = dec->userdata;
     AVFrame *out_frame = NULL;
     Kit_VideoPacket *out_packet = NULL;
     double pts;
@@ -102,7 +130,6 @@ static void dec_read_video(const Kit_Decoder *dec) {
         ret = avcodec_receive_frame(dec->codec_ctx, video_dec->scratch_frame);
         if(!ret) {
             out_frame = av_frame_alloc();
-            av_frame_copy_props(out_frame, video_dec->scratch_frame);
             av_image_alloc(
                     out_frame->data,
                     out_frame->linesize,
@@ -112,14 +139,27 @@ static void dec_read_video(const Kit_Decoder *dec) {
                     1);
 
             // Scale from source format to target format, don't touch the size
+            video_dec->sws = _GetSwsContext(
+                video_dec->sws,
+                video_dec->scratch_frame->width,
+                video_dec->scratch_frame->height,
+                video_dec->scratch_frame->width,
+                video_dec->scratch_frame->height,
+                dec->codec_ctx->pix_fmt,
+                _FindAVPixelFormat(dec->output.format));
             sws_scale(
                 video_dec->sws,
                 (const unsigned char * const *)video_dec->scratch_frame->data,
                 video_dec->scratch_frame->linesize,
                 0,
-                dec->codec_ctx->height,
+                video_dec->scratch_frame->height,
                 out_frame->data,
                 out_frame->linesize);
+
+            // Copy required props to safety
+            out_frame->width = video_dec->scratch_frame->width;
+            out_frame->height = video_dec->scratch_frame->height;
+            out_frame->sample_aspect_ratio = video_dec->scratch_frame->sample_aspect_ratio;
 
             // Get presentation timestamp
             pts = video_dec->scratch_frame->best_effort_timestamp;
@@ -207,17 +247,16 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     output.format = _FindSDLPixelFormat(output_format);
 
     // Create scaler for handling format changes
-    video_dec->sws = sws_getContext(
-        dec->codec_ctx->width, // Source w
-        dec->codec_ctx->height, // Source h
-        dec->codec_ctx->pix_fmt, // Source fmt
-        dec->codec_ctx->width, // Target w
-        dec->codec_ctx->height, // Target h
-        _FindAVPixelFormat(output.format), // Target fmt
-        SWS_BILINEAR,
-        NULL, NULL, NULL);
+    video_dec->sws = _GetSwsContext(
+        video_dec->sws,
+        dec->codec_ctx->width,
+        dec->codec_ctx->height,
+        dec->codec_ctx->width,
+        dec->codec_ctx->height,
+        dec->codec_ctx->pix_fmt,
+        _FindAVPixelFormat(output.format)
+    );
     if(video_dec->sws == NULL) {
-        Kit_SetError("Unable to initialize video converter context");
         goto EXIT_3;
     }
 
@@ -250,6 +289,8 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     assert(dec != NULL);
     assert(texture != NULL);
 
+    SDL_Rect in_area;
+    int frame_size_changed = 0;
     Kit_VideoPacket *packet = NULL;
     double sync_ts = 0;
     unsigned int limit_rounds = 0;
@@ -279,19 +320,26 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     }
 
     // Update output texture with current video data.
-    // Take formats into account.
+    // Note that frame size may change on the fly. Take that into account.
+    frame_size_changed = (packet->frame->width != dec->codec_ctx->width || packet->frame->height != dec->codec_ctx->height);
+    if (frame_size_changed) {
+        in_area.w = packet->frame->width;
+        in_area.h = packet->frame->height;
+        in_area.x = (dec->codec_ctx->width - packet->frame->width) / 2;
+        in_area.y = (dec->codec_ctx->height - packet->frame->height) / 2;
+    }
     switch(dec->output.format) {
         case SDL_PIXELFORMAT_YV12:
         case SDL_PIXELFORMAT_IYUV:
             SDL_UpdateYUVTexture(
-                texture, NULL,
+                texture, frame_size_changed ? &in_area : NULL,
                 packet->frame->data[0], packet->frame->linesize[0],
                 packet->frame->data[1], packet->frame->linesize[1],
                 packet->frame->data[2], packet->frame->linesize[2]);
             break;
         default:
             SDL_UpdateTexture(
-                texture, NULL,
+                texture, frame_size_changed ? &in_area : NULL,
                 packet->frame->data[0],
                 packet->frame->linesize[0]);
             break;
