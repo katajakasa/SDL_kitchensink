@@ -336,6 +336,24 @@ KIT_API double Kit_GetPlayerDuration(const Kit_Player *player);
  */
 KIT_API double Kit_GetPlayerPosition(const Kit_Player *player);
 
+/**
+ * @brief Get the player aspect ratio, if playing video.
+ *
+ * Sets numerator and denominator if it is possible to get a valid aspect ratio.
+ * If valid values were found, then 0 is returned. Otherwise 1 is returned, and num
+ * and den parameters are not changed.
+ *
+ * Aspect ratio may change during the playback of the video. This function will attempt
+ * to first get the aspect ratio of the current frame. If that is not set, then decoder
+ * and finally demuxer data will be tried.
+ *
+ * @param player Player instance
+ * @param num Numerator
+ * @param den Denominator
+ * @return 0 if got valid values, 1 otherwise.
+ */
+KIT_API int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den);
+
 #ifdef __cplusplus
 }
 #endif

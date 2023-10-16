@@ -183,6 +183,10 @@ int main(int argc, char *argv[]) {
             pinfo.subtitle.codec.description,
             pinfo.video.codec.threads);
     }
+    int num, den;
+    if(Kit_GetPlayerAspectRatio(player, &num, &den) == 0) {
+        fprintf(stderr, "Aspect ratio: %d:%d\n", num, den);
+    }
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
     // Init audio

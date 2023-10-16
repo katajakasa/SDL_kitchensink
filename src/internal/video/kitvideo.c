@@ -102,6 +102,7 @@ static void dec_read_video(const Kit_Decoder *dec) {
         ret = avcodec_receive_frame(dec->codec_ctx, video_dec->scratch_frame);
         if(!ret) {
             out_frame = av_frame_alloc();
+            av_frame_copy_props(out_frame, video_dec->scratch_frame);
             av_image_alloc(
                     out_frame->data,
                     out_frame->linesize,
@@ -283,7 +284,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
         case SDL_PIXELFORMAT_YV12:
         case SDL_PIXELFORMAT_IYUV:
             SDL_UpdateYUVTexture(
-                texture, NULL, 
+                texture, NULL,
                 packet->frame->data[0], packet->frame->linesize[0],
                 packet->frame->data[1], packet->frame->linesize[1],
                 packet->frame->data[2], packet->frame->linesize[2]);
@@ -299,6 +300,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
     // Advance buffer, and free the decoded frame.
     Kit_AdvanceDecoderOutput(dec);
     dec->clock_pos = packet->pts;
+    dec->aspect_ratio = packet->frame->sample_aspect_ratio;
     free_out_video_packet_cb(packet);
 
     return 0;
