@@ -166,23 +166,35 @@ KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
 /**
  * @brief Fetches a new video frame from the player
  * 
- * Note that the output texture must be previously allocated and valid. 
- * 
+ * This is the same as Kit_GetPlayerVideoDataArea() but without the area argument.
+ * Please refer to that function for description.
+ */
+KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
+
+/**
+ * @brief Fetches a new video frame from the player
+ *
+ * Note that the output texture must be previously allocated and valid.
+ *
  * It is important to select the correct texture format and size. If you pick a different
  * texture format or size from what the decoder outputs, then the decoder will attempt to convert
  * the frames to fit the texture. This will slow down the decoder a *lot* however, so if possible,
  * pick the texture format from what Kit_GetPlayerInfo() outputs.
- * 
+ *
  * Access flag for the texture *MUST* always be SDL_TEXTUREACCESS_STATIC! Anything else will lead to
  * undefined behaviour.
- * 
+ *
+ * Area argument can be given to acquire the current video frame content area. Note that this may change
+ * if you have video that changes frame size on the fly.
+ *
  * This function will do nothing if player playback has not been started.
- * 
+ *
  * @param player Player instance
  * @param texture A previously allocated texture
+ * @param area Rendered video surface area
  * @return 0 on success, 1 on error
  */
-KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
+KIT_API int Kit_GetPlayerVideoDataArea(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 
 /**
  * @brief Fetches subtitle data from the player

@@ -285,12 +285,10 @@ double Kit_GetVideoDecoderPTS(const Kit_Decoder *dec) {
     return packet->pts;
 }
 
-int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
+int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture, SDL_Rect *area) {
     assert(dec != NULL);
     assert(texture != NULL);
 
-    SDL_Rect in_area;
-    int frame_size_changed = 0;
     Kit_VideoPacket *packet = NULL;
     double sync_ts = 0;
     unsigned int limit_rounds = 0;
@@ -321,25 +319,22 @@ int Kit_GetVideoDecoderData(Kit_Decoder *dec, SDL_Texture *texture) {
 
     // Update output texture with current video data.
     // Note that frame size may change on the fly. Take that into account.
-    frame_size_changed = (packet->frame->width != dec->codec_ctx->width || packet->frame->height != dec->codec_ctx->height);
-    if (frame_size_changed) {
-        in_area.w = packet->frame->width;
-        in_area.h = packet->frame->height;
-        in_area.x = (dec->codec_ctx->width - packet->frame->width) / 2;
-        in_area.y = (dec->codec_ctx->height - packet->frame->height) / 2;
-    }
+    area->w = packet->frame->width;
+    area->h = packet->frame->height;
+    area->x = 0;
+    area->y = 0;
     switch(dec->output.format) {
         case SDL_PIXELFORMAT_YV12:
         case SDL_PIXELFORMAT_IYUV:
             SDL_UpdateYUVTexture(
-                texture, frame_size_changed ? &in_area : NULL,
+                texture, area,
                 packet->frame->data[0], packet->frame->linesize[0],
                 packet->frame->data[1], packet->frame->linesize[1],
                 packet->frame->data[2], packet->frame->linesize[2]);
             break;
         default:
             SDL_UpdateTexture(
-                texture, frame_size_changed ? &in_area : NULL,
+                texture, area,
                 packet->frame->data[0],
                 packet->frame->linesize[0]);
             break;
