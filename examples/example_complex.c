@@ -183,6 +183,10 @@ int main(int argc, char *argv[]) {
             pinfo.subtitle.codec.description,
             pinfo.video.codec.threads);
     }
+    int num, den;
+    if(Kit_GetPlayerAspectRatio(player, &num, &den) == 0) {
+        fprintf(stderr, "Aspect ratio: %d:%d\n", num, den);
+    }
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
     // Init audio
@@ -347,9 +351,14 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Refresh videotexture and render it
-        Kit_GetPlayerVideoData(player, video_tex);
-        SDL_RenderCopy(renderer, video_tex, NULL, NULL);
+        // Clear window first, in case of weirdly sized frames.
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+        SDL_RenderClear(renderer);
+
+        // Refresh the video texture and render it
+        SDL_Rect area;
+        Kit_GetPlayerVideoDataArea(player, video_tex, &area);
+        SDL_RenderCopy(renderer, video_tex, &area, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality

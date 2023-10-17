@@ -257,7 +257,7 @@ int Kit_GetPlayerSubtitleStream(const Kit_Player *player) {
     return Kit_GetDecoderStreamIndex(player->decoders[KIT_SUBTITLE_DEC]);
 }
 
-int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
+int Kit_GetPlayerVideoDataArea(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
     assert(player != NULL);
 
     Kit_Decoder *dec = player->decoders[KIT_VIDEO_DEC];
@@ -273,7 +273,13 @@ int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
         return 0;
     }
 
-    return Kit_GetVideoDecoderData(dec, texture);
+    return Kit_GetVideoDecoderData(dec, texture, area);
+}
+
+int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
+    assert(player != NULL);
+    SDL_Rect area;
+    return Kit_GetPlayerVideoDataArea(player, texture, &area);
 }
 
 int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length) {
@@ -488,4 +494,44 @@ double Kit_GetPlayerPosition(const Kit_Player *player) {
         return ((Kit_Decoder*)player->decoders[KIT_AUDIO_DEC])->clock_pos;
     }
     return 0;
+}
+
+#define IS_RATIONAL_DEFINED(rational) (rational.num > 0 && rational.den > 0)
+
+int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den) {
+    assert(player != NULL);
+    const Kit_Decoder *decoder = player->decoders[KIT_VIDEO_DEC];
+    if(!decoder) {
+        Kit_SetError("Unable to find aspect ratio; no video stream selected");
+        return 1;
+    }
+
+    // First off, try to get the aspect ratio of the currently showing frame.
+    // This may change frame-to-frame.
+    if(IS_RATIONAL_DEFINED(decoder->aspect_ratio)) {
+        *num = decoder->aspect_ratio.num;
+        *den = decoder->aspect_ratio.den;
+        return 0;
+    }
+
+    // Then, try to find aspect ratio from the decoder itself
+    const AVCodecContext *codec_ctx = decoder->codec_ctx;
+    if(IS_RATIONAL_DEFINED(codec_ctx->sample_aspect_ratio)) {
+        *num = codec_ctx->sample_aspect_ratio.num;
+        *den = codec_ctx->sample_aspect_ratio.den;
+        return 0;
+    }
+
+    // Then, try the stream (demuxer) data
+    const AVFormatContext *fmt_ctx = player->src->format_ctx;
+    const AVStream *stream = fmt_ctx->streams[decoder->stream_index];
+    if(IS_RATIONAL_DEFINED(stream->sample_aspect_ratio)) {
+        *num = stream->sample_aspect_ratio.num;
+        *den = stream->sample_aspect_ratio.den;
+        return 0;
+    }
+
+    // No data found anywhere, give up.
+    Kit_SetError("Unable to find aspect ratio; no data from demuxer or codec");
+    return 1;
 }

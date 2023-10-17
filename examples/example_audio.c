@@ -125,6 +125,16 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
+        // Handle SDL events so that the application reacts to input.
+        SDL_Event event;
+        while(SDL_PollEvent(&event)) {
+            switch(event.type) {
+                case SDL_QUIT:
+                    run = false;
+                    break;
+            }
+        }
+
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIOBUFFER_SIZE) {
