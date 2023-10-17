@@ -28,7 +28,7 @@ jobs:
           - { name: "clang 15", cc: clang-15 }
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install Dependencies
       run: |
