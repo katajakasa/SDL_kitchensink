@@ -7,6 +7,6 @@
 
 KIT_LOCAL Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index);
 KIT_LOCAL int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len);
-KIT_LOCAL double Kit_GetAudioDecoderPTS(const Kit_Decoder *dec);
+KIT_LOCAL int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *dec, Kit_AudioOutputFormat *output);
 
 #endif // KITAUDIO_H

@@ -13,12 +13,18 @@ static const char * const font_mime[] = {
     NULL
 };
 
-double _GetSystemTime() {
+double Kit_GetSystemTime() {
     return (double)av_gettime() / 1000000.0;
 }
 
-bool attachment_is_font(const AVStream *stream) {
-    const AVDictionaryEntry *tag = av_dict_get(stream->metadata, "mimetype", NULL, AV_DICT_MATCH_CASE);
+bool Kit_StreamIsFontAttachment(const AVStream *stream) {
+    if(stream->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+        return false;
+    const AVDictionaryEntry *tag = av_dict_get(
+        stream->metadata,
+        "mimetype",
+        NULL,
+        AV_DICT_MATCH_CASE);
     if(tag) {
         for(int n = 0; font_mime[n]; n++) {
             if(av_strcasecmp(font_mime[n], tag->value) == 0) {

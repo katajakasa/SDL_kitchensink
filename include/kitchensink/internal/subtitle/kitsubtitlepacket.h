@@ -15,8 +15,19 @@ typedef struct Kit_SubtitlePacket {
     SDL_Surface *surface;
 } Kit_SubtitlePacket;
 
-KIT_LOCAL Kit_SubtitlePacket* Kit_CreateSubtitlePacket(
-    bool clear, double pts_start, double pts_end, int pos_x, int pos_y, SDL_Surface *surface);
-KIT_LOCAL void Kit_FreeSubtitlePacket(Kit_SubtitlePacket *packet);
+KIT_LOCAL Kit_SubtitlePacket* Kit_CreateSubtitlePacket();
+KIT_LOCAL void Kit_FreeSubtitlePacket(Kit_SubtitlePacket **packet);
+KIT_LOCAL void Kit_SetSubtitlePacketData(
+    Kit_SubtitlePacket *packet,
+    bool clear,
+    double pts_start,
+    double pts_end,
+    int pos_x,
+    int pos_y,
+    SDL_Surface *surface
+);
+KIT_LOCAL void Kit_MoveSubtitlePacketRefs(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src);
+KIT_LOCAL void Kit_DelSubtitlePacketRefs(Kit_SubtitlePacket *packet);
+
 
 #endif // KITSUBTITLEPACKET_H

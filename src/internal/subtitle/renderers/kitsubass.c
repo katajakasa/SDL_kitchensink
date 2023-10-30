@@ -12,6 +12,7 @@
 typedef struct Kit_ASSSubtitleRenderer {
     ASS_Renderer *renderer;
     ASS_Track *track;
+    SDL_mutex *decoder_lock;
 } Kit_ASSSubtitleRenderer;
 
 static void Kit_ProcessAssImage(const SDL_Surface *surface, const ASS_Image *img) {
@@ -38,137 +39,143 @@ static void Kit_ProcessAssImage(const SDL_Surface *surface, const ASS_Image *img
     }
 }
 
-static void ren_render_ass_cb(Kit_SubtitleRenderer *ren, void *src, double pts, double start, double end) {
-    assert(ren != NULL);
+static void ren_render_ass_cb(Kit_SubtitleRenderer *renderer, void *src, double pts, double start, double end) {
+    assert(renderer != NULL);
     assert(src != NULL);
 
-    const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+    const Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
     const AVSubtitle *sub = src;
 
     // Read incoming subtitle packets to libASS
+    SDL_LockMutex(ass_renderer->decoder_lock);
     long long start_ms = (start + pts) * 1000;
     long long end_ms = end * 1000;
-    if(Kit_LockDecoderOutput(ren->dec) == 0) {
-        for(int r = 0; r < sub->num_rects; r++) {
-            if(sub->rects[r]->ass == NULL)
-                continue;
+    for(int r = 0; r < sub->num_rects; r++) {
+        if(sub->rects[r]->ass == NULL)
+            continue;
 
-            // This requires the sub_text_format codec_opt set for ffmpeg
-            ass_process_chunk(
-                ass_ren->track,
+        // This requires the sub_text_format codec_opt set for ffmpeg
+        ass_process_chunk(
+                ass_renderer->track,
                 sub->rects[r]->ass,
                 strlen(sub->rects[r]->ass),
                 start_ms,
                 end_ms);
-        }
-        Kit_UnlockDecoderOutput(ren->dec);
     }
+    SDL_UnlockMutex(ass_renderer->decoder_lock);
 }
 
-static void ren_close_ass_cb(Kit_SubtitleRenderer *ren) {
-    if(ren == NULL) return;
-
-    Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
-    ass_free_track(ass_ren->track);
-    ass_renderer_done(ass_ren->renderer);
-    free(ass_ren);
+static void ren_close_ass_cb(Kit_SubtitleRenderer *renderer) {
+    if(!renderer || !renderer->userdata)
+        return;
+    Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
+    ass_free_track(ass_renderer->track);
+    ass_renderer_done(ass_renderer->renderer);
+    SDL_DestroyMutex(ass_renderer->decoder_lock);
+    free(ass_renderer);
 }
 
-static int ren_get_ass_data_cb(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
-    const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
+static int ren_get_ass_data_cb(Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
+    const Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
     SDL_Surface *dst = NULL;
-    int dst_w = 0, dst_h = 0;
+    int dst_w = 0;
+    int dst_h = 0;
     const ASS_Image *src = NULL;
     int change = 0;
     long long now = current_pts * 1000;
 
-    if(Kit_LockDecoderOutput(ren->dec) == 0) {
-        // Tell ASS to render some images
-        src = ass_render_frame(ass_ren->renderer, ass_ren->track, now, &change);
+    // Tell ASS to render some images
+    SDL_LockMutex(ass_renderer->decoder_lock);
+    src = ass_render_frame(ass_renderer->renderer, ass_renderer->track, now, &change);
+    SDL_UnlockMutex(ass_renderer->decoder_lock);
+    if(change == 0) {
+        return 0;
+    }
 
-        // If there was no change, stop here
-        if(change == 0) {
-            Kit_UnlockDecoderOutput(ren->dec);
-            return 0;
+    // There was some change, process images and add them to atlas
+    Kit_ClearAtlasContent(atlas);
+    Kit_CheckAtlasTextureSize(atlas, texture);
+    for(; src; src = src->next) {
+        if(src->w == 0 || src->h == 0)
+            continue;
+
+        // Don't recreate surface if we already have correctly sized one.
+        if(dst == NULL || dst_w != src->w || dst_h != src->h) {
+            dst_w = src->w;
+            dst_h = src->h;
+            SDL_FreeSurface(dst);
+            dst = SDL_CreateRGBSurfaceWithFormat(0, dst_w, dst_h, 32, SDL_PIXELFORMAT_RGBA32);
         }
 
-        // There was some change, process images and add them to atlas
-        Kit_ClearAtlasContent(atlas);
-        Kit_CheckAtlasTextureSize(atlas, texture);
-        for(; src; src = src->next) {
-            if(src->w == 0 || src->h == 0)
-                continue;
-
-            // Don't recreate surface if we already have correctly sized one.
-            if(dst == NULL || dst_w != src->w || dst_h != src->h) {
-                dst_w = src->w;
-                dst_h = src->h;
-                SDL_FreeSurface(dst);
-                dst = SDL_CreateRGBSurfaceWithFormat(0, dst_w, dst_h, 32, SDL_PIXELFORMAT_RGBA32);
-            }
-
-            Kit_ProcessAssImage(dst, src);
-            SDL_Rect target;
-            target.x = src->dst_x;
-            target.y = src->dst_y;
-            target.w = dst->w;
-            target.h = dst->h;
-            Kit_AddAtlasItem(atlas, texture, dst, &target);
-        }
-
-        Kit_UnlockDecoderOutput(ren->dec);
+        Kit_ProcessAssImage(dst, src);
+        SDL_Rect target;
+        target.x = src->dst_x;
+        target.y = src->dst_y;
+        target.w = dst->w;
+        target.h = dst->h;
+        Kit_AddAtlasItem(atlas, texture, dst, &target);
     }
 
     SDL_FreeSurface(dst);
-    ren->dec->clock_pos = current_pts;
+    renderer->decoder->clock_pos = current_pts;
     return 0;
 }
 
-static void ren_set_ass_size_cb(Kit_SubtitleRenderer *ren, int w, int h) {
-    const Kit_ASSSubtitleRenderer *ass_ren = ren->userdata;
-    ass_set_frame_size(ass_ren->renderer, w, h);
+static void ren_set_ass_size_cb(Kit_SubtitleRenderer *renderer, int w, int h) {
+    const Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
+    SDL_LockMutex(ass_renderer->decoder_lock);
+    ass_set_frame_size(ass_renderer->renderer, w, h);
+    SDL_UnlockMutex(ass_renderer->decoder_lock);
 }
 
-Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h) {
+Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(
+    const AVFormatContext *format_ctx, Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h
+) {
     assert(dec != NULL);
     assert(video_w >= 0);
     assert(video_h >= 0);
     assert(screen_w >= 0);
     assert(screen_h >= 0);
 
-    // Make sure that libass library has been initialized + get handle
+    Kit_SubtitleRenderer *renderer;
+    Kit_ASSSubtitleRenderer *ass_renderer;
+    ASS_Renderer *render_handler;
+    ASS_Track *render_track;
+    SDL_mutex *decoder_lock;
+
     const Kit_LibraryState *state = Kit_GetLibraryState();
     if(state->libass_handle == NULL) {
         Kit_SetError("Libass library has not been initialized");
         return NULL;
     }
-
-    // First allocate the generic decoder component
-    Kit_SubtitleRenderer *ren = Kit_CreateSubtitleRenderer(dec);
-    if(ren == NULL) {
-        goto EXIT_0;
-    }
-
-    // Next, allocate ASS subtitle renderer context.
-    Kit_ASSSubtitleRenderer *ass_ren = calloc(1, sizeof(Kit_ASSSubtitleRenderer));
-    if(ass_ren == NULL) {
+    if((ass_renderer = calloc(1, sizeof(Kit_ASSSubtitleRenderer))) == NULL) {
         Kit_SetError("Unable to allocate ass subtitle renderer");
-        goto EXIT_1;
+        goto exit_0;
     }
-
-    // Initialize libass renderer
-    ASS_Renderer *ass_renderer = ass_renderer_init(state->libass_handle);
-    if(ass_renderer == NULL) {
+    if((renderer = Kit_CreateSubtitleRenderer(
+        dec,
+        ren_render_ass_cb,
+        ren_get_ass_data_cb,
+        ren_set_ass_size_cb,
+        ren_close_ass_cb,
+        ass_renderer)) == NULL) {
+        goto exit_1;
+    }
+    if((render_handler = ass_renderer_init(state->libass_handle)) == NULL) {
         Kit_SetError("Unable to initialize libass renderer");
-        goto EXIT_2;
+        goto exit_2;
+    }
+    if((decoder_lock = SDL_CreateMutex()) == NULL) {
+        Kit_SetError("Unable to initialize libass decoder lock mutex");
+        goto exit_3;
     }
 
     // Read fonts from attachment streams and give them to libass
     const AVStream *st = NULL;
-    for(int j = 0; j < dec->format_ctx->nb_streams; j++) {
-        st = dec->format_ctx->streams[j];
+    for(int j = 0; j < format_ctx->nb_streams; j++) {
+        st = format_ctx->streams[j];
         const AVCodecParameters *codec = st->codecpar;
-        if(codec->codec_type == AVMEDIA_TYPE_ATTACHMENT && attachment_is_font(st)) {
+        if(Kit_StreamIsFontAttachment(st)) {
             const AVDictionaryEntry *tag = av_dict_get(
                 st->metadata,
                 "filename",
@@ -186,45 +193,38 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(Kit_Decoder *dec, int video_
 
     // Init libass fonts and window frame size
     ass_set_fonts(
-        ass_renderer,
+        render_handler,
         NULL, "sans-serif",
         ASS_FONTPROVIDER_AUTODETECT,
         NULL, 1);
-    ass_set_storage_size(ass_renderer, video_w, video_h);
-    ass_set_frame_size(ass_renderer, screen_w, screen_h);
-    ass_set_hinting(ass_renderer, state->font_hinting);
+    ass_set_storage_size(render_handler, video_w, video_h);
+    ass_set_frame_size(render_handler, screen_w, screen_h);
+    ass_set_hinting(render_handler, state->font_hinting);
 
-    // Initialize libass track
-    ASS_Track *ass_track = ass_new_track(state->libass_handle);
-    if(ass_track == NULL) {
+    if((render_track = ass_new_track(state->libass_handle)) == NULL) {
         Kit_SetError("Unable to initialize libass track");
-        goto EXIT_3;
+        goto exit_4;
     }
-
-    // Set up libass track headers (ffmpeg provides these)
     if(dec->codec_ctx->subtitle_header) {
         ass_process_codec_private(
-            ass_track,
+            render_track,
             (char*)dec->codec_ctx->subtitle_header,
             dec->codec_ctx->subtitle_header_size);
     }
 
-    // Set callbacks and userdata, and we're go
-    ass_ren->renderer = ass_renderer;
-    ass_ren->track = ass_track;
-    ren->ren_render = ren_render_ass_cb;
-    ren->ren_close = ren_close_ass_cb;
-    ren->ren_get_data = ren_get_ass_data_cb;
-    ren->ren_set_size = ren_set_ass_size_cb;
-    ren->userdata = ass_ren;
-    return ren;
+    ass_renderer->renderer = render_handler;
+    ass_renderer->track = render_track;
+    ass_renderer->decoder_lock = decoder_lock;
+    return renderer;
 
-EXIT_3:
-    ass_renderer_done(ass_renderer);
-EXIT_2:
-    free(ass_ren);
-EXIT_1:
-    Kit_CloseSubtitleRenderer(ren);
-EXIT_0:
+exit_4:
+    SDL_DestroyMutex(decoder_lock);
+exit_3:
+    ass_renderer_done(render_handler);
+exit_2:
+    Kit_CloseSubtitleRenderer(renderer);
+exit_1:
+    free(ass_renderer);
+exit_0:
     return NULL;
 }
