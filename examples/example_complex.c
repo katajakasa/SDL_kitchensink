@@ -8,7 +8,7 @@
 * It is for example use only!
 */
 
-#define AUDIOBUFFER_SIZE (1024 * 64)
+#define AUDIO_BUFFER_SIZE (1024 * 64)
 #define ATLAS_WIDTH 4096
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
@@ -124,15 +124,15 @@ int main(int argc, char *argv[]) {
     }
 
     // Print stream information
-    Kit_SourceStreamInfo sinfo;
+    Kit_SourceStreamInfo source_info;
     fprintf(stderr, "Source streams:\n");
     for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
-        err = Kit_GetSourceStreamInfo(src, &sinfo, i);
+        err = Kit_GetSourceStreamInfo(src, &source_info, i);
         if(err) {
             fprintf(stderr, "Unable to fetch stream #%d information: %s.\n", i, Kit_GetError());
             return 1;
         }
-        fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(sinfo.type));
+        fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(source_info.type));
     }
 
     // Create the player. Pick best video, audio and subtitle streams, and set subtitle
@@ -149,8 +149,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Print some information
-    Kit_PlayerInfo pinfo;
-    Kit_GetPlayerInfo(player, &pinfo);
+    Kit_PlayerInfo player_info;
+    Kit_GetPlayerInfo(player, &player_info);
 
     // Make sure there is video in the file to play first.
     if(Kit_GetPlayerVideoStream(player) == -1) {
@@ -161,27 +161,27 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Media information:\n");
     if(Kit_GetPlayerAudioStream(player) >= 0) {
         fprintf(stderr, " * Audio: %s (%s), threads=%d, %dHz, %dch, %db, %s\n",
-            pinfo.audio.codec.name,
-            pinfo.audio.codec.description,
-            pinfo.video.codec.threads,
-            pinfo.audio.output.samplerate,
-            pinfo.audio.output.channels,
-            pinfo.audio.output.bytes,
-            pinfo.audio.output.is_signed ? "signed" : "unsigned");
+                player_info.audio_codec.name,
+                player_info.audio_codec.description,
+                player_info.video_codec.threads,
+                player_info.audio_format.sample_rate,
+                player_info.audio_format.channels,
+                player_info.audio_format.bytes,
+                player_info.audio_format.is_signed ? "signed" : "unsigned");
     }
     if(Kit_GetPlayerVideoStream(player) >= 0) {
         fprintf(stderr, " * Video: %s (%s), threads=%d, %dx%d\n",
-            pinfo.video.codec.name,
-            pinfo.video.codec.description,
-            pinfo.video.codec.threads,
-            pinfo.video.output.width,
-            pinfo.video.output.height);
+                player_info.video_codec.name,
+                player_info.video_codec.description,
+                player_info.video_codec.threads,
+                player_info.video_format.width,
+                player_info.video_format.height);
     }
     if(Kit_GetPlayerSubtitleStream(player) >= 0) {
         fprintf(stderr, " * Subtitle: %s (%s), threads=%d\n",
-            pinfo.subtitle.codec.name,
-            pinfo.subtitle.codec.description,
-            pinfo.video.codec.threads);
+                player_info.subtitle_codec.name,
+                player_info.subtitle_codec.description,
+                player_info.video_codec.threads);
     }
     int num, den;
     if(Kit_GetPlayerAspectRatio(player, &num, &den) == 0) {
@@ -191,26 +191,26 @@ int main(int argc, char *argv[]) {
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio.output.samplerate;
-    wanted_spec.format = pinfo.audio.output.format;
-    wanted_spec.channels = pinfo.audio.output.channels;
+    wanted_spec.freq = player_info.audio_format.sample_rate;
+    wanted_spec.format = player_info.audio_format.format;
+    wanted_spec.channels = player_info.audio_format.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
     // Print some format info
-    fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(pinfo.video.output.format));
-    fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(pinfo.audio.output.format));
-    fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(pinfo.subtitle.output.format));
+    fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(player_info.video_format.format));
+    fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(player_info.audio_format.format));
+    fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(player_info.subtitle_format.format));
     fflush(stderr);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
-        renderer,
-        pinfo.video.output.format,
-        SDL_TEXTUREACCESS_STATIC,
-        pinfo.video.output.width,
-        pinfo.video.output.height);
+            renderer,
+            player_info.video_format.format,
+            SDL_TEXTUREACCESS_STATIC,
+            player_info.video_format.width,
+            player_info.video_format.height);
     if(video_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
@@ -219,27 +219,24 @@ int main(int argc, char *argv[]) {
     // This is the subtitle texture atlas. This contains all the subtitle image fragments.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
-        renderer,
-        pinfo.subtitle.output.format,
-        SDL_TEXTUREACCESS_STATIC,
-        ATLAS_WIDTH, ATLAS_HEIGHT);
+            renderer,
+            player_info.subtitle_format.format,
+            SDL_TEXTUREACCESS_STATIC,
+            ATLAS_WIDTH, ATLAS_HEIGHT);
     if(subtitle_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a subtitle texture atlas\n");
         return 1;
     }
 
-    // Make sure subtitle texture is in correct blendmode
+    // Make sure subtitle texture is in correct blending mode
     SDL_SetTextureBlendMode(subtitle_tex, SDL_BLENDMODE_BLEND);
 
     // Clear screen with black
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    // Start playback
-    Kit_PlayerPlay(player);
-
     // Playback temporary data buffers
-    char audiobuf[AUDIOBUFFER_SIZE];
+    char audio_buf[AUDIO_BUFFER_SIZE];
     SDL_Rect sources[ATLAS_MAX];
     SDL_Rect targets[ATLAS_MAX];
     int mouse_x = 0;
@@ -249,13 +246,17 @@ int main(int argc, char *argv[]) {
     int screen_w = 0;
     int screen_h = 0;
     bool fullscreen = false;
+    SDL_Rect video_area;
 
     // Get movie area size
     SDL_GetWindowSize(window, &screen_w, &screen_h);
-    find_viewport_size(screen_w, screen_h, pinfo.video.output.width, pinfo.video.output.height, &size_w, &size_h);
+    find_viewport_size(screen_w, screen_h, player_info.video_format.width, player_info.video_format.height, &size_w, &size_h);
     SDL_RenderSetLogicalSize(renderer, size_w, size_h);
     Kit_SetPlayerScreenSize(player, size_w, size_h);
-    
+
+    // Start playback
+    Kit_PlayerPlay(player);
+
     // Run until playback is stopped
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
@@ -296,7 +297,7 @@ int main(int argc, char *argv[]) {
                         case SDL_WINDOWEVENT_SIZE_CHANGED:
                             SDL_GetWindowSize(window, &screen_w, &screen_h);
                             find_viewport_size(
-                                screen_w, screen_h, pinfo.video.output.width, pinfo.video.output.height, &size_w, &size_h);
+                                    screen_w, screen_h, player_info.video_format.width, player_info.video_format.height, &size_w, &size_h);
                             SDL_RenderSetLogicalSize(renderer, size_w, size_h);
                             Kit_SetPlayerScreenSize(player, size_w, size_h);
                             break;
@@ -330,17 +331,17 @@ int main(int argc, char *argv[]) {
 
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
-        if(queued < AUDIOBUFFER_SIZE) {
-            int need = AUDIOBUFFER_SIZE - queued;
+        if(queued < AUDIO_BUFFER_SIZE) {
+            int need = AUDIO_BUFFER_SIZE - queued;
 
             while(need > 0) {
                 ret = Kit_GetPlayerAudioData(
-                    player,
-                    (unsigned char*)audiobuf,
-                    AUDIOBUFFER_SIZE);
+                        player,
+                        (unsigned char*)audio_buf,
+                        AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
-                    SDL_QueueAudio(audio_dev, audiobuf, ret);
+                    SDL_QueueAudio(audio_dev, audio_buf, ret);
                 } else {
                     break;
                 }
@@ -355,10 +356,10 @@ int main(int argc, char *argv[]) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         SDL_RenderClear(renderer);
 
-        // Refresh the video texture and render it
-        SDL_Rect area;
-        Kit_GetPlayerVideoDataArea(player, video_tex, &area);
-        SDL_RenderCopy(renderer, video_tex, &area, NULL);
+        // Refresh the video texture and render it. Do not that Kit_GetPlayerVideoDataArea does not change the texture
+        // or the video area coords if there is no new video data! In that case, you should just use the old content.
+        Kit_GetPlayerVideoDataArea(player, video_tex, &video_area);
+        SDL_RenderCopy(renderer, video_tex, &video_area, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
