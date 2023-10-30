@@ -36,28 +36,23 @@ typedef enum Kit_PlayerState {
 typedef struct Kit_Player {
     Kit_PlayerState state;   ///< Playback state
     void *decoders[3];       ///< Decoder contexts
-    void *dec_thread;        ///< Decoder thread
-    void *dec_lock;          ///< Decoder lock
+    void *dec_threads[3];    ///< Decoder threads
+    void *demux_thread;      ///< Demuxer thread
     const Kit_Source *src;   ///< Reference to Audio/Video source
     double pause_started;    ///< Temporary flag for handling pauses
 } Kit_Player;
-
-/**
- * @brief Contains data about a stream selected for playback
- */
-typedef struct Kit_PlayerStreamInfo {
-    Kit_Codec codec; ///< Decoder codec information
-    Kit_OutputFormat output; ///< Information about the output format
-} Kit_PlayerStreamInfo;
 
 /**
  * @brief Contains information about the streams selected for playback
  * 
  */
 typedef struct Kit_PlayerInfo {
-    Kit_PlayerStreamInfo video; ///< Video stream data
-    Kit_PlayerStreamInfo audio; ///< Audio stream data
-    Kit_PlayerStreamInfo subtitle; ///< Subtitle stream data
+    Kit_Codec video_codec;                    ///< Video codec information
+    Kit_Codec audio_codec;                    ///< Audio codec information
+    Kit_Codec subtitle_codec;                 ///< Subtitle codec information
+    Kit_VideoOutputFormat video_format;       ///< Information about the video output format
+    Kit_AudioOutputFormat audio_format;       ///< Information about the audio output format
+    Kit_SubtitleOutputFormat subtitle_format; ///< Information about the subtitle output format
 } Kit_PlayerInfo;
 
 /**

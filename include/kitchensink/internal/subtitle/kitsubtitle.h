@@ -12,6 +12,7 @@ KIT_LOCAL Kit_Decoder* Kit_CreateSubtitleDecoder(
 KIT_LOCAL void Kit_GetSubtitleDecoderTexture(const Kit_Decoder *dec, SDL_Texture *texture, double sync_ts);
 KIT_LOCAL void Kit_SetSubtitleDecoderSize(const Kit_Decoder *dec, int w, int h);
 KIT_LOCAL int Kit_GetSubtitleDecoderInfo(
-    const Kit_Decoder *dec, const SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
+    const Kit_Decoder *dec, SDL_Rect *sources, SDL_Rect *targets, int limit);
+KIT_LOCAL int Kit_GetSubtitleDecoderOutputFormat(const Kit_Decoder *dec, Kit_SubtitleOutputFormat *output);
 
 #endif // KITSUBTITLE_H
