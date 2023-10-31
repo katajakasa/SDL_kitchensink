@@ -3,13 +3,11 @@
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitdemuxerthread.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 
 static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;
     while (SDL_AtomicGet(&thread->run) && Kit_RunDemuxer(thread->demuxer)) {};
-    LOG("DEMUXER THREAD CLOSED\n");
     return 0;
 }
 

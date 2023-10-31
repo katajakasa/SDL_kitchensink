@@ -7,7 +7,6 @@
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/subtitle/kitsubtitle.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdemuxerthread.h"
 
@@ -122,7 +121,6 @@ void Kit_ClosePlayer(Kit_Player *player) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         Kit_CloseDecoder((Kit_Decoder **)&player->decoders[i]);
     }
-    LOG("PLAYER CLOSED\n");
     memset(player, 0, sizeof(Kit_Player));
     free(player);
 }
