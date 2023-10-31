@@ -47,8 +47,8 @@ static void dec_read_audio(const Kit_Decoder *dec) {
     av_frame_copy_props(audio_decoder->out_frame, audio_decoder->in_frame);
 
     // Write audio packet to packet buffer. This may block!
+    // No need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
     Kit_WritePacketBuffer(audio_decoder->buffer, audio_decoder->out_frame);
-    av_frame_unref(audio_decoder->out_frame);
 }
 
 static bool dec_input_audio_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
