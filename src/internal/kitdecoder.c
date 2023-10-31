@@ -13,6 +13,7 @@ Kit_Decoder* Kit_CreateDecoder(
     dec_input_cb dec_input,
     dec_decode_cb dec_decode,
     dec_flush_cb dec_flush,
+    dec_signal_cb dec_signal,
     dec_close_cb dec_close,
     void *userdata
 ) {
@@ -67,6 +68,7 @@ Kit_Decoder* Kit_CreateDecoder(
     decoder->dec_input = dec_input;
     decoder->dec_decode = dec_decode;
     decoder->dec_flush = dec_flush;
+    decoder->dec_signal = dec_signal;
     decoder->dec_close = dec_close;
     decoder->userdata = userdata;
     return decoder;
@@ -101,6 +103,13 @@ bool Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet) {
     assert(decoder);
     assert(packet);
     return decoder->dec_input(decoder, packet);
+}
+
+void Kit_SignalDecoder(Kit_Decoder *decoder) {
+    if(decoder == NULL)
+        return;
+    if(decoder->dec_signal)
+        decoder->dec_signal(decoder);
 }
 
 void Kit_ClearDecoderBuffers(Kit_Decoder *decoder) {

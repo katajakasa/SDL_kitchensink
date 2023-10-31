@@ -104,6 +104,11 @@ static void ren_flush_cb(Kit_SubtitleRenderer *ren) {
     Kit_FlushPacketBuffer(image_renderer->buffer);
 }
 
+static void ren_signal_cb(Kit_SubtitleRenderer *ren) {
+    Kit_ImageSubtitleRenderer *image_renderer = ren->userdata;
+    Kit_SignalPacketBuffer(image_renderer->buffer);
+}
+
 static void ren_close_img_cb(Kit_SubtitleRenderer *renderer) {
     if(!renderer || !renderer->userdata)
         return;
@@ -140,6 +145,7 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
             ren_get_img_data_cb,
             ren_set_img_size_cb,
             ren_flush_cb,
+            ren_signal_cb,
             ren_close_img_cb,
             image_renderer)) == NULL) {
         goto exit_1;
