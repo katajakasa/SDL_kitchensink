@@ -95,7 +95,7 @@ static void dec_read_video(const Kit_Decoder *decoder) {
 static bool dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder);
     assert(in_packet);
-    return avcodec_send_packet(decoder->codec_ctx, in_packet) < 0;
+    return avcodec_send_packet(decoder->codec_ctx, in_packet) == 0;
 }
 
 static bool dec_decode_video_cb(const Kit_Decoder *decoder) {
