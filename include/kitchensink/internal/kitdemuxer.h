@@ -24,5 +24,6 @@ KIT_LOCAL Kit_Demuxer* Kit_CreateDemuxer(
 KIT_LOCAL void Kit_CloseDemuxer(Kit_Demuxer **demuxer);
 KIT_LOCAL bool Kit_RunDemuxer(Kit_Demuxer *demuxer);
 KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, KitBufferIndex buffer_index);
+KIT_LOCAL void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer);
 
 #endif // KITDEMUXER_H

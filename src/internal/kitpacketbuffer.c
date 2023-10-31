@@ -131,7 +131,8 @@ size_t Kit_GetPacketBufferLength(const Kit_PacketBuffer *buffer) {
 }
 
 void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
-    assert(buffer);
+    if (buffer == NULL)
+        return;
     if(SDL_LockMutex(buffer->mutex) == 0) {
         for(size_t i = 0; i < buffer->capacity; i++) {
             buffer->unref_cb(buffer->packets[i]);
@@ -139,6 +140,7 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
         buffer->head = 0;
         buffer->tail = 0;
         SDL_UnlockMutex(buffer->mutex);
+        SDL_CondSignal(buffer->can_write);
     }
 }
 

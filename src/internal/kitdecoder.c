@@ -12,6 +12,7 @@ Kit_Decoder* Kit_CreateDecoder(
     int thread_count,
     dec_input_cb dec_input,
     dec_decode_cb dec_decode,
+    dec_flush_cb dec_flush,
     dec_close_cb dec_close,
     void *userdata
 ) {
@@ -65,6 +66,7 @@ Kit_Decoder* Kit_CreateDecoder(
     decoder->codec_ctx = codec_ctx;
     decoder->dec_input = dec_input;
     decoder->dec_decode = dec_decode;
+    decoder->dec_flush = dec_flush;
     decoder->dec_close = dec_close;
     decoder->userdata = userdata;
     return decoder;
@@ -101,9 +103,11 @@ bool Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet) {
     return decoder->dec_input(decoder, packet);
 }
 
-void Kit_ClearDecoderBuffers(const Kit_Decoder *decoder) {
-    assert(decoder);
-    // TODO: Flush specific decoder buffers! Callback ?
+void Kit_ClearDecoderBuffers(Kit_Decoder *decoder) {
+    if(decoder == NULL)
+        return;
+    if(decoder->dec_flush)
+        decoder->dec_flush(decoder);
     avcodec_flush_buffers(decoder->codec_ctx);
 }
 

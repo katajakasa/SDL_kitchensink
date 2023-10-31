@@ -51,6 +51,13 @@ static void dec_read_audio(const Kit_Decoder *dec) {
     Kit_WritePacketBuffer(audio_decoder->buffer, audio_decoder->out_frame);
 }
 
+static void dec_flush_audio_cb(Kit_Decoder *decoder) {
+    assert(decoder);
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    Kit_FlushPacketBuffer(audio_decoder->buffer);
+    av_frame_unref(audio_decoder->current);
+}
+
 static bool dec_input_audio_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
     assert(dec != NULL);
     assert(in_packet != NULL);
@@ -120,6 +127,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
             state->thread_count,
             dec_input_audio_cb,
             dec_decode_audio_cb,
+            dec_flush_audio_cb,
             dec_close_audio_cb,
             audio_decoder)) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

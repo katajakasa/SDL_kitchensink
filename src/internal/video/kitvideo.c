@@ -63,6 +63,12 @@ int Kit_GetVideoDecoderOutputFormat(const Kit_Decoder *decoder, Kit_VideoOutputF
     return 0;
 }
 
+static void dec_flush_video_cb(Kit_Decoder *decoder) {
+    assert(decoder);
+    Kit_VideoDecoder *video_decoder = decoder->userdata;
+    Kit_FlushPacketBuffer(video_decoder->buffer);
+}
+
 static void dec_read_video(const Kit_Decoder *decoder) {
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     enum AVPixelFormat in_fmt = decoder->codec_ctx->pix_fmt;
@@ -80,17 +86,17 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     Kit_WritePacketBuffer(video_decoder->buffer, video_decoder->out_frame);
 }
 
-static bool dec_input_video_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
-    assert(dec != NULL);
-    assert(in_packet != NULL);
-    return avcodec_send_packet(dec->codec_ctx, in_packet) < 0;
+static bool dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
+    assert(decoder);
+    assert(in_packet);
+    return avcodec_send_packet(decoder->codec_ctx, in_packet) < 0;
 }
 
-static bool dec_decode_video_cb(const Kit_Decoder *dec) {
-    assert(dec != NULL);
-    Kit_VideoDecoder *video_decoder = dec->userdata;
-    if(avcodec_receive_frame(dec->codec_ctx, video_decoder->in_frame) == 0) {
-        dec_read_video(dec);
+static bool dec_decode_video_cb(const Kit_Decoder *decoder) {
+    assert(decoder);
+    Kit_VideoDecoder *video_decoder = decoder->userdata;
+    if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->in_frame) == 0) {
+        dec_read_video(decoder);
         av_frame_unref(video_decoder->in_frame);
         return true;
     }
@@ -147,6 +153,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         state->thread_count,
         dec_input_video_cb,
         dec_decode_video_cb,
+        dec_flush_video_cb,
         dec_close_video_cb,
         video_decoder)) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

@@ -109,6 +109,14 @@ error_0:
     return NULL;
 }
 
+void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer) {
+    if (!demuxer)
+        return;
+    for (int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_FlushPacketBuffer(demuxer->buffers[i]);
+    }
+}
+
 Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, KitBufferIndex buffer_index) {
     assert(demuxer);
     return demuxer->buffers[buffer_index];

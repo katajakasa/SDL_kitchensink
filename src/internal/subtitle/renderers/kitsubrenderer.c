@@ -6,13 +6,14 @@
 
 
 Kit_SubtitleRenderer* Kit_CreateSubtitleRenderer(
-        Kit_Decoder *decoder,
-        renderer_render_cb render_cb,
-        renderer_get_data_cb get_data_cb,
-        renderer_set_size_cb set_size_cb,
-        renderer_close_cb close_cb,
-        void *userdata) {
-    // Allocate renderer and make sure allocation was a success
+    Kit_Decoder *decoder,
+    renderer_render_cb render_cb,
+    renderer_get_data_cb get_data_cb,
+    renderer_set_size_cb set_size_cb,
+    renderer_flush_cb flush_cb,
+    renderer_close_cb close_cb,
+    void *userdata
+) {
     Kit_SubtitleRenderer *renderer = calloc(1, sizeof(Kit_SubtitleRenderer));
     if(renderer == NULL) {
         Kit_SetError("Unable to allocate kit subtitle renderer");
@@ -23,6 +24,7 @@ Kit_SubtitleRenderer* Kit_CreateSubtitleRenderer(
     renderer->close_cb = close_cb;
     renderer->get_data_cb = get_data_cb;
     renderer->set_size_cb = set_size_cb;
+    renderer->flush_cb = flush_cb;
     renderer->userdata = userdata;
     return renderer;
 }
@@ -32,6 +34,11 @@ void Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *renderer, void *src, double p
         return;
     if(renderer->render_cb != NULL)
         renderer->render_cb(renderer, src, pts, start, end);
+}
+
+void Kit_FlushSubtitleRendererBuffers(Kit_SubtitleRenderer *renderer) {
+    if(renderer->flush_cb)
+        renderer->flush_cb(renderer);
 }
 
 int Kit_GetSubtitleRendererData(Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
