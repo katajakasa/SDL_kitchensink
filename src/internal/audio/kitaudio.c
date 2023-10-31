@@ -10,7 +10,6 @@
 #include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/audio/kitaudioutils.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 #define KIT_AUDIO_SYNC_THRESHOLD 0.05
 
@@ -233,6 +232,10 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, int len) {
     int pos, ret = 0;
     double pts;
     double sync_ts;
+
+    // Immediately bail if nothing is requested.
+    if(len <= 0)
+        return 0;
 
     // If we have no data left in current buffer, try to get some more from the decoder output.
     if(audio_decoder->left <= 0)
