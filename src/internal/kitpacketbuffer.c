@@ -144,6 +144,13 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
     }
 }
 
+void Kit_SignalPacketBuffer(Kit_PacketBuffer *buffer) {
+    if (buffer == NULL)
+        return;
+    SDL_CondBroadcast(buffer->can_write);
+    SDL_CondBroadcast(buffer->can_read);
+}
+
 static void advance_read(Kit_PacketBuffer *buffer) {
     assert(buffer);
     buffer->full = false;

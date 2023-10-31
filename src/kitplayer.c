@@ -121,6 +121,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
         Kit_StopDecoderThread(player->dec_threads[i]);
         Kit_ClearDecoderBuffers(player->decoders[i]);
+        Kit_SignalDecoder(player->decoders[i]);
         Kit_CloseDecoderThread((Kit_DecoderThread **)&player->dec_threads[i]);
     }
     Kit_CloseDemuxerThread((Kit_DemuxerThread**)&player->demux_thread);
@@ -128,6 +129,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
         Kit_CloseDecoder((Kit_Decoder **)&player->decoders[i]);
     }
 
+    memset(player, 0, sizeof(Kit_Player));
     free(player);
 }
 
@@ -311,9 +313,6 @@ void Kit_PlayerStop(Kit_Player *player) {
         case KIT_PAUSED:
             player->state = KIT_STOPPED;
             _StopThreads(player);
-            for(int i = 0; i < KIT_DEC_COUNT; i++) {
-                Kit_ClearDecoderBuffers(player->decoders[i]);
-            }
             break;
     }
 

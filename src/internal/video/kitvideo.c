@@ -69,6 +69,12 @@ static void dec_flush_video_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(video_decoder->buffer);
 }
 
+static void dec_signal_video_cb(Kit_Decoder *decoder) {
+    assert(decoder);
+    Kit_VideoDecoder *video_decoder = decoder->userdata;
+    Kit_SignalPacketBuffer(video_decoder->buffer);
+}
+
 static void dec_read_video(const Kit_Decoder *decoder) {
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     enum AVPixelFormat in_fmt = decoder->codec_ctx->pix_fmt;
@@ -154,6 +160,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         dec_input_video_cb,
         dec_decode_video_cb,
         dec_flush_video_cb,
+        dec_signal_video_cb,
         dec_close_video_cb,
         video_decoder)) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

@@ -13,6 +13,7 @@ typedef void (*renderer_render_cb)(Kit_SubtitleRenderer *ren, void *src, double 
 typedef int (*renderer_get_data_cb)(Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts);
 typedef void (*renderer_set_size_cb)(Kit_SubtitleRenderer *ren, int w, int h);
 typedef void (*renderer_flush_cb)(Kit_SubtitleRenderer *ren);
+typedef void (*renderer_signal_cb)(Kit_SubtitleRenderer *ren);
 typedef void (*renderer_close_cb)(Kit_SubtitleRenderer *ren);
 
 struct Kit_SubtitleRenderer {
@@ -22,6 +23,7 @@ struct Kit_SubtitleRenderer {
     renderer_get_data_cb get_data_cb; ///< Subtitle data getter function callback
     renderer_set_size_cb set_size_cb; ///< Screen size setter function callback
     renderer_flush_cb  flush_cb; ///< Flush subtitle renderer buffers
+    renderer_signal_cb signal_cb; ///< Shutdown signal handler function callback
     renderer_close_cb close_cb; ///< Subtitle renderer close function callback
 };
 
@@ -31,6 +33,7 @@ KIT_LOCAL Kit_SubtitleRenderer* Kit_CreateSubtitleRenderer(
     renderer_get_data_cb get_data_cb,
     renderer_set_size_cb set_size_cb,
     renderer_flush_cb flush_cb,
+    renderer_signal_cb signal_cb,
     renderer_close_cb close_cb,
     void *userdata
 );
@@ -41,6 +44,8 @@ KIT_LOCAL int Kit_GetSubtitleRendererData(
 KIT_LOCAL void Kit_SetSubtitleRendererSize(
     Kit_SubtitleRenderer *renderer, int w, int h);
 KIT_LOCAL void Kit_FlushSubtitleRendererBuffers(
+    Kit_SubtitleRenderer *renderer);
+KIT_LOCAL void Kit_SignalSubtitleRenderer(
     Kit_SubtitleRenderer *renderer);
 KIT_LOCAL void Kit_CloseSubtitleRenderer(
     Kit_SubtitleRenderer *renderer);
