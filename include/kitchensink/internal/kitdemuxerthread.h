@@ -28,5 +28,6 @@ KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerTh
 
 KIT_LOCAL void Kit_StartDemuxerThread(Kit_DemuxerThread *demuxer_thread);
 KIT_LOCAL void Kit_StopDemuxerThread(Kit_DemuxerThread *demuxer_thread);
+KIT_LOCAL void Kit_WaitDemuxerThread(Kit_DemuxerThread *demuxer_thread);
 
 #endif // KITDEMUXERTHREAD_H

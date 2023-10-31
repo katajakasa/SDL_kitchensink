@@ -116,12 +116,19 @@ void Kit_ClosePlayer(Kit_Player *player) {
         return;
 
     player->state = KIT_CLOSED;
+
+    Kit_StopDemuxerThread(player->demux_thread);
     for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        //Kit_CloseDecoderThread(player->dec_threads[i]);
-        //Kit_CloseDecoder((Kit_Decoder**)&player->decoders[i]);
+        Kit_StopDecoderThread(player->dec_threads[i]);
+        Kit_ClearDecoderBuffers(player->decoders[i]);
+        Kit_CloseDecoderThread((Kit_DecoderThread **)&player->dec_threads[i]);
     }
-    //Kit_CloseDemuxerThread(player->demux_thread);
-    //free(player);
+    Kit_CloseDemuxerThread((Kit_DemuxerThread**)&player->demux_thread);
+    for(int i = 0; i < KIT_DEC_COUNT; i++) {
+        Kit_CloseDecoder((Kit_Decoder **)&player->decoders[i]);
+    }
+
+    free(player);
 }
 
 void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h) {

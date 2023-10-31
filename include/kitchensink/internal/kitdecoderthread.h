@@ -18,6 +18,7 @@ typedef struct Kit_DecoderThread {
 KIT_LOCAL Kit_DecoderThread* Kit_CreateDecoderThread(Kit_PacketBuffer *input, Kit_Decoder *decoder);
 KIT_LOCAL void Kit_StartDecoderThread(Kit_DecoderThread *dec_thread, const char *name);
 KIT_LOCAL void Kit_StopDecoderThread(Kit_DecoderThread *dec_thread);
+KIT_LOCAL void Kit_WaitDecoderThread(Kit_DecoderThread *dec_thread);
 KIT_LOCAL void Kit_CloseDecoderThread(Kit_DecoderThread **ref);
 
 #endif // KITDECODERTHREAD_H

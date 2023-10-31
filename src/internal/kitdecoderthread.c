@@ -61,6 +61,11 @@ void Kit_StopDecoderThread(Kit_DecoderThread *dec_thread) {
     if(!dec_thread || !dec_thread->thread)
         return;
     SDL_AtomicSet(&dec_thread->run, 0);
+}
+
+void Kit_WaitDecoderThread(Kit_DecoderThread *dec_thread) {
+    if(!dec_thread || !dec_thread->thread)
+        return;
     SDL_WaitThread(dec_thread->thread, NULL);
     dec_thread->thread = NULL;
 }
@@ -70,6 +75,8 @@ void Kit_CloseDecoderThread(Kit_DecoderThread **ref) {
         return;
     Kit_DecoderThread *dec_thread = *ref;
     Kit_StopDecoderThread(dec_thread);
+    Kit_WaitDecoderThread(dec_thread);
+    av_packet_free(&dec_thread->scratch_packet);
     free(dec_thread);
     *ref = NULL;
 }

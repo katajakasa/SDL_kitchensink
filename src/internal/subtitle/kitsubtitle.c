@@ -44,6 +44,12 @@ static void dec_read_subtitle(const Kit_Decoder *decoder, int64_t packet_pts) {
     Kit_RunSubtitleRenderer(subtitle_decoder->renderer, &subtitle_decoder->scratch_frame, pts, start, end);
 }
 
+static void dec_flush_subtitle_cb(Kit_Decoder *decoder) {
+    assert(decoder);
+    Kit_SubtitleDecoder *subtitle_decoder = decoder->userdata;
+    Kit_FlushSubtitleRendererBuffers(subtitle_decoder->renderer);
+}
+
 static bool dec_input_subtitle_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
     assert(dec);
     assert(in_packet);
@@ -122,6 +128,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
         state->thread_count,
         dec_input_subtitle_cb,
         dec_decode_subtitle_cb,
+        dec_flush_subtitle_cb,
         dec_close_subtitle_cb,
         subtitle_decoder)) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

@@ -157,6 +157,7 @@ Kit_SubtitleRenderer* Kit_CreateASSSubtitleRenderer(
         ren_render_ass_cb,
         ren_get_ass_data_cb,
         ren_set_ass_size_cb,
+        NULL,
         ren_close_ass_cb,
         ass_renderer)) == NULL) {
         goto exit_1;

@@ -52,6 +52,11 @@ void Kit_StopDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
     if(!demuxer_thread || !demuxer_thread->thread)
         return;
     SDL_AtomicSet(&demuxer_thread->run, 0);
+}
+
+void Kit_WaitDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
+    if(!demuxer_thread || !demuxer_thread->thread)
+        return;
     SDL_WaitThread(demuxer_thread->thread, NULL);
     demuxer_thread->thread = NULL;
 }
@@ -67,6 +72,8 @@ void Kit_CloseDemuxerThread(Kit_DemuxerThread **ref) {
 
     Kit_DemuxerThread *demuxer_thread = *ref;
     Kit_StopDemuxerThread(demuxer_thread);
+    Kit_ClearDemuxerBuffers(demuxer_thread->demuxer);
+    Kit_WaitDemuxerThread(demuxer_thread);
     Kit_CloseDemuxer(&demuxer_thread->demuxer);
     free(demuxer_thread);
     *ref = NULL;
