@@ -96,12 +96,15 @@ void Kit_FreePacketBuffer(Kit_PacketBuffer **ref) {
         return;
 
     Kit_PacketBuffer *buffer = *ref;
+    SDL_CondBroadcast(buffer->can_read);
+    SDL_CondBroadcast(buffer->can_write);
     SDL_DestroyCond(buffer->can_read);
     SDL_DestroyCond(buffer->can_write);
     SDL_DestroyMutex(buffer->mutex);
     for(size_t i = 0; i < buffer->capacity; i++) {
         buffer->free_cb((void **)&buffer->packets[i]);
     }
+    free(buffer->packets);
     free(buffer);
     *ref = NULL;
 }
