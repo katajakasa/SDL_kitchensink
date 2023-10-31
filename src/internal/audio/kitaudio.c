@@ -1,27 +1,25 @@
 #include <assert.h>
-#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 #include <libavformat/avformat.h>
-#include <libavutil/samplefmt.h>
 #include <libswresample/swresample.h>
 #include <SDL.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/audio/kitaudio.h"
-#include "kitchensink/internal/audio/kitaudiopacket.h"
 #include "kitchensink/internal/audio/kitaudioutils.h"
+#include "kitchensink/internal/utils/kitlog.h"
 
 #define KIT_AUDIO_SYNC_THRESHOLD 0.05
 
 typedef struct Kit_AudioDecoder {
     SwrContext *swr;                 ///< Audio resampler context
-    AVFrame *scratch_frame;          ///< Temporary AVFrame for audio decoding purposes
-    Kit_AudioPacket *scratch_packet; ///< Temporary audio packet for decoding purposes
-    Kit_AudioPacket *current;        ///< Audio packet we are currently reading from
+    AVFrame *in_frame;               ///< Temporary AVFrame for audio decoding purposes
+    AVFrame *out_frame;              ///< Temporary AVFrame fur audio resampling purposes
+    AVFrame *current;                ///< Audio packet we are currently reading from
+    int left;                        ///< How much data we have left in the current packet
     Kit_PacketBuffer *buffer;        ///< Packet ringbuffer for decoded audio packets
     Kit_AudioOutputFormat output;    ///< Output audio format description
 } Kit_AudioDecoder;
@@ -38,50 +36,21 @@ int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *decoder, Kit_AudioOutputF
 }
 
 static void dec_read_audio(const Kit_Decoder *dec) {
-    const Kit_AudioDecoder *audio_dec = dec->userdata;
-    int len;
-    int dst_line_size;
-    int dst_nb_samples;
-    int dst_buf_size;
-    double pts;
-    unsigned char **dst_data;
+    const Kit_AudioDecoder *audio_decoder = dec->userdata;
 
-    dst_nb_samples = av_rescale_rnd(
-        audio_dec->scratch_frame->nb_samples,
-        audio_dec->output.sample_rate,  // Target sample rate
-        dec->codec_ctx->sample_rate,  // Source sample rate
-        AV_ROUND_UP);
+    // Setup correct settings for the output frame, these are required by swr_convert_frame.
+    Kit_FindAVChannelLayout(audio_decoder->output.channels, &audio_decoder->out_frame->ch_layout);
+    audio_decoder->out_frame->format = Kit_FindAVSampleFormat(audio_decoder->output.format);
+    audio_decoder->out_frame->sample_rate = audio_decoder->output.sample_rate;
 
-    av_samples_alloc_array_and_samples(
-        &dst_data,
-        &dst_line_size,
-        audio_dec->output.channels,
-        dst_nb_samples,
-        Kit_FindAVSampleFormat(audio_dec->output.format),
-        0);
+    // Convert frame and copy props to the new frame we got.
+    swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame);
+    av_frame_copy_props(audio_decoder->out_frame, audio_decoder->in_frame);
 
-    len = swr_convert(
-        audio_dec->swr,
-        dst_data,
-        dst_nb_samples,
-        (const unsigned char **)audio_dec->scratch_frame->extended_data,
-        audio_dec->scratch_frame->nb_samples);
-
-    dst_buf_size = av_samples_get_buffer_size(
-        &dst_line_size,
-        audio_dec->output.channels,
-        len,
-        Kit_FindAVSampleFormat(audio_dec->output.format), 1);
-
-    // Get presentation timestamp
-    pts = audio_dec->scratch_frame->best_effort_timestamp * av_q2d(dec->stream->time_base);
-
-    // Write audio packet to packet buffer. This may block! Free any unnecessary resources after.
-    Kit_SetAudioPacketData(audio_dec->scratch_packet, dst_data[0], dst_buf_size, pts);
-    Kit_WritePacketBuffer(audio_dec->buffer, audio_dec->scratch_packet);
-    av_freep(&dst_data);
+    // Write audio packet to packet buffer. This may block!
+    Kit_WritePacketBuffer(audio_decoder->buffer, audio_decoder->out_frame);
+    av_frame_unref(audio_decoder->out_frame);
 }
-
 
 static bool dec_input_audio_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
     assert(dec != NULL);
@@ -93,9 +62,9 @@ static bool dec_decode_audio_cb(const Kit_Decoder *dec) {
     assert(dec != NULL);
     Kit_AudioDecoder *audio_decoder = dec->userdata;
 
-    if(avcodec_receive_frame(dec->codec_ctx, audio_decoder->scratch_frame) == 0) {
+    if(avcodec_receive_frame(dec->codec_ctx, audio_decoder->in_frame) == 0) {
         dec_read_audio(dec);
-        av_frame_unref(audio_decoder->scratch_frame);
+        av_frame_unref(audio_decoder->in_frame);
         return true;
     }
 
@@ -107,12 +76,12 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
         return;
     assert(ref->userdata);
     Kit_AudioDecoder *audio_dec = ref->userdata;
+    if(audio_dec->in_frame != NULL)
+        av_frame_free(&audio_dec->in_frame);
+    if(audio_dec->out_frame != NULL)
+        av_frame_free(&audio_dec->out_frame);
     if(audio_dec->current != NULL)
-        Kit_FreeAudioPacket(&audio_dec->current);
-    if(audio_dec->scratch_packet != NULL)
-        Kit_FreeAudioPacket(&audio_dec->scratch_packet);
-    if(audio_dec->scratch_frame != NULL)
-        av_frame_free(&audio_dec->scratch_frame);
+        av_frame_free(&audio_dec->current);
     if(audio_dec->swr != NULL)
         swr_free(&audio_dec->swr);
     if(audio_dec->buffer != NULL)
@@ -128,13 +97,13 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     Kit_Decoder *decoder = NULL;
     Kit_AudioDecoder *audio_decoder = NULL;
     Kit_PacketBuffer *buffer = NULL;
-    AVFrame *scratch_frame = NULL;
+    AVFrame *in_frame = NULL;
+    AVFrame *out_frame = NULL;
+    AVFrame *current = NULL;
     AVChannelLayout layout;
     AVStream *stream = NULL;
     SwrContext *swr = NULL;
     Kit_AudioOutputFormat output;
-    Kit_AudioPacket *current = NULL;
-    Kit_AudioPacket *scratch_packet = NULL;
 
     // Find and set up stream.
     if(stream_index < 0 || stream_index >= format_ctx->nb_streams) {
@@ -145,7 +114,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
 
     if((audio_decoder = calloc(1, sizeof(Kit_AudioDecoder))) == NULL) {
         Kit_SetError("Unable to allocate audio decoder for stream %d", stream_index);
-        goto exit_0;
+        goto exit_none;
     }
     if((decoder = Kit_CreateDecoder(
             stream,
@@ -155,28 +124,28 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
             dec_close_audio_cb,
             audio_decoder)) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.
-        goto exit_1;
+        goto exit_audio_dec;
     }
-    if((scratch_frame = av_frame_alloc()) == NULL) {
-        Kit_SetError("Unable to allocate temporary audio frame for stream %d", stream_index);
-        goto exit_2;
+    if((in_frame = av_frame_alloc()) == NULL) {
+        Kit_SetError("Unable to allocate input audio frame for stream %d", stream_index);
+        goto exit_decoder;
+    }
+    if((out_frame = av_frame_alloc()) == NULL) {
+        Kit_SetError("Unable to allocate output audio frame for stream %d", stream_index);
+        goto exit_in_frame;
+    }
+    if((current = av_frame_alloc()) == NULL) {
+        Kit_SetError("Unable to allocate output audio frame for stream %d", stream_index);
+        goto exit_out_frame;
     }
     if((buffer = Kit_CreatePacketBuffer(
         64,
-        (buf_obj_alloc) Kit_CreateAudioPacket,
-        (buf_obj_unref) Kit_DelAudioPacketRefs,
-        (buf_obj_free) Kit_FreeAudioPacket,
-        (buf_obj_move) Kit_MoveAudioPacketRefs)) == NULL) {
+        (buf_obj_alloc) av_frame_alloc,
+        (buf_obj_unref) av_frame_unref,
+        (buf_obj_free) av_frame_free,
+        (buf_obj_move) av_frame_move_ref)) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
-        goto exit_3;
-    }
-    if((current = Kit_CreateAudioPacket()) == NULL) {
-        Kit_SetError("Unable to allocate reader audio packet for stream %d", stream_index);
-        goto exit_4;
-    }
-    if((scratch_packet = Kit_CreateAudioPacket()) == NULL) {
-        Kit_SetError("Unable to allocate scratch audio packet for stream %d", stream_index);
-        goto exit_5;
+        goto exit_current;
     }
 
     memset(&output, 0, sizeof(Kit_AudioOutputFormat));
@@ -189,62 +158,69 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     Kit_FindAVChannelLayout(output.channels, &layout);
     if (swr_alloc_set_opts2(
             &swr,
-            &layout, // Target channel layout
-            Kit_FindAVSampleFormat(output.format), // Target fmt
-            output.sample_rate, // Target sample rate
-            &decoder->codec_ctx->ch_layout, // Source channel layout
-            decoder->codec_ctx->sample_fmt, // Source fmt
-            decoder->codec_ctx->sample_rate, // Source sample rate
+            &layout,
+            Kit_FindAVSampleFormat(output.format),
+            output.sample_rate,
+            &decoder->codec_ctx->ch_layout,
+            decoder->codec_ctx->sample_fmt,
+            decoder->codec_ctx->sample_rate,
             0,
             NULL) != 0) {
         Kit_SetError("Unable to allocate audio resampler context");
-        goto exit_6;
+        goto exit_buffer;
     }
     if(swr_init(swr) != 0) {
         Kit_SetError("Unable to initialize audio resampler context");
-        goto exit_7;
+        goto exit_swr;
     }
 
     audio_decoder->current = current;
-    audio_decoder->scratch_frame = scratch_frame;
-    audio_decoder->scratch_packet = scratch_packet;
+    audio_decoder->in_frame = in_frame;
+    audio_decoder->out_frame = out_frame;
     audio_decoder->swr = swr;
     audio_decoder->buffer = buffer;
     audio_decoder->output = output;
+    audio_decoder->left = 0;
     return decoder;
 
-exit_7:
+exit_swr:
     swr_free(&swr);
-exit_6:
-    Kit_FreeAudioPacket(&scratch_packet);
-exit_5:
-    Kit_FreeAudioPacket(&current);
-exit_4:
+exit_buffer:
     Kit_FreePacketBuffer(&buffer);
-exit_3:
-    av_frame_free(&scratch_frame);
-exit_2:
+exit_current:
+    av_frame_free(&current);
+exit_out_frame:
+    av_frame_free(&out_frame);
+exit_in_frame:
+    av_frame_free(&in_frame);
+exit_decoder:
     Kit_CloseDecoder(&decoder);
-exit_1:
+exit_audio_dec:
     free(audio_decoder);
-exit_0:
+exit_none:
     return NULL;
 }
+
+static double Kit_GetCurrentPTS(const Kit_Decoder *decoder) {
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    return audio_decoder->current->best_effort_timestamp * av_q2d(decoder->stream->time_base);
+}
+
+#define PACKET_SIZE(audio_decoder) (audio_decoder->current->nb_samples * audio_decoder->output.channels * audio_decoder->output.bytes)
 
 /**
  * Get a new packet from the audio decoder output and bump it to the current packet slot.
  */
-bool Kit_PopAudioPacket(const Kit_AudioDecoder *audio_decoder) {
-    Kit_DelAudioPacketRefs(audio_decoder->current);
+static bool Kit_PopAudioPacket(Kit_Decoder *decoder) {
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    av_frame_unref(audio_decoder->current);
     if(!Kit_ReadPacketBuffer(audio_decoder->buffer, audio_decoder->current, 0)) {
         return false;
     }
+    audio_decoder->left = PACKET_SIZE(audio_decoder);
     return true;
 }
 
-/**
- * Calculate the duration (in seconds) of a clip of audio stream.
- */
 double Kit_GetClipTime(const Kit_AudioOutputFormat *output, size_t bytes) {
     int bytes_per_sample = output->bytes * output->channels;
     double bytes_per_second = bytes_per_sample * output->sample_rate;
@@ -253,37 +229,36 @@ double Kit_GetClipTime(const Kit_AudioOutputFormat *output, size_t bytes) {
 
 int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, int len) {
     assert(decoder != NULL);
-    const Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    Kit_AudioPacket *current = audio_decoder->current;
-    int ret = 0;
-    int pos;
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    int pos, ret = 0;
+    double pts;
     double sync_ts;
 
     // If we have no data left in current buffer, try to get some more from the decoder output.
-    if(current->left <= 0)
-        if(!Kit_PopAudioPacket(audio_decoder))
+    if(audio_decoder->left <= 0)
+        if(!Kit_PopAudioPacket(decoder))
             return 0;
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    // For audio, it is possible that we cannot find good packet. Then just don't read anything.
+    pts = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetSystemTime() - decoder->clock_sync;
-    if(current->pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
+    if(pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
         return 0;
     }
-    while(current->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
-        if(!Kit_PopAudioPacket(audio_decoder))
+    while(pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
+        if(!Kit_PopAudioPacket(decoder))
             return 0;
+        pts = Kit_GetCurrentPTS(decoder);
     }
 
-    // Read data from packet ringbuffer
-    decoder->clock_pos = current->pts;
-    if(current->left) {
-        ret = len > current->left ? current->left : len;
-        pos = current->length - current->left;
-        memcpy(buf, current->data + pos, ret);
-        current->pts += Kit_GetClipTime(&audio_decoder->output, ret);
-        current->left -= ret;
+    decoder->clock_pos = pts;
+    if(audio_decoder->left) {
+        ret = (len > audio_decoder->left) ? audio_decoder->left : len;
+        pos = PACKET_SIZE(audio_decoder) - audio_decoder->left;
+        memcpy(buf, audio_decoder->current->data[0] + pos, ret);
+        audio_decoder->left -= ret;
+        decoder->clock_pos += Kit_GetClipTime(&audio_decoder->output, pos);
     }
 
     return ret;
