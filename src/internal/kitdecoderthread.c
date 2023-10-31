@@ -3,7 +3,6 @@
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 
 static int Kit_DecodeMain(void *ptr) {
@@ -17,8 +16,6 @@ static int Kit_DecodeMain(void *ptr) {
         }
         while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder));
     }
-
-    LOG("DECODER THREAD '%s' CLOSED\n", SDL_GetThreadName(thread->thread));
     return 0;
 }
 
