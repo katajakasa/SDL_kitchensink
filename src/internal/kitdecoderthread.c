@@ -7,12 +7,14 @@
 
 static int Kit_DecodeMain(void *ptr) {
     Kit_DecoderThread *thread = ptr;
-
+    bool valid_packet = false;
     while(SDL_AtomicGet(&thread->run)) {
-        if(Kit_ReadPacketBuffer(thread->input, thread->scratch_packet, 100)) {
-            if(Kit_AddDecoderPacket(thread->decoder, thread->scratch_packet)) {
-                av_packet_unref(thread->scratch_packet);
-            }
+        if(!valid_packet && Kit_ReadPacketBuffer(thread->input, thread->scratch_packet, 10)) {
+            valid_packet = true;
+        }
+        if(valid_packet && Kit_AddDecoderPacket(thread->decoder, thread->scratch_packet)) {
+            av_packet_unref(thread->scratch_packet);
+            valid_packet = false;
         }
         while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder));
     }
