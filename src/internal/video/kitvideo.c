@@ -76,8 +76,8 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
 
     // Write video packet to packet buffer. This may block!
+    // No need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
     Kit_WritePacketBuffer(video_decoder->buffer, video_decoder->out_frame);
-    av_frame_unref(video_decoder->out_frame);
 }
 
 static bool dec_input_video_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {

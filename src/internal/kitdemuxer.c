@@ -19,7 +19,6 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         if (demuxer->scratch_packet->stream_index == demuxer->stream_indexes[i]) {
             Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
-            av_packet_unref(demuxer->scratch_packet);
             return true;
         }
     }
