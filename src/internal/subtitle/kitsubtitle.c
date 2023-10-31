@@ -86,7 +86,7 @@ int Kit_GetSubtitleDecoderOutputFormat(const Kit_Decoder *decoder, Kit_SubtitleO
         return 1;
     }
     Kit_SubtitleDecoder *subtitle_decoder = decoder->userdata;
-    memcpy(output, &subtitle_decoder->output, sizeof(Kit_SubtitleDecoder));
+    memcpy(output, &subtitle_decoder->output, sizeof(Kit_SubtitleOutputFormat));
     return 0;
 }
 
