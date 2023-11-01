@@ -25,6 +25,7 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
 
     Kit_ImageSubtitleRenderer *image_renderer = renderer->userdata;
     const AVSubtitle *sub = sub_src;
+    SDL_Surface *tmp = NULL;
     SDL_Surface *dst = NULL;
     double start_pts = pts + start;
     double end_pts = pts + end;
@@ -43,9 +44,12 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
         if(r->type != SUBTITLE_BITMAP)
             continue;
 
-        dst = SDL_CreateRGBSurfaceWithFormatFrom(
+        tmp = SDL_CreateRGBSurfaceWithFormatFrom(
             r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8);
-        SDL_SetPaletteColors(dst->format->palette, (SDL_Color*)r->data[1], 0, 256);
+        SDL_SetPaletteColors(tmp->format->palette, (SDL_Color*)r->data[1], 0, 256);
+        dst = SDL_CreateRGBSurfaceWithFormat(0, r->w, r->h, 32, SDL_PIXELFORMAT_RGBA32);
+        SDL_BlitSurface(tmp, NULL, dst, NULL);
+        SDL_FreeSurface(tmp);
 
         // Create a new packet and write it to output buffer
         Kit_SetSubtitlePacketData(image_renderer->in_packet, false, start_pts, end_pts, r->x, r->y, dst);
