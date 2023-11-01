@@ -179,7 +179,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         goto exit_4;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        2,
+        1,
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
@@ -263,7 +263,6 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    pts = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetSystemTime() - decoder->clock_sync;
     if(pts > sync_ts + KIT_VIDEO_SYNC_THRESHOLD) {
         return 1;
