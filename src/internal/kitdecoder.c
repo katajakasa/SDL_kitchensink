@@ -62,7 +62,7 @@ Kit_Decoder* Kit_CreateDecoder(
     av_dict_free(&codec_opts);
 
     decoder->stream = stream;
-    decoder->clock_sync = 0;
+    decoder->clock_sync = -1.0;
     decoder->clock_pos = 0;
     decoder->codec_ctx = codec_ctx;
     decoder->dec_input = dec_input;
