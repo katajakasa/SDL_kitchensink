@@ -50,7 +50,6 @@ KIT_LOCAL void Kit_CloseDecoder(Kit_Decoder **dec);
 KIT_LOCAL int Kit_GetDecoderStreamIndex(const Kit_Decoder *decoder);
 KIT_LOCAL int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *codec);
 
-KIT_LOCAL void Kit_SetDecoderClockSync(Kit_Decoder *decoder, double sync);
 KIT_LOCAL void Kit_ChangeDecoderClockSync(Kit_Decoder *decoder, double sync);
 KIT_LOCAL double Kit_GetDecoderPTS(const Kit_Decoder *decoder);
 

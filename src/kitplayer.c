@@ -243,13 +243,6 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     Kit_GetSubtitleDecoderOutputFormat(subtitle_decoder, &info->subtitle_format);
 }
 
-static void _SetClockSync(const Kit_Player *player) {
-    double sync = Kit_GetSystemTime();
-    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        Kit_SetDecoderClockSync(player->decoders[i], sync);
-    }
-}
-
 static void _ChangeClockSync(const Kit_Player *player, double delta) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         Kit_ChangeDecoderClockSync(player->decoders[i], delta);
@@ -288,7 +281,6 @@ void Kit_PlayerPlay(Kit_Player *player) {
             player->state = KIT_PLAYING;
             break;
         case KIT_STOPPED:
-            _SetClockSync(player);
             _StartThreads(player);
             player->state = KIT_PLAYING;
             break;
