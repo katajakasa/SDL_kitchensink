@@ -257,6 +257,12 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, int len) {
         if(!Kit_PopAudioPacket(decoder))
             return 0;
 
+    // Get the presentation timestamp of the current frame, and set the sync clock if it was not yet set.
+    pts = Kit_GetCurrentPTS(decoder);
+    if(decoder->clock_sync < 0) {
+        decoder->clock_sync = Kit_GetSystemTime() + pts;
+    }
+
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
     pts = Kit_GetCurrentPTS(decoder);
