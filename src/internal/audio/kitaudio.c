@@ -153,7 +153,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
         goto exit_out_frame;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        16,
+        8,
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
