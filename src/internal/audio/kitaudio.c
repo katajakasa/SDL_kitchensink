@@ -153,7 +153,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
         goto exit_out_frame;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        64,
+        16,
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
@@ -265,7 +265,6 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, int len) {
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    pts = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetSystemTime() - decoder->clock_sync;
     if(pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
         return 0;
