@@ -131,12 +131,6 @@ int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *codec) {
     return 0;
 }
 
-void Kit_SetDecoderClockSync(Kit_Decoder *decoder, double sync) {
-    if(!decoder)
-        return;
-    decoder->clock_sync = sync;
-}
-
 void Kit_ChangeDecoderClockSync(Kit_Decoder *decoder, double sync) {
     if(!decoder)
         return;
