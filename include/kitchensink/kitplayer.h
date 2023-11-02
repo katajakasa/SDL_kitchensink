@@ -44,7 +44,6 @@ typedef struct Kit_Player {
 
 /**
  * @brief Contains information about the streams selected for playback
- * 
  */
 typedef struct Kit_PlayerInfo {
     Kit_Codec video_codec;                    ///< Video codec information
@@ -160,14 +159,6 @@ KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
 
 /**
  * @brief Fetches a new video frame from the player
- * 
- * This is the same as Kit_GetPlayerVideoDataArea() but without the area argument.
- * Please refer to that function for description.
- */
-KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
-
-/**
- * @brief Fetches a new video frame from the player
  *
  * Note that the output texture must be previously allocated and valid.
  *
@@ -180,16 +171,16 @@ KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture);
  * undefined behaviour.
  *
  * Area argument can be given to acquire the current video frame content area. Note that this may change
- * if you have video that changes frame size on the fly.
+ * if you have video that changes frame size on the fly. If you don't care, feed it NULL.
  *
  * This function will do nothing if player playback has not been started.
  *
  * @param player Player instance
  * @param texture A previously allocated texture
- * @param area Rendered video surface area
+ * @param area Rendered video surface area or NULL.
  * @return 0 on success, 1 on error
  */
-KIT_API int Kit_GetPlayerVideoDataArea(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
+KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 
 /**
  * @brief Fetches subtitle data from the player

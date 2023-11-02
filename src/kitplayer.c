@@ -151,7 +151,7 @@ int Kit_GetPlayerSubtitleStream(const Kit_Player *player) {
     return Kit_GetDecoderStreamIndex(player->decoders[KIT_SUBTITLE_INDEX]);
 }
 
-int Kit_GetPlayerVideoDataArea(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
+int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
     assert(player != NULL);
 
     Kit_Decoder *dec = player->decoders[KIT_VIDEO_INDEX];
@@ -168,12 +168,6 @@ int Kit_GetPlayerVideoDataArea(Kit_Player *player, SDL_Texture *texture, SDL_Rec
     }
 
     return Kit_GetVideoDecoderData(dec, texture, area);
-}
-
-int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
-    assert(player != NULL);
-    SDL_Rect area;
-    return Kit_GetPlayerVideoDataArea(player, texture, &area);
 }
 
 int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length) {

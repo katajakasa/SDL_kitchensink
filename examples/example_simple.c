@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Refresh video texture and render it
-        Kit_GetPlayerVideoData(player, video_tex);
+        Kit_GetPlayerVideoData(player, video_tex, NULL);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
