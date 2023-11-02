@@ -248,6 +248,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     assert(texture != NULL);
 
     Kit_VideoDecoder *video_decoder = decoder->userdata;
+    SDL_Rect frame_area;
     double sync_ts;
     double pts;
 
@@ -257,6 +258,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
 
     // Get the presentation timestamp of the current frame, and set the sync clock if it was not yet set.
     pts = Kit_GetCurrentPTS(decoder);
+    decoder->clock_pos = pts;
     if(decoder->clock_sync < 0) {
         decoder->clock_sync = Kit_GetSystemTime() + pts;
     }
@@ -276,28 +278,31 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
 
     // Update output texture with current video data.
     // Note that frame size may change on the fly. Take that into account.
-    area->w = video_decoder->current->width;
-    area->h = video_decoder->current->height;
-    area->x = 0;
-    area->y = 0;
+    frame_area.w = video_decoder->current->width;
+    frame_area.h = video_decoder->current->height;
+    frame_area.x = 0;
+    frame_area.y = 0;
     switch(video_decoder->output.format) {
         case SDL_PIXELFORMAT_YV12:
         case SDL_PIXELFORMAT_IYUV:
             SDL_UpdateYUVTexture(
-                texture, area,
+                texture,
+                &frame_area,
                 video_decoder->current->data[0], video_decoder->current->linesize[0],
                 video_decoder->current->data[1], video_decoder->current->linesize[1],
                 video_decoder->current->data[2], video_decoder->current->linesize[2]);
             break;
         default:
             SDL_UpdateTexture(
-                texture, area,
+                texture,
+                &frame_area,
                 video_decoder->current->data[0],
                 video_decoder->current->linesize[0]);
             break;
     }
+    if (area != NULL)
+        *area = frame_area;
 
-    decoder->clock_pos = pts;
     decoder->aspect_ratio = video_decoder->current->sample_aspect_ratio;
     video_decoder->valid_current = false;
     return 0;

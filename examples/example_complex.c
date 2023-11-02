@@ -356,9 +356,9 @@ int main(int argc, char *argv[]) {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         SDL_RenderClear(renderer);
 
-        // Refresh the video texture and render it. Do not that Kit_GetPlayerVideoDataArea does not change the texture
+        // Refresh the video texture and render it. Do not that Kit_GetPlayerVideoData does not change the texture
         // or the video area coords if there is no new video data! In that case, you should just use the old content.
-        Kit_GetPlayerVideoDataArea(player, video_tex, &video_area);
+        Kit_GetPlayerVideoData(player, video_tex, &video_area);
         SDL_RenderCopy(renderer, video_tex, &video_area, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
