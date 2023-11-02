@@ -10,6 +10,14 @@
 #include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdemuxerthread.h"
 
+struct Kit_Player {
+    Kit_PlayerState state; ///< Playback state
+    Kit_Decoder *decoders[3]; ///< Decoder contexts
+    Kit_DecoderThread *dec_threads[3]; ///< Decoder threads
+    Kit_DemuxerThread *demux_thread; ///< Demuxer thread
+    const Kit_Source *src; ///< Reference to Audio/Video source
+    double pause_started; ///< Temporary flag for handling pauses
+};
 
 Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
                              int video_index,
