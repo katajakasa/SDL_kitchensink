@@ -33,14 +33,7 @@ typedef enum Kit_PlayerState {
 /**
  * @brief Player state container
  */
-typedef struct Kit_Player {
-    Kit_PlayerState state;   ///< Playback state
-    void *decoders[3];       ///< Decoder contexts
-    void *dec_threads[3];    ///< Decoder threads
-    void *demux_thread;      ///< Demuxer thread
-    const Kit_Source *src;   ///< Reference to Audio/Video source
-    double pause_started;    ///< Temporary flag for handling pauses
-} Kit_Player;
+typedef struct Kit_Player Kit_Player;
 
 /**
  * @brief Contains information about the streams selected for playback
