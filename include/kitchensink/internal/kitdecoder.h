@@ -52,6 +52,7 @@ KIT_LOCAL int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *cod
 
 KIT_LOCAL void Kit_ChangeDecoderClockSync(Kit_Decoder *decoder, double sync);
 KIT_LOCAL double Kit_GetDecoderPTS(const Kit_Decoder *decoder);
+KIT_LOCAL double Kit_GetDecoderDuration(const Kit_Decoder *decoder);
 
 KIT_LOCAL bool Kit_RunDecoder(const Kit_Decoder *decoder);
 KIT_LOCAL bool Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet);

@@ -217,3 +217,8 @@ int Kit_GetSourceStreamCount(const Kit_Source *src) {
     assert(src != NULL);
     return ((AVFormatContext *)src->format_ctx)->nb_streams;
 }
+
+double Kit_GetSourceDuration(const Kit_Source *src) {
+    assert(src != NULL);
+    return (((AVFormatContext *)src->format_ctx)->duration / AV_TIME_BASE);
+}
