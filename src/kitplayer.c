@@ -370,8 +370,11 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
 
 double Kit_GetPlayerDuration(const Kit_Player *player) {
     assert(player != NULL);
-    const AVFormatContext *fmt_ctx = player->src->format_ctx;
-    return (fmt_ctx->duration / AV_TIME_BASE);
+    if(player->decoders[KIT_VIDEO_INDEX])
+        return Kit_GetDecoderDuration(player->decoders[KIT_VIDEO_INDEX]);
+    if(player->decoders[KIT_AUDIO_INDEX])
+        return Kit_GetDecoderDuration(player->decoders[KIT_AUDIO_INDEX]);
+    return Kit_GetSourceDuration(player->src);
 }
 
 double Kit_GetPlayerPosition(const Kit_Player *player) {

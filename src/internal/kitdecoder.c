@@ -148,3 +148,9 @@ double Kit_GetDecoderPTS(const Kit_Decoder *decoder) {
         return -1.0;
     return decoder->clock_pos;
 }
+
+double Kit_GetDecoderDuration(const Kit_Decoder *decoder) {
+    if(!decoder)
+        return 0.0;
+    return decoder->stream->duration * av_q2d(decoder->stream->time_base);
+}

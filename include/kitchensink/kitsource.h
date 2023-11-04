@@ -231,6 +231,17 @@ KIT_API int Kit_GetSourceStreamCount(const Kit_Source *src);
  */
 KIT_API int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type);
 
+/**
+ * @brief Gets the approximate duration of the source.
+ *
+ * Note that the duration may or may not be totally correct. To get a better value,
+ * open the source using the player, and use Kit_GetPlayerDuration() instead.
+ *
+ * @param src Source to query from
+ * @return Duration of the source in seconds
+ */
+KIT_API double Kit_GetSourceDuration(const Kit_Source *src);
+
 #ifdef __cplusplus
 }
 #endif
