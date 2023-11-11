@@ -13,8 +13,9 @@
 #include "kitchensink/internal/video/kitvideoutils.h"
 #include "kitchensink/internal/video/kitvideo.h"
 
-#define KIT_VIDEO_SYNC_THRESHOLD 0.02
-
+#define KIT_VIDEO_EARLY_FAIL 1.0
+#define KIT_VIDEO_EARLY_THRESHOLD 0.01
+#define KIT_VIDEO_LATE_THRESHOLD 0.05
 
 typedef struct Kit_VideoDecoder {
     struct SwsContext *sws;       ///< Video scaler context
@@ -23,7 +24,6 @@ typedef struct Kit_VideoDecoder {
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded video packets
     Kit_VideoOutputFormat output; ///< Output video format description
     AVFrame *current;             ///< video frame we are currently reading from
-    bool valid_current;           ///< Whether the current frame has valid data
 } Kit_VideoDecoder;
 
 
@@ -88,8 +88,11 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
 
     // Write video packet to packet buffer. This may block!
-    // No need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
-    Kit_WritePacketBuffer(video_decoder->buffer, video_decoder->out_frame);
+    // if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
+    // If write fails, unref the packet. Fails should only happen if we are closing or seeking, so it is fine.
+    if (!Kit_WritePacketBuffer(video_decoder->buffer, video_decoder->out_frame)) {
+        av_frame_unref(video_decoder->out_frame);
+    }
 }
 
 static bool dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
@@ -98,10 +101,11 @@ static bool dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_pa
     return avcodec_send_packet(decoder->codec_ctx, in_packet) == 0;
 }
 
-static bool dec_decode_video_cb(const Kit_Decoder *decoder) {
+static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->in_frame) == 0) {
+        *pts = video_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
         dec_read_video(decoder);
         av_frame_unref(video_decoder->in_frame);
         return true;
@@ -114,20 +118,15 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
         return;
     assert(ref->userdata);
     Kit_VideoDecoder *video_decoder = ref->userdata;
-    if(video_decoder->buffer != NULL)
-        Kit_FreePacketBuffer(&video_decoder->buffer);
-    if(video_decoder->in_frame != NULL)
-        av_frame_free(&video_decoder->in_frame);
-    if(video_decoder->current != NULL)
-        av_frame_free(&video_decoder->current);
-    if(video_decoder->out_frame != NULL)
-        av_frame_free(&video_decoder->out_frame);
-    if(video_decoder->sws != NULL)
-        sws_freeContext(video_decoder->sws);
+    Kit_FreePacketBuffer(&video_decoder->buffer);
+    av_frame_free(&video_decoder->in_frame);
+    av_frame_free(&video_decoder->current);
+    av_frame_free(&video_decoder->out_frame);
+    sws_freeContext(video_decoder->sws);
     free(video_decoder);
 }
 
-Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
+Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer, int stream_index) {
     assert(src != NULL);
 
     const Kit_LibraryState *state = Kit_GetLibraryState();
@@ -156,6 +155,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     }
     if((decoder = Kit_CreateDecoder(
         stream,
+        sync_timer,
         state->thread_count,
         dec_input_video_cb,
         dec_decode_video_cb,
@@ -183,7 +183,8 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
-        (buf_obj_move) av_frame_move_ref)) == NULL) {
+        (buf_obj_move) av_frame_move_ref,
+        (buf_obj_ref) av_frame_ref)) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
         goto exit_5;
     }
@@ -211,7 +212,6 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     video_decoder->sws = sws;
     video_decoder->buffer = buffer;
     video_decoder->output = output;
-    video_decoder->valid_current = false;
     return decoder;
 
 exit_6:
@@ -230,14 +230,6 @@ exit_0:
     return NULL;
 }
 
-static bool Kit_GetNextVideoFrame(Kit_VideoDecoder *video_decoder) {
-    if(video_decoder->valid_current)
-        return true;
-    av_frame_unref(video_decoder->current);
-    video_decoder->valid_current = Kit_ReadPacketBuffer(video_decoder->buffer, video_decoder->current, 0);
-    return video_decoder->valid_current;
-}
-
 static double Kit_GetCurrentPTS(const Kit_Decoder *decoder) {
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     return video_decoder->current->best_effort_timestamp * av_q2d(decoder->stream->time_base);
@@ -250,31 +242,43 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     SDL_Rect frame_area;
     double sync_ts;
-    double pts;
 
-    // If we have no frame selected, try to get another one from the decoder output buffer.
-    if(!Kit_GetNextVideoFrame(video_decoder))
+    if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
         return 1;
-
-    // Get the presentation timestamp of the current frame, and set the sync clock if it was not yet set.
-    pts = Kit_GetCurrentPTS(decoder);
-    decoder->clock_pos = pts;
-    if(decoder->clock_sync < 0) {
-        decoder->clock_sync = Kit_GetSystemTime() + pts;
-    }
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    sync_ts = Kit_GetSystemTime() - decoder->clock_sync;
-    if(pts > sync_ts + KIT_VIDEO_SYNC_THRESHOLD) {
+    decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+    sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+
+    // If packet is far too early, the stream jumped or was seeked. Skip packets until we something valid.
+    while(decoder->clock_pos > sync_ts + KIT_VIDEO_EARLY_FAIL) {
+        //LOG("[VIDEO] FAIL-EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+        av_frame_unref(video_decoder->current);
+        Kit_FinishPacketBufferRead(video_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
+            return 1;
+        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+    }
+
+    // Packet is too early, wait.
+    if(decoder->clock_pos > sync_ts + KIT_VIDEO_EARLY_THRESHOLD) {
+        //LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+        av_frame_unref(video_decoder->current);
+        Kit_CancelPacketBufferRead(video_decoder->buffer);
         return 1;
     }
-    while(pts < sync_ts - KIT_VIDEO_SYNC_THRESHOLD) {
-        video_decoder->valid_current = false;
-        if(!Kit_GetNextVideoFrame(video_decoder))
+
+    // Packet is too late, skip packets until we see something reasonable.
+    while(decoder->clock_pos < sync_ts - KIT_VIDEO_LATE_THRESHOLD) {
+        //LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
+        av_frame_unref(video_decoder->current);
+        Kit_FinishPacketBufferRead(video_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
             return 1;
-        pts = Kit_GetCurrentPTS(decoder);
+        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
     }
+    //LOG("[VIDEO] >>> SYNC!: pts = %lf, sync = %lf\n", decoder->clock_pos, sync_ts);
 
     // Update output texture with current video data.
     // Note that frame size may change on the fly. Take that into account.
@@ -303,7 +307,8 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     if (area != NULL)
         *area = frame_area;
 
+    av_frame_unref(video_decoder->current);
     decoder->aspect_ratio = video_decoder->current->sample_aspect_ratio;
-    video_decoder->valid_current = false;
+    Kit_FinishPacketBufferRead(video_decoder->buffer);
     return 0;
 }

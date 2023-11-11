@@ -29,5 +29,8 @@ KIT_LOCAL void Kit_SetSubtitlePacketData(
 KIT_LOCAL void Kit_MoveSubtitlePacketRefs(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src);
 KIT_LOCAL void Kit_DelSubtitlePacketRefs(Kit_SubtitlePacket *packet);
 
+// Not implemented
+KIT_LOCAL void Kit_CreateSubtitlePacketRef(Kit_SubtitlePacket *dst, Kit_SubtitlePacket * src);
+
 
 #endif // KITSUBTITLEPACKET_H

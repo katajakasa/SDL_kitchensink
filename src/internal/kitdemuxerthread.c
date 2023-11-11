@@ -7,36 +7,42 @@
 
 static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;
-    while (SDL_AtomicGet(&thread->run) && Kit_RunDemuxer(thread->demuxer)) {};
+    while (SDL_AtomicGet(&thread->run)) {
+        if(SDL_AtomicGet(&thread->seek)) {
+            Kit_DemuxerSeek(thread->demuxer, thread->seek_target);
+            SDL_AtomicSet(&thread->seek, 0);
+        }
+        if(!Kit_RunDemuxer(thread->demuxer)) {
+            break;
+        }
+    };
     return 0;
 }
 
-Kit_DemuxerThread* Kit_CreateDemuxerThread(
-    const Kit_Source *src,
-    int video_index,
-    int audio_index,
-    int subtitle_index
-) {
+Kit_DemuxerThread* Kit_CreateDemuxerThread(Kit_Demuxer *demuxer) {
     Kit_DemuxerThread *demuxer_thread = NULL;
-    Kit_Demuxer *demuxer = NULL;
 
     if ((demuxer_thread = calloc(1, sizeof(Kit_DemuxerThread))) == NULL) {
         Kit_SetError("Unable to allocate demuxer thread");
-        goto error_0;
-    }
-    if ((demuxer = Kit_CreateDemuxer(src, video_index, audio_index, subtitle_index)) == NULL) {
-        goto error_1;
+        goto exit_0;
     }
 
     demuxer_thread->thread = NULL;
     demuxer_thread->demuxer = demuxer;
+    demuxer_thread->seek_target = 0;
     SDL_AtomicSet(&demuxer_thread->run, 0);
+    SDL_AtomicSet(&demuxer_thread->seek, 0);
     return demuxer_thread;
 
-error_1:
-    free(demuxer_thread);
-error_0:
-    return NULL;
+exit_0:
+    return false;
+}
+
+void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_target) {
+    if(SDL_AtomicGet(&demuxer_thread->seek))
+        return;
+    demuxer_thread->seek_target = seek_target;
+    SDL_AtomicSet(&demuxer_thread->seek, 1);
 }
 
 void Kit_StartDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
@@ -70,9 +76,7 @@ void Kit_CloseDemuxerThread(Kit_DemuxerThread **ref) {
 
     Kit_DemuxerThread *demuxer_thread = *ref;
     Kit_StopDemuxerThread(demuxer_thread);
-    Kit_ClearDemuxerBuffers(demuxer_thread->demuxer);
     Kit_WaitDemuxerThread(demuxer_thread);
-    Kit_CloseDemuxer(&demuxer_thread->demuxer);
     free(demuxer_thread);
     *ref = NULL;
 }

@@ -44,6 +44,10 @@ void Kit_MoveSubtitlePacketRefs(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src
     memset(src, 0, sizeof(Kit_SubtitlePacket));
 }
 
+void Kit_CreateSubtitlePacketRef(Kit_SubtitlePacket *dst, Kit_SubtitlePacket * src) {
+
+}
+
 void Kit_DelSubtitlePacketRefs(Kit_SubtitlePacket *packet) {
     if(packet->surface)
         SDL_FreeSurface(packet->surface);

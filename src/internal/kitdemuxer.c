@@ -4,6 +4,7 @@
 #include <SDL_timer.h>
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitpacketbuffer.h"
 #include "kitchensink/internal/kitdemuxer.h"
 
@@ -53,7 +54,8 @@ Kit_Demuxer* Kit_CreateDemuxer(
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,
-            (buf_obj_move) av_packet_move_ref
+            (buf_obj_move) av_packet_move_ref,
+            (buf_obj_ref) av_packet_ref
         );
         if(video_buf == NULL) {
             Kit_SetError("Unable to allocate video packet buffer");
@@ -66,7 +68,8 @@ Kit_Demuxer* Kit_CreateDemuxer(
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,
-            (buf_obj_move) av_packet_move_ref
+            (buf_obj_move) av_packet_move_ref,
+            (buf_obj_ref) av_packet_ref
         );
         if(audio_buf == NULL) {
             Kit_SetError("Unable to allocate audio packet buffer");
@@ -79,7 +82,8 @@ Kit_Demuxer* Kit_CreateDemuxer(
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,
-            (buf_obj_move) av_packet_move_ref
+            (buf_obj_move) av_packet_move_ref,
+            (buf_obj_ref) av_packet_ref
         );
         if(subtitle_buf == NULL) {
             Kit_SetError("Unable to allocate subtitle packet buffer");
@@ -112,9 +116,15 @@ error_0:
 void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer) {
     if (!demuxer)
         return;
-    for (int i = 0; i < KIT_INDEX_COUNT; i++) {
+    for (int i = 0; i < KIT_INDEX_COUNT; i++)
         Kit_FlushPacketBuffer(demuxer->buffers[i]);
-    }
+}
+
+void Kit_SignalDemuxer(const Kit_Demuxer *demuxer) {
+    if (!demuxer)
+        return;
+    for (int i = 0; i < KIT_INDEX_COUNT; i++)
+        Kit_SignalPacketBuffer(demuxer->buffers[i]);
 }
 
 Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, KitBufferIndex buffer_index) {
@@ -134,4 +144,28 @@ void Kit_CloseDemuxer(Kit_Demuxer **ref) {
     av_packet_free(&demuxer->scratch_packet);
     free(demuxer);
     *ref = NULL;
+}
+
+static void Kit_SendSeekPacket(Kit_Demuxer *demuxer) {
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        demuxer->scratch_packet->opaque = (void*)1;
+        Kit_FlushPacketBuffer(demuxer->buffers[i]);
+        Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
+    }
+}
+
+bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target) {
+    if(avformat_seek_file(
+       demuxer->src->format_ctx,
+       -1,
+       INT64_MIN,
+       seek_target,
+       INT64_MAX,
+       AVSEEK_FLAG_ANY) >= 0
+    ) {
+        Kit_ClearDemuxerBuffers(demuxer);
+        Kit_SendSeekPacket(demuxer);
+        return true;
+    }
+    return false;
 }
