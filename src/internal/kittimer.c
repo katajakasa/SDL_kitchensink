@@ -1,0 +1,84 @@
+#include <stdlib.h>
+#include "kitchensink/internal/kittimer.h"
+#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitlog.h"
+
+typedef struct Kit_TimerValue {
+    int count;
+    double value;
+} Kit_TimerValue;
+
+struct Kit_Timer {
+    bool writeable;
+    Kit_TimerValue *ref;
+};
+
+Kit_Timer* Kit_CreateTimer() {
+    Kit_Timer *timer;
+    Kit_TimerValue *value;
+
+    if ((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
+        goto exit_0;
+    }
+    if((value = calloc(1, sizeof(Kit_TimerValue))) == NULL) {
+        goto exit_1;
+    }
+
+    value->count = 1;
+    timer->ref = value;
+    timer->writeable = true;
+    return timer;
+
+exit_1:
+    free(timer);
+exit_0:
+    return NULL;
+}
+
+Kit_Timer* Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
+    Kit_Timer *timer;
+    if ((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
+        return NULL;
+    }
+    timer->ref = src->ref;
+    timer->ref->count++;
+    timer->writeable = writeable;
+    return timer;
+}
+
+void Kit_SetTimerBase(Kit_Timer *timer) {
+    if(timer->writeable) {
+        timer->ref->value = Kit_GetSystemTime();
+        LOG("[TIMER] Base set to %f\n", timer->ref->value);
+    }
+}
+
+void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust) {
+    if(timer->writeable) {
+        timer->ref->value = Kit_GetSystemTime() - adjust;
+        LOG("[TIMER] Base adjusted by %f to %f\n", adjust, timer->ref->value);
+    }
+}
+
+void Kit_AddTimerBase(Kit_Timer *timer, double add) {
+    if(timer->writeable) {
+        timer->ref->value += add;
+        LOG("[TIMER] Base increased by %f to %f\n", add, timer->ref->value);
+    }
+}
+
+double Kit_GetTimerElapsed(const Kit_Timer *timer) {
+    //LOG("[TIMER] elapsed %f\n", Kit_GetSystemTime() - timer->ref->value);
+    return Kit_GetSystemTime() - timer->ref->value;
+}
+
+void Kit_CloseTimer(Kit_Timer **ref) {
+    if(!ref || !*ref)
+        return;
+    Kit_Timer *timer = *ref;
+    if(--timer->ref == 0) {
+        free(timer->ref);
+    }
+    free(timer);
+    *ref = NULL;
+}
