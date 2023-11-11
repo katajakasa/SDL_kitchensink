@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include "kitchensink/internal/kittimer.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 
 typedef struct Kit_TimerValue {
     int count;
@@ -49,26 +48,22 @@ Kit_Timer* Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
 void Kit_SetTimerBase(Kit_Timer *timer) {
     if(timer->writeable) {
         timer->ref->value = Kit_GetSystemTime();
-        LOG("[TIMER] Base set to %f\n", timer->ref->value);
     }
 }
 
 void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust) {
     if(timer->writeable) {
         timer->ref->value = Kit_GetSystemTime() - adjust;
-        LOG("[TIMER] Base adjusted by %f to %f\n", adjust, timer->ref->value);
     }
 }
 
 void Kit_AddTimerBase(Kit_Timer *timer, double add) {
     if(timer->writeable) {
         timer->ref->value += add;
-        LOG("[TIMER] Base increased by %f to %f\n", add, timer->ref->value);
     }
 }
 
 double Kit_GetTimerElapsed(const Kit_Timer *timer) {
-    //LOG("[TIMER] elapsed %f\n", Kit_GetSystemTime() - timer->ref->value);
     return Kit_GetSystemTime() - timer->ref->value;
 }
 

@@ -159,7 +159,9 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
         (buf_obj_alloc) Kit_CreateSubtitlePacket,
         (buf_obj_unref) Kit_DelSubtitlePacketRefs,
         (buf_obj_free) Kit_FreeSubtitlePacket,
-        (buf_obj_move) Kit_MoveSubtitlePacketRefs)) == NULL) {
+        (buf_obj_move) Kit_MoveSubtitlePacketRefs,
+        (buf_obj_ref) Kit_CreateSubtitlePacketRef
+    )) == NULL) {
         Kit_SetError("Unable to create an output buffer for subtitle renderer");
         goto exit_2;
     }

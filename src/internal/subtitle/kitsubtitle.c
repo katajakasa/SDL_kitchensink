@@ -19,7 +19,6 @@ typedef struct Kit_SubtitleDecoder {
     AVSubtitle scratch_frame;
     Kit_TextureAtlas *atlas;
     Kit_SubtitleOutputFormat output;
-    bool frame_finished;
 } Kit_SubtitleDecoder;
 
 
@@ -75,7 +74,8 @@ static bool dec_input_subtitle_cb(const Kit_Decoder *dec, const AVPacket *in_pac
     return true;
 }
 
-static bool dec_decode_subtitle_cb(const Kit_Decoder *dec) {
+static bool dec_decode_subtitle_cb(const Kit_Decoder *dec, double *pts) {
+    *pts = -1.0;
     return false;
 }
 
@@ -102,7 +102,7 @@ int Kit_GetSubtitleDecoderOutputFormat(const Kit_Decoder *decoder, Kit_SubtitleO
     return 0;
 }
 
-Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, int video_w, int video_h, int screen_w, int screen_h) {
+Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_Timer *sync_timer, int stream_index, int video_w, int video_h, int screen_w, int screen_h) {
     assert(src != NULL);
     assert(video_w >= 0);
     assert(video_h >= 0);
@@ -131,6 +131,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
     }
     if((decoder = Kit_CreateDecoder(
         stream,
+        sync_timer,
         state->thread_count,
         dec_input_subtitle_cb,
         dec_decode_subtitle_cb,

@@ -17,6 +17,7 @@ struct Kit_PacketBuffer {
     buf_obj_unref unref_cb;
     buf_obj_free free_cb;
     buf_obj_move move_cb;
+    buf_obj_ref ref_cb;
 };
 
 
@@ -25,7 +26,8 @@ Kit_PacketBuffer* Kit_CreatePacketBuffer(
     buf_obj_alloc alloc_cb,
     buf_obj_unref unref_cb,
     buf_obj_free free_cb,
-    buf_obj_move move_cb
+    buf_obj_move move_cb,
+    buf_obj_ref ref_cb
 ) {
     assert(capacity> 0);
     Kit_PacketBuffer *buffer = NULL;
@@ -72,6 +74,7 @@ Kit_PacketBuffer* Kit_CreatePacketBuffer(
     buffer->unref_cb = unref_cb;
     buffer->free_cb = free_cb;
     buffer->move_cb = move_cb;
+    buffer->ref_cb = ref_cb;
     return buffer;
 
 error_4:
@@ -98,12 +101,15 @@ void Kit_FreePacketBuffer(Kit_PacketBuffer **ref) {
     Kit_PacketBuffer *buffer = *ref;
     SDL_CondBroadcast(buffer->can_read);
     SDL_CondBroadcast(buffer->can_write);
+    if(SDL_LockMutex(buffer->mutex) == 0) {
+        for(size_t i = 0; i < buffer->capacity; i++) {
+            buffer->free_cb((void **)&buffer->packets[i]);
+        }
+        SDL_UnlockMutex(buffer->mutex);
+    }
     SDL_DestroyCond(buffer->can_read);
     SDL_DestroyCond(buffer->can_write);
     SDL_DestroyMutex(buffer->mutex);
-    for(size_t i = 0; i < buffer->capacity; i++) {
-        buffer->free_cb((void **)&buffer->packets[i]);
-    }
     free(buffer->packets);
     free(buffer);
     *ref = NULL;
@@ -142,6 +148,7 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
         }
         buffer->head = 0;
         buffer->tail = 0;
+        buffer->full = false;
         SDL_UnlockMutex(buffer->mutex);
         SDL_CondSignal(buffer->can_write);
     }
@@ -216,4 +223,40 @@ error_1:
     SDL_UnlockMutex(buffer->mutex);
 error_0:
     return false;
+}
+
+bool Kit_BeginPacketBufferRead(Kit_PacketBuffer *buffer, void *dst, int timeout) {
+    assert(buffer);
+    if(SDL_LockMutex(buffer->mutex) < 0)
+        goto error_0;
+    if(Kit_IsPacketBufferEmpty(buffer)) {
+        if(timeout <= 0)
+            goto error_1;
+        if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
+            goto error_1;
+    }
+    if(Kit_IsPacketBufferEmpty(buffer))
+        goto error_1;
+    buffer->ref_cb(dst, buffer->packets[buffer->tail]);
+    return true;
+
+error_1:
+    SDL_UnlockMutex(buffer->mutex);
+error_0:
+    return false;
+}
+
+void Kit_FinishPacketBufferRead(Kit_PacketBuffer *buffer) {
+    assert(buffer);
+    buffer->unref_cb(buffer->packets[buffer->tail]);
+    advance_read(buffer);
+    SDL_UnlockMutex(buffer->mutex);
+    SDL_CondSignal(buffer->can_write);
+    return;
+}
+
+void Kit_CancelPacketBufferRead(Kit_PacketBuffer *buffer) {
+    assert(buffer);
+    SDL_UnlockMutex(buffer->mutex);
+    return;
 }

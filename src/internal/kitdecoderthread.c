@@ -1,23 +1,63 @@
 #include <SDL_thread.h>
+#include <SDL_timer.h>
 
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdecoder.h"
+#include "kitchensink/internal/utils/kitlog.h"
+
+
+static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped) {
+    if(!Kit_BeginPacketBufferRead(thread->input, thread->scratch_packet, 10))
+        return;
+
+    // If a valid packet was found, first check if it's a control packet. Value 1 means seek.
+    // Seek packet is created in the demuxer, and is sent after avformat_seek_file() is called.
+    if(thread->scratch_packet->opaque == (void*)1) {
+        Kit_ClearDecoderBuffers(thread->decoder);
+        *pts_jumped = true;
+        goto finish;
+    }
+
+    // If valid packet was found and it is not a control packet, it must contain stream data.
+    // Attempt to add it to the ffmpeg decoder internal queue. Note that the queue may be full, in which case
+    // we try again later.
+    if(Kit_AddDecoderPacket(thread->decoder, thread->scratch_packet)) {
+        goto finish;
+    } else {
+        goto cancel;
+    }
+
+finish:
+    Kit_FinishPacketBufferRead(thread->input);
+    av_packet_unref(thread->scratch_packet);
+    return;
+
+cancel:
+    Kit_CancelPacketBufferRead(thread->input);
+    av_packet_unref(thread->scratch_packet);
+    return;
+}
 
 
 static int Kit_DecodeMain(void *ptr) {
     Kit_DecoderThread *thread = ptr;
-    bool valid_packet = false;
+    bool pts_jumped = false;
+    double pts;
+
     while(SDL_AtomicGet(&thread->run)) {
-        if(!valid_packet && Kit_ReadPacketBuffer(thread->input, thread->scratch_packet, 10)) {
-            valid_packet = true;
+        Kit_ProcessPacket(thread, &pts_jumped);
+
+        // Run the decoder. This will consume packets from the ffmpeg queue. We may need to call this multiple times,
+        // since a single data packet might contain multiple frames.
+        while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder, &pts)) {
+            if(pts_jumped) {
+                Kit_AdjustTimerBase(thread->decoder->sync_timer, pts);
+                pts_jumped = false;
+            }
         }
-        if(valid_packet && Kit_AddDecoderPacket(thread->decoder, thread->scratch_packet)) {
-            av_packet_unref(thread->scratch_packet);
-            valid_packet = false;
-        }
-        while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder));
     }
+
     return 0;
 }
 

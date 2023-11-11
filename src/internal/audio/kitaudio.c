@@ -8,17 +8,21 @@
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/audio/kitaudioutils.h"
 
-#define KIT_AUDIO_SYNC_THRESHOLD 0.05
+#define KIT_AUDIO_EARLY_FAIL 5
+#define KIT_AUDIO_EARLY_THRESHOLD 0.01
+#define KIT_AUDIO_LATE_THRESHOLD 0.05
+
+#define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
 
 typedef struct Kit_AudioDecoder {
     SwrContext *swr;                 ///< Audio resampler context
     AVFrame *in_frame;               ///< Temporary AVFrame for audio decoding purposes
     AVFrame *out_frame;              ///< Temporary AVFrame fur audio resampling purposes
     AVFrame *current;                ///< Audio packet we are currently reading from
-    int left;                        ///< How much data we have left in the current packet
     Kit_PacketBuffer *buffer;        ///< Packet ringbuffer for decoded audio packets
     Kit_AudioOutputFormat output;    ///< Output audio format description
 } Kit_AudioDecoder;
@@ -46,16 +50,22 @@ static void dec_read_audio(const Kit_Decoder *dec) {
     swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame);
     av_frame_copy_props(audio_decoder->out_frame, audio_decoder->in_frame);
 
-    // Write audio packet to packet buffer. This may block!
-    // No need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
-    Kit_WritePacketBuffer(audio_decoder->buffer, audio_decoder->out_frame);
+    // Save bytes left in the frame. Misuse crop values, since they are only used for video packets by ffmpeg.
+    audio_decoder->out_frame->crop_top = SAMPLE_BYTES(audio_decoder) * audio_decoder->out_frame->nb_samples;
+    audio_decoder->out_frame->crop_bottom = audio_decoder->out_frame->crop_top;
+
+    // Write video packet to packet buffer. This may block!
+    // if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
+    // If write fails, unref the packet. Fails should only happen if we are closing or seeking, so it is fine.
+    if (!Kit_WritePacketBuffer(audio_decoder->buffer, audio_decoder->out_frame)) {
+        av_frame_unref(audio_decoder->out_frame);
+    }
 }
 
 static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     assert(decoder);
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
     Kit_FlushPacketBuffer(audio_decoder->buffer);
-    av_frame_unref(audio_decoder->current);
 }
 
 static void dec_signal_audio_cb(Kit_Decoder *decoder) {
@@ -70,12 +80,13 @@ static bool dec_input_audio_cb(const Kit_Decoder *dec, const AVPacket *in_packet
     return avcodec_send_packet(dec->codec_ctx, in_packet) == 0;
 }
 
-static bool dec_decode_audio_cb(const Kit_Decoder *dec) {
-    assert(dec != NULL);
-    Kit_AudioDecoder *audio_decoder = dec->userdata;
+static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
+    assert(decoder != NULL);
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
 
-    if(avcodec_receive_frame(dec->codec_ctx, audio_decoder->in_frame) == 0) {
-        dec_read_audio(dec);
+    if(avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame) == 0) {
+        *pts = audio_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
+        dec_read_audio(decoder);
         av_frame_unref(audio_decoder->in_frame);
         return true;
     }
@@ -88,20 +99,15 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
         return;
     assert(ref->userdata);
     Kit_AudioDecoder *audio_dec = ref->userdata;
-    if(audio_dec->in_frame != NULL)
-        av_frame_free(&audio_dec->in_frame);
-    if(audio_dec->out_frame != NULL)
-        av_frame_free(&audio_dec->out_frame);
-    if(audio_dec->current != NULL)
-        av_frame_free(&audio_dec->current);
-    if(audio_dec->swr != NULL)
-        swr_free(&audio_dec->swr);
-    if(audio_dec->buffer != NULL)
-        Kit_FreePacketBuffer(&audio_dec->buffer);
+    av_frame_free(&audio_dec->in_frame);
+    av_frame_free(&audio_dec->out_frame);
+    av_frame_free(&audio_dec->current);
+    swr_free(&audio_dec->swr);
+    Kit_FreePacketBuffer(&audio_dec->buffer);
     free(audio_dec);
 }
 
-Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
+Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer, int stream_index) {
     assert(src != NULL);
 
     const Kit_LibraryState *state = Kit_GetLibraryState();
@@ -130,6 +136,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     }
     if((decoder = Kit_CreateDecoder(
             stream,
+            sync_timer,
             state->thread_count,
             dec_input_audio_cb,
             dec_decode_audio_cb,
@@ -157,7 +164,8 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
-        (buf_obj_move) av_frame_move_ref)) == NULL) {
+        (buf_obj_move) av_frame_move_ref,
+        (buf_obj_ref)  av_frame_ref)) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
         goto exit_current;
     }
@@ -194,7 +202,6 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     audio_decoder->swr = swr;
     audio_decoder->buffer = buffer;
     audio_decoder->output = output;
-    audio_decoder->left = 0;
     return decoder;
 
 exit_swr:
@@ -220,69 +227,69 @@ static double Kit_GetCurrentPTS(const Kit_Decoder *decoder) {
     return audio_decoder->current->best_effort_timestamp * av_q2d(decoder->stream->time_base);
 }
 
-#define PACKET_SIZE(audio_decoder) (audio_decoder->current->nb_samples * audio_decoder->output.channels * audio_decoder->output.bytes)
-
-/**
- * Get a new packet from the audio decoder output and bump it to the current packet slot.
- */
-static bool Kit_PopAudioPacket(Kit_Decoder *decoder) {
-    Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    av_frame_unref(audio_decoder->current);
-    if(!Kit_ReadPacketBuffer(audio_decoder->buffer, audio_decoder->current, 0)) {
-        return false;
-    }
-    audio_decoder->left = PACKET_SIZE(audio_decoder);
-    return true;
-}
-
-double Kit_GetClipTime(const Kit_AudioOutputFormat *output, size_t bytes) {
-    int bytes_per_sample = output->bytes * output->channels;
-    double bytes_per_second = bytes_per_sample * output->sample_rate;
-    return ((double)bytes) / bytes_per_second;
-}
-
-int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, int len) {
+int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len) {
     assert(decoder != NULL);
+
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    int pos, ret = 0;
-    double pts;
+    int pos;
+    int ret = 0;
+    size_t *size;
+    size_t *left;
     double sync_ts;
 
-    // Immediately bail if nothing is requested.
     if(len <= 0)
         return 0;
-
-    // If we have no data left in current buffer, try to get some more from the decoder output.
-    if(audio_decoder->left <= 0)
-        if(!Kit_PopAudioPacket(decoder))
-            return 0;
-
-    // Get the presentation timestamp of the current frame, and set the sync clock if it was not yet set.
-    pts = Kit_GetCurrentPTS(decoder);
-    if(decoder->clock_sync < 0) {
-        decoder->clock_sync = Kit_GetSystemTime() + pts;
-    }
+    if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
+        return 0;
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    sync_ts = Kit_GetSystemTime() - decoder->clock_sync;
-    if(pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
+    decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+    sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+
+    // If packet is far too early, the stream jumped or was seeked. Skip packets until we something valid.
+    while(decoder->clock_pos > sync_ts + KIT_AUDIO_EARLY_FAIL) {
+        //LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+        av_frame_unref(audio_decoder->current);
+        Kit_FinishPacketBufferRead(audio_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
+            return 0;
+        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+    }
+
+    // Packet is too early, wait.
+    if(decoder->clock_pos > sync_ts + KIT_AUDIO_EARLY_THRESHOLD) {
+        //LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
+        av_frame_unref(audio_decoder->current);
+        Kit_CancelPacketBufferRead(audio_decoder->buffer);
         return 0;
     }
-    while(pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
-        if(!Kit_PopAudioPacket(decoder))
+
+    // Packet is too late, skip packets until we see something reasonable.
+    while(decoder->clock_pos < sync_ts - KIT_AUDIO_LATE_THRESHOLD) {
+        //LOG("[AUDIO] LATE: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+        av_frame_unref(audio_decoder->current);
+        Kit_FinishPacketBufferRead(audio_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
             return 0;
-        pts = Kit_GetCurrentPTS(decoder);
+        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
     }
+    //LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", decoder->clock_pos, sync_ts);
 
-    decoder->clock_pos = pts;
-    if(audio_decoder->left) {
-        ret = (len > audio_decoder->left) ? audio_decoder->left : len;
-        pos = PACKET_SIZE(audio_decoder) - audio_decoder->left;
+    size = &audio_decoder->current->crop_top;
+    left = &audio_decoder->current->crop_bottom;
+    if(*left) {
+        ret = (len > *left) ? *left : len;
+        pos = *size - *left;
         memcpy(buf, audio_decoder->current->data[0] + pos, ret);
-        audio_decoder->left -= ret;
-        decoder->clock_pos += Kit_GetClipTime(&audio_decoder->output, pos);
+        *left -= ret;
     }
 
+    av_frame_unref(audio_decoder->current);
+    if(*left) {
+        Kit_CancelPacketBufferRead(audio_decoder->buffer);
+    } else {
+        Kit_FinishPacketBufferRead(audio_decoder->buffer);
+    }
     return ret;
 }

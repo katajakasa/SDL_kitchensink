@@ -14,16 +14,14 @@ typedef struct Kit_DemuxerThread {
     Kit_Demuxer *demuxer;
     SDL_Thread *thread;
     SDL_atomic_t run;
+    SDL_atomic_t seek;
+    int64_t seek_target;
 } Kit_DemuxerThread;
 
-KIT_LOCAL Kit_DemuxerThread* Kit_CreateDemuxerThread(
-    const Kit_Source *src,
-    int video_index,
-    int audio_index,
-    int subtitle_index
-);
+KIT_LOCAL Kit_DemuxerThread* Kit_CreateDemuxerThread(Kit_Demuxer *demuxer);
 KIT_LOCAL void Kit_CloseDemuxerThread(Kit_DemuxerThread **demuxer);
 
+KIT_LOCAL void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_target);
 KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, KitBufferIndex buffer_index);
 
 KIT_LOCAL void Kit_StartDemuxerThread(Kit_DemuxerThread *demuxer_thread);

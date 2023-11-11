@@ -9,6 +9,7 @@
 
 Kit_Decoder* Kit_CreateDecoder(
     AVStream *stream,
+    Kit_Timer *sync_timer,
     int thread_count,
     dec_input_cb dec_input,
     dec_decode_cb dec_decode,
@@ -62,7 +63,7 @@ Kit_Decoder* Kit_CreateDecoder(
     av_dict_free(&codec_opts);
 
     decoder->stream = stream;
-    decoder->clock_sync = -1.0;
+    decoder->sync_timer = sync_timer;
     decoder->clock_pos = 0;
     decoder->codec_ctx = codec_ctx;
     decoder->dec_input = dec_input;
@@ -90,13 +91,14 @@ void Kit_CloseDecoder(Kit_Decoder **ref) {
         decoder->dec_close(decoder);
     avcodec_close(decoder->codec_ctx);
     avcodec_free_context(&decoder->codec_ctx);
+    Kit_CloseTimer(&decoder->sync_timer);
     free(decoder);
     *ref = NULL;
 }
 
-bool Kit_RunDecoder(const Kit_Decoder *decoder) {
+bool Kit_RunDecoder(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
-    return decoder->dec_decode(decoder);
+    return decoder->dec_decode(decoder, pts);
 }
 
 bool Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet) {
@@ -131,12 +133,6 @@ int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *codec) {
     return 0;
 }
 
-void Kit_ChangeDecoderClockSync(Kit_Decoder *decoder, double sync) {
-    if(!decoder)
-        return;
-    decoder->clock_sync += sync;
-}
-
 int Kit_GetDecoderStreamIndex(const Kit_Decoder *decoder) {
     if(!decoder)
         return -1;
@@ -147,10 +143,4 @@ double Kit_GetDecoderPTS(const Kit_Decoder *decoder) {
     if(!decoder)
         return -1.0;
     return decoder->clock_pos;
-}
-
-double Kit_GetDecoderDuration(const Kit_Decoder *decoder) {
-    if(!decoder)
-        return 0.0;
-    return decoder->stream->duration * av_q2d(decoder->stream->time_base);
 }
