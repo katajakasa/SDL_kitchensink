@@ -233,11 +233,12 @@ KIT_API int Kit_GetPlayerSubtitleData(Kit_Player *player,
  * This function will do nothing if player playback has not been started.
  * 
  * @param player Player instance
+ * @param backend_buffer_size Amount of data currently queued to the driver/hw device.
  * @param buffer Buffer to read into
  * @param length Maximum length of the buffer
  * @return Amount of data that was read, <0 on error.
  */
-KIT_API int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length);
+KIT_API int Kit_GetPlayerAudioData(Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length);
 
 /**
  * @brief Fetches information about the currently selected streams

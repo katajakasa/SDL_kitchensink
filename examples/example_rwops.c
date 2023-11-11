@@ -177,6 +177,7 @@ int main(int argc, char *argv[]) {
             while(need > 0) {
                 ret = Kit_GetPlayerAudioData(
                         player,
+                        queued,
                         (unsigned char*)audio_buf,
                         AUDIO_BUFFER_SIZE);
                 need -= ret;

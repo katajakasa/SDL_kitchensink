@@ -34,3 +34,7 @@ bool Kit_StreamIsFontAttachment(const AVStream *stream) {
     }
     return false;
 }
+
+int min2(int a, int b) {
+    return a < b ? a : b;
+}

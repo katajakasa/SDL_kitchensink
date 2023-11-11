@@ -14,7 +14,7 @@
 #include "kitchensink/internal/video/kitvideo.h"
 
 #define KIT_VIDEO_EARLY_FAIL 1.0
-#define KIT_VIDEO_EARLY_THRESHOLD 0.01
+#define KIT_VIDEO_EARLY_THRESHOLD 0.005
 #define KIT_VIDEO_LATE_THRESHOLD 0.05
 
 typedef struct Kit_VideoDecoder {

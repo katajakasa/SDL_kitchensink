@@ -8,7 +8,7 @@
 
 
 static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped) {
-    if(!Kit_BeginPacketBufferRead(thread->input, thread->scratch_packet, 10))
+    if(!Kit_BeginPacketBufferRead(thread->input, thread->scratch_packet, 100))
         return;
 
     // If a valid packet was found, first check if it's a control packet. Value 1 means seek.
@@ -52,7 +52,10 @@ static int Kit_DecodeMain(void *ptr) {
         // since a single data packet might contain multiple frames.
         while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder, &pts)) {
             if(pts_jumped) {
-                Kit_AdjustTimerBase(thread->decoder->sync_timer, pts);
+                // Note that we change the sync a bit to give decoders some time to decode.
+                // The 0.1 is essentially a hack that moves the sync time forwards a bit, so that the data getter
+                // functions wait a little bit before they start feeding again.
+                Kit_AdjustTimerBase(thread->decoder->sync_timer, pts - 0.1);
                 pts_jumped = false;
             }
         }

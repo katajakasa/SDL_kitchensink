@@ -252,11 +252,9 @@ void Kit_FinishPacketBufferRead(Kit_PacketBuffer *buffer) {
     advance_read(buffer);
     SDL_UnlockMutex(buffer->mutex);
     SDL_CondSignal(buffer->can_write);
-    return;
 }
 
 void Kit_CancelPacketBufferRead(Kit_PacketBuffer *buffer) {
     assert(buffer);
     SDL_UnlockMutex(buffer->mutex);
-    return;
 }
