@@ -229,7 +229,7 @@ int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *a
     return Kit_GetVideoDecoderData(player->decoders[KIT_VIDEO_INDEX], texture, area);
 }
 
-int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length) {
+int Kit_GetPlayerAudioData(Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length) {
     assert(player != NULL);
     assert(buffer != NULL);
     if(player->decoders[KIT_AUDIO_INDEX] == NULL)
@@ -238,7 +238,7 @@ int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length
         return 0;
     if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
         return 0;
-    return Kit_GetAudioDecoderData(player->decoders[KIT_AUDIO_INDEX], buffer, length);
+    return Kit_GetAudioDecoderData(player->decoders[KIT_AUDIO_INDEX], backend_buffer_size, buffer, length);
 }
 
 int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {

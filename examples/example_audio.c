@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIO_BUFFER_SIZE) {
-            ret = Kit_GetPlayerAudioData(player, (unsigned char*)audio_buf, AUDIO_BUFFER_SIZE - queued);
+            ret = Kit_GetPlayerAudioData(player, queued, (unsigned char*)audio_buf, AUDIO_BUFFER_SIZE - queued);
             if(ret > 0) {
                 SDL_QueueAudio(audio_dev, audio_buf, ret);
             }

@@ -227,7 +227,7 @@ static double Kit_GetCurrentPTS(const Kit_Decoder *decoder) {
     return audio_decoder->current->best_effort_timestamp * av_q2d(decoder->stream->time_base);
 }
 
-int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len) {
+int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, unsigned char *buf, size_t len) {
     assert(decoder != NULL);
 
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
@@ -240,7 +240,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len
     if(len <= 0)
         return 0;
     if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
-        return 0;
+        goto no_data;
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
@@ -253,7 +253,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
-            return 0;
+            goto no_data;
         decoder->clock_pos = Kit_GetCurrentPTS(decoder);
     }
 
@@ -271,7 +271,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
-            return 0;
+            goto no_data;
         decoder->clock_pos = Kit_GetCurrentPTS(decoder);
     }
     //LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", decoder->clock_pos, sync_ts);
@@ -293,4 +293,18 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
     }
     return ret;
+
+no_data:
+    if(backend_buffer_size < 8192) {
+        len = min2(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
+        av_samples_set_silence(
+            &buf,
+            0,
+            len,
+            audio_decoder->output.channels,
+            Kit_FindAVSampleFormat(audio_decoder->output.format)
+        );
+        return len * SAMPLE_BYTES(audio_decoder);
+    }
+    return 0;
 }
