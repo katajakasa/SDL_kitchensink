@@ -251,7 +251,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     decoder->clock_pos = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
-    // If packet is far too early, the stream jumped or was seeked. Skip packets until we something valid.
+    // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something valid.
     while(decoder->clock_pos > sync_ts + KIT_VIDEO_EARLY_FAIL) {
         //LOG("[VIDEO] FAIL-EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
         av_frame_unref(video_decoder->current);

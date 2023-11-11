@@ -163,7 +163,7 @@ bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target) {
        INT64_MIN,
        seek_target,
        INT64_MAX,
-       AVSEEK_FLAG_ANY) >= 0
+       0) >= 0
     ) {
         Kit_ClearDemuxerBuffers(demuxer);
         Kit_SendSeekPacket(demuxer);

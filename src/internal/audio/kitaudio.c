@@ -247,7 +247,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len
     decoder->clock_pos = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
-    // If packet is far too early, the stream jumped or was seeked. Skip packets until we something valid.
+    // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something valid.
     while(decoder->clock_pos > sync_ts + KIT_AUDIO_EARLY_FAIL) {
         //LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
         av_frame_unref(audio_decoder->current);
@@ -278,6 +278,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, unsigned char *buf, size_t len
 
     size = &audio_decoder->current->crop_top;
     left = &audio_decoder->current->crop_bottom;
+    len = floor(len / SAMPLE_BYTES(audio_decoder)) * SAMPLE_BYTES(audio_decoder);
     if(*left) {
         ret = (len > *left) ? *left : len;
         pos = *size - *left;
