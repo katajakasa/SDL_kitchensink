@@ -148,6 +148,8 @@ void Kit_CloseDemuxer(Kit_Demuxer **ref) {
 
 static void Kit_SendSeekPacket(Kit_Demuxer *demuxer) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        if(!demuxer->buffers[i])
+            continue;
         demuxer->scratch_packet->opaque = (void*)1;
         Kit_FlushPacketBuffer(demuxer->buffers[i]);
         Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
