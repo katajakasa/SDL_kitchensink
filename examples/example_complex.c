@@ -108,12 +108,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Set to 0 to allow ffmpeg decide thread count.
-    Kit_SetHint(KIT_HINT_THREAD_COUNT, 0);
-
-    // Lots of buffers for smooth playback (will eat up more memory, too).
-    Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 5);
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 192);
+    // Reduce buffering to use less memory
+    // Note! Some video files may require larger buffers!
+    Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 1);
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 8);
 
     // Open up the sourcefile.
     // This can be a local file, network url, ...

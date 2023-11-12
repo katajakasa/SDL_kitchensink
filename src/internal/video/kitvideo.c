@@ -186,7 +186,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
         goto exit_4;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        2,
+        state->video_frame_buffer_size,
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
