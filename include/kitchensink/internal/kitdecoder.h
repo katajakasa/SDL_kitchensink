@@ -30,7 +30,6 @@ typedef void (*dec_close_cb)(Kit_Decoder *decoder);
 
 struct Kit_Decoder {
     Kit_Timer *sync_timer;
-    double clock_pos;            ///< Current pts for the stream
     AVRational aspect_ratio;     ///< Aspect ratio for the current frame (may change frame-to-frame)
     AVCodecContext *codec_ctx;   ///< FFMpeg internal: Codec context
     AVStream *stream;            ///< FFMpeg internal: Data stream

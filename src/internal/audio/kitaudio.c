@@ -244,6 +244,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     size_t *size;
     size_t *left;
     double sync_ts;
+    double pts;
 
     if(len <= 0)
         return 0;
@@ -252,37 +253,37 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+    pts = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
     // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something valid.
-    while(decoder->clock_pos > sync_ts + KIT_AUDIO_EARLY_FAIL) {
-        //LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+    while(pts > sync_ts + KIT_AUDIO_EARLY_FAIL) {
+        //LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
             goto no_data;
-        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+        pts = Kit_GetCurrentPTS(decoder);
     }
 
     // Packet is too early, wait.
-    if(decoder->clock_pos > sync_ts + KIT_AUDIO_EARLY_THRESHOLD) {
-        //LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
+    if(pts > sync_ts + KIT_AUDIO_EARLY_THRESHOLD) {
+        //LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_CancelPacketBufferRead(audio_decoder->buffer);
         return 0;
     }
 
     // Packet is too late, skip packets until we see something reasonable.
-    while(decoder->clock_pos < sync_ts - KIT_AUDIO_LATE_THRESHOLD) {
-        //LOG("[AUDIO] LATE: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+    while(pts < sync_ts - KIT_AUDIO_LATE_THRESHOLD) {
+        //LOG("[AUDIO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
             goto no_data;
-        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+        pts = Kit_GetCurrentPTS(decoder);
     }
-    //LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", decoder->clock_pos, sync_ts);
+    //LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
 
     size = &audio_decoder->current->crop_top;
     left = &audio_decoder->current->crop_bottom;

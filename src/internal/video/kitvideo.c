@@ -249,43 +249,44 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     SDL_Rect frame_area;
     double sync_ts;
+    double pts;
 
     if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
         return 1;
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+    pts = Kit_GetCurrentPTS(decoder);
     sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
     // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something valid.
-    while(decoder->clock_pos > sync_ts + KIT_VIDEO_EARLY_FAIL) {
-        //LOG("[VIDEO] FAIL-EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+    while(pts > sync_ts + KIT_VIDEO_EARLY_FAIL) {
+        //LOG("[VIDEO] FAIL-EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
             return 1;
-        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+        pts = Kit_GetCurrentPTS(decoder);
     }
 
     // Packet is too early, wait.
-    if(decoder->clock_pos > sync_ts + KIT_VIDEO_EARLY_THRESHOLD) {
-        //LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+    if(pts > sync_ts + KIT_VIDEO_EARLY_THRESHOLD) {
+        //LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_CancelPacketBufferRead(video_decoder->buffer);
         return 1;
     }
 
     // Packet is too late, skip packets until we see something reasonable.
-    while(decoder->clock_pos < sync_ts - KIT_VIDEO_LATE_THRESHOLD) {
-        //LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", decoder->clock_pos, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
+    while(pts < sync_ts - KIT_VIDEO_LATE_THRESHOLD) {
+        //LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
             return 1;
-        decoder->clock_pos = Kit_GetCurrentPTS(decoder);
+        pts = Kit_GetCurrentPTS(decoder);
     }
-    //LOG("[VIDEO] >>> SYNC!: pts = %lf, sync = %lf\n", decoder->clock_pos, sync_ts);
+    //LOG("[VIDEO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
 
     // Update output texture with current video data.
     // Note that frame size may change on the fly. Take that into account.

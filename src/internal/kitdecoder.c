@@ -64,7 +64,6 @@ Kit_Decoder* Kit_CreateDecoder(
 
     decoder->stream = stream;
     decoder->sync_timer = sync_timer;
-    decoder->clock_pos = 0;
     decoder->codec_ctx = codec_ctx;
     decoder->dec_input = dec_input;
     decoder->dec_decode = dec_decode;
@@ -136,10 +135,4 @@ int Kit_GetDecoderStreamIndex(const Kit_Decoder *decoder) {
     if(!decoder)
         return -1;
     return decoder->stream->index;
-}
-
-double Kit_GetDecoderPTS(const Kit_Decoder *decoder) {
-    if(!decoder)
-        return -1.0;
-    return decoder->clock_pos;
 }
