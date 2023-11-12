@@ -12,10 +12,10 @@ static int Kit_DemuxMain(void *ptr) {
             Kit_DemuxerSeek(thread->demuxer, thread->seek_target);
             SDL_AtomicSet(&thread->seek, 0);
         }
-        if(!Kit_RunDemuxer(thread->demuxer)) {
+        if(!Kit_RunDemuxer(thread->demuxer))
             break;
-        }
-    };
+    }
+    SDL_AtomicSet(&thread->run, 0);
     return 0;
 }
 
@@ -68,6 +68,10 @@ void Kit_WaitDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
 Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, KitBufferIndex buffer_index) {
     assert(demuxer_thread);
     return Kit_GetDemuxerPacketBuffer(demuxer_thread->demuxer, buffer_index);
+}
+
+bool Kit_IsDemuxerThreadAlive(Kit_DemuxerThread *demuxer_thread) {
+    return SDL_AtomicGet(&demuxer_thread->run);
 }
 
 void Kit_CloseDemuxerThread(Kit_DemuxerThread **ref) {

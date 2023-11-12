@@ -101,9 +101,8 @@ bool Kit_RunDecoder(const Kit_Decoder *decoder, double *pts) {
     return decoder->dec_decode(decoder, pts);
 }
 
-bool Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet) {
+Kit_DecoderInputResult Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet) {
     assert(decoder);
-    assert(packet);
     return decoder->dec_input(decoder, packet);
 }
 

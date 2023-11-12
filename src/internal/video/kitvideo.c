@@ -9,7 +9,6 @@
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/video/kitvideoutils.h"
 #include "kitchensink/internal/video/kitvideo.h"
 
@@ -95,10 +94,18 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     }
 }
 
-static bool dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
+static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder);
-    assert(in_packet);
-    return avcodec_send_packet(decoder->codec_ctx, in_packet) == 0;
+    switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
+        case 0:
+            return KIT_DEC_INPUT_OK;
+        case AVERROR(EOF):
+            return KIT_DEC_INPUT_EOF;
+        case AVERROR(EAGAIN):
+            return KIT_DEC_INPUT_RETRY;
+        default:
+            return KIT_DEC_INPUT_RETRY;
+    }
 }
 
 static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {

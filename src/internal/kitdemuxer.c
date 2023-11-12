@@ -4,13 +4,22 @@
 #include <SDL_timer.h>
 
 #include "kitchensink/kiterror.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitpacketbuffer.h"
 #include "kitchensink/internal/kitdemuxer.h"
 
 
+static void Kit_SendEOFPacket(Kit_Demuxer *demuxer) {
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        if(!demuxer->buffers[i])
+            continue;
+        demuxer->scratch_packet->opaque = (void*)2;
+        Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
+    }
+}
+
 bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     if(av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet) < 0) {
+        Kit_SendEOFPacket(demuxer);
         return false;
     }
 
