@@ -117,7 +117,6 @@ static int ren_get_ass_data_cb(Kit_SubtitleRenderer *renderer, Kit_TextureAtlas 
     }
 
     SDL_FreeSurface(dst);
-    renderer->decoder->clock_pos = current_pts;
     return 0;
 }
 

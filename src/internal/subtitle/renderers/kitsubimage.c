@@ -93,7 +93,6 @@ static int ren_get_img_data_cb(Kit_SubtitleRenderer *renderer, Kit_TextureAtlas 
     while(Kit_ReadPacketBuffer(image_renderer->buffer, image_renderer->out_packet, 0))
         if(!process_packet(image_renderer, atlas, texture, current_pts))
             break;
-    renderer->decoder->clock_pos = current_pts;
     return 0;
 }
 
