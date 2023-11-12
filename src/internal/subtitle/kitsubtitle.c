@@ -55,23 +55,23 @@ static void dec_signal_subtitle_cb(Kit_Decoder *decoder) {
     Kit_SignalSubtitleRenderer(subtitle_decoder->renderer);
 }
 
-static bool dec_input_subtitle_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
+static Kit_DecoderInputResult dec_input_subtitle_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
     assert(dec);
-    assert(in_packet);
 
     Kit_SubtitleDecoder *subtitle_decoder = dec->userdata;
     int frame_finished;
 
+    if(in_packet == NULL)
+        return KIT_DEC_INPUT_EOF;
     if(in_packet->size <= 0)
-        return true;
+        return KIT_DEC_INPUT_OK;
     if(avcodec_decode_subtitle2(dec->codec_ctx, &subtitle_decoder->scratch_frame, &frame_finished, in_packet) < 0)
-        return true;
+        return KIT_DEC_INPUT_OK;
     if(frame_finished) {
         dec_read_subtitle(dec, in_packet->pts);
         avsubtitle_free(&subtitle_decoder->scratch_frame);
     }
-
-    return true;
+    return KIT_DEC_INPUT_OK;
 }
 
 static bool dec_decode_subtitle_cb(const Kit_Decoder *dec, double *pts) {

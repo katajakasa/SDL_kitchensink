@@ -257,7 +257,7 @@ KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
  * @param player Player instance
  * @return Current state of the player, see Kit_PlayerState
  */
-KIT_API Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player);
+KIT_API Kit_PlayerState Kit_GetPlayerState(Kit_Player *player);
 
 /**
  * @brief Starts playback

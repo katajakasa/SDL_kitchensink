@@ -74,10 +74,18 @@ static void dec_signal_audio_cb(Kit_Decoder *decoder) {
     Kit_SignalPacketBuffer(audio_decoder->buffer);
 }
 
-static bool dec_input_audio_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
-    assert(dec != NULL);
-    assert(in_packet != NULL);
-    return avcodec_send_packet(dec->codec_ctx, in_packet) == 0;
+static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
+    assert(decoder != NULL);
+    switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
+        case 0:
+            return KIT_DEC_INPUT_OK;
+        case AVERROR(EOF):
+            return KIT_DEC_INPUT_EOF;
+        case AVERROR(EAGAIN):
+            return KIT_DEC_INPUT_RETRY;
+        default:
+            return KIT_DEC_INPUT_RETRY;
+    }
 }
 
 static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {

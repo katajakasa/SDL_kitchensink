@@ -16,7 +16,13 @@
 
 typedef struct Kit_Decoder Kit_Decoder;
 
-typedef bool (*dec_input_cb)(const Kit_Decoder *decoder, const AVPacket *packet);
+typedef enum Kit_DecoderInputResult {
+    KIT_DEC_INPUT_OK = 0,
+    KIT_DEC_INPUT_RETRY,
+    KIT_DEC_INPUT_EOF,
+} Kit_DecoderInputResult;
+
+typedef Kit_DecoderInputResult (*dec_input_cb)(const Kit_Decoder *decoder, const AVPacket *packet);
 typedef bool (*dec_decode_cb)(const Kit_Decoder *decoder, double *pts);
 typedef void (*dec_flush_cb)(Kit_Decoder *decoder);
 typedef void (*dec_signal_cb)(Kit_Decoder *decoder);
@@ -52,10 +58,8 @@ KIT_LOCAL void Kit_CloseDecoder(Kit_Decoder **dec);
 KIT_LOCAL int Kit_GetDecoderStreamIndex(const Kit_Decoder *decoder);
 KIT_LOCAL int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *codec);
 
-KIT_LOCAL double Kit_GetDecoderPTS(const Kit_Decoder *decoder);
-
 KIT_LOCAL bool Kit_RunDecoder(const Kit_Decoder *decoder, double *pts);
-KIT_LOCAL bool Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet);
+KIT_LOCAL Kit_DecoderInputResult Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet);
 KIT_LOCAL void Kit_ClearDecoderBuffers(Kit_Decoder *decoder);
 KIT_LOCAL void Kit_SignalDecoder(Kit_Decoder *decoder);
 

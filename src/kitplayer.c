@@ -6,6 +6,7 @@
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/subtitle/kitsubtitle.h"
 #include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdemuxerthread.h"
 #include "kitchensink/internal/kittimer.h"
@@ -139,6 +140,18 @@ exit_0:
     return NULL;
 }
 
+static bool Kit_IsRunning(const Kit_Player *player) {
+    if(Kit_IsDemuxerThreadAlive(player->demux_thread))
+        return true;
+    if(player->dec_threads[KIT_VIDEO_INDEX])
+        if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_VIDEO_INDEX]))
+            return true;
+    if(player->dec_threads[KIT_AUDIO_INDEX])
+        if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_AUDIO_INDEX]))
+            return true;
+    return Kit_GetPlayerPosition(player) < Kit_GetPlayerDuration(player);
+}
+
 static void Kit_StartThreads(const Kit_Player *player) {
     Kit_StartDemuxerThread(player->demux_thread);
     Kit_StartDecoderThread(player->dec_threads[KIT_VIDEO_INDEX], "Video decoder thread");
@@ -150,6 +163,13 @@ static void Kit_StopThreads(const Kit_Player *player) {
     Kit_StopDemuxerThread(player->demux_thread);
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         Kit_StopDecoderThread(player->dec_threads[i]);
+    }
+}
+
+static void Kit_WaitThreads(const Kit_Player *player) {
+    Kit_WaitDemuxerThread(player->demux_thread);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_WaitDecoderThread(player->dec_threads[i]);
     }
 }
 
@@ -174,6 +194,15 @@ static void Kit_FlushAllBuffers(const Kit_Player *player) {
     }
 }
 
+static void Kit_VerifyState(Kit_Player *player) {
+    if(player->state == KIT_PAUSED || player->state == KIT_PLAYING) {
+        if(!Kit_IsRunning(player)) {
+            Kit_StopThreads(player);
+            Kit_WaitThreads(player);
+            player->state = KIT_STOPPED;
+        }
+    }
+}
 
 void Kit_ClosePlayer(Kit_Player *player) {
     if(player == NULL)
@@ -249,14 +278,13 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     assert(limit >= 0);
 
     const Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_INDEX];
-    const Kit_Decoder *video_dec = player->decoders[KIT_VIDEO_INDEX];
-    if(sub_dec == NULL || video_dec == NULL)
+    if(sub_dec == NULL)
         return 0;
     if(player->state == KIT_PAUSED)  // If paused, just return the current items
         return Kit_GetSubtitleDecoderInfo(sub_dec, sources, targets, limit);
     if(player->state == KIT_STOPPED)  // If stopped, do nothing.
         return 0;
-    Kit_GetSubtitleDecoderTexture(sub_dec, texture, video_dec->clock_pos);
+    Kit_GetSubtitleDecoderTexture(sub_dec, texture, Kit_GetTimerElapsed(player->sync_timer));
     return Kit_GetSubtitleDecoderInfo(sub_dec, sources, targets, limit);
 }
 
@@ -274,8 +302,9 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     Kit_GetSubtitleDecoderOutputFormat(subtitle_decoder, &info->subtitle_format);
 }
 
-Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player) {
+Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
     assert(player != NULL);
+    Kit_VerifyState(player);
     return player->state;
 }
 
@@ -323,6 +352,8 @@ void Kit_PlayerPause(Kit_Player *player) {
 
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
+    if(player->state == KIT_STOPPED || player->state == KIT_CLOSED)
+        return 1;
     double duration = Kit_GetPlayerDuration(player);
     if(seek_set <= 0)
         seek_set = 0;
@@ -339,11 +370,7 @@ double Kit_GetPlayerDuration(const Kit_Player *player) {
 
 double Kit_GetPlayerPosition(const Kit_Player *player) {
     assert(player != NULL);
-    if(player->decoders[KIT_VIDEO_INDEX])
-        return Kit_GetDecoderPTS(player->decoders[KIT_VIDEO_INDEX]);
-    if(player->decoders[KIT_AUDIO_INDEX])
-        return Kit_GetDecoderPTS(player->decoders[KIT_AUDIO_INDEX]);
-    return 0;
+    return Kit_GetTimerElapsed(player->sync_timer);
 }
 
 #define IS_RATIONAL_DEFINED(rational) (rational.num > 0 && rational.den > 0)
