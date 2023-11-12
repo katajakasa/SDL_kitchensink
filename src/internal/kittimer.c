@@ -71,7 +71,7 @@ void Kit_CloseTimer(Kit_Timer **ref) {
     if(!ref || !*ref)
         return;
     Kit_Timer *timer = *ref;
-    if(--timer->ref == 0) {
+    if(--timer->ref->count == 0) {
         free(timer->ref);
     }
     free(timer);
