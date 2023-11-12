@@ -103,8 +103,8 @@ static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, con
             return KIT_DEC_INPUT_EOF;
         case AVERROR(EAGAIN):
             return KIT_DEC_INPUT_RETRY;
-        default:
-            return KIT_DEC_INPUT_RETRY;
+        default: // Skip errors and hope for the best.
+            return KIT_DEC_INPUT_OK;
     }
 }
 
