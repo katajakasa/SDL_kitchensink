@@ -167,12 +167,12 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
         goto exit_out_frame;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        16,
+        state->audio_frame_buffer_size,
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
         (buf_obj_move) av_frame_move_ref,
-        (buf_obj_ref)  av_frame_ref)) == NULL) {
+        (buf_obj_ref) av_frame_ref)) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
         goto exit_current;
     }

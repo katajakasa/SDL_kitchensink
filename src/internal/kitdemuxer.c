@@ -6,6 +6,7 @@
 #include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitpacketbuffer.h"
 #include "kitchensink/internal/kitdemuxer.h"
+#include "kitchensink/internal/kitlibstate.h"
 
 
 static void Kit_SendEOFPacket(Kit_Demuxer *demuxer) {
@@ -44,6 +45,7 @@ Kit_Demuxer* Kit_CreateDemuxer(
     int audio_index,
     int subtitle_index
 ) {
+    Kit_LibraryState *state = Kit_GetLibraryState();
     Kit_Demuxer *demuxer = NULL;
     Kit_PacketBuffer *video_buf = NULL;
     Kit_PacketBuffer *audio_buf = NULL;
@@ -59,7 +61,7 @@ Kit_Demuxer* Kit_CreateDemuxer(
     }
     if (video_index >= 0) {
         video_buf = Kit_CreatePacketBuffer(
-            16,
+            state->video_packet_buffer_size,
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,
@@ -73,7 +75,7 @@ Kit_Demuxer* Kit_CreateDemuxer(
     }
     if (audio_index >= 0) {
         audio_buf = Kit_CreatePacketBuffer(
-            64,
+            state->audio_packet_buffer_size,
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,
@@ -87,7 +89,7 @@ Kit_Demuxer* Kit_CreateDemuxer(
     }
     if (subtitle_index >= 0) {
         subtitle_buf = Kit_CreatePacketBuffer(
-            64,
+            state->subtitle_packet_buffer_size,
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,

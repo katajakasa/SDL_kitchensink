@@ -4,6 +4,7 @@
 #include <SDL_surface.h>
 
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
@@ -132,6 +133,7 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
     assert(screen_w >= 0);
     assert(screen_h >= 0);
 
+    Kit_LibraryState *state = Kit_GetLibraryState();
     Kit_SubtitleRenderer *renderer;
     Kit_ImageSubtitleRenderer *image_renderer;
     Kit_PacketBuffer *buffer;
@@ -154,7 +156,7 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
         goto exit_1;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        32,
+        state->subtitle_frame_buffer_size,
         (buf_obj_alloc) Kit_CreateSubtitlePacket,
         (buf_obj_unref) Kit_DelSubtitlePacketRefs,
         (buf_obj_free) Kit_FreeSubtitlePacket,
