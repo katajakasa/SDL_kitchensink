@@ -73,7 +73,7 @@ Kit_Demuxer* Kit_CreateDemuxer(
     }
     if (audio_index >= 0) {
         audio_buf = Kit_CreatePacketBuffer(
-            256,
+            64,
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,
@@ -87,7 +87,7 @@ Kit_Demuxer* Kit_CreateDemuxer(
     }
     if (subtitle_index >= 0) {
         subtitle_buf = Kit_CreatePacketBuffer(
-            128,
+            64,
             (buf_obj_alloc) av_packet_alloc,
             (buf_obj_unref) av_packet_unref,
             (buf_obj_free) av_packet_free,

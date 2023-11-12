@@ -9,6 +9,7 @@
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/video/kitvideoutils.h"
 #include "kitchensink/internal/video/kitvideo.h"
 
@@ -97,10 +98,9 @@ static void dec_read_video(const Kit_Decoder *decoder) {
 static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder);
     switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
-        case 0:
-            return KIT_DEC_INPUT_OK;
         case AVERROR(EOF):
             return KIT_DEC_INPUT_EOF;
+        case AVERROR(ENOMEM):
         case AVERROR(EAGAIN):
             return KIT_DEC_INPUT_RETRY;
         default: // Skip errors and hope for the best.
@@ -186,7 +186,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
         goto exit_4;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        1,
+        2,
         (buf_obj_alloc) av_frame_alloc,
         (buf_obj_unref) av_frame_unref,
         (buf_obj_free) av_frame_free,
