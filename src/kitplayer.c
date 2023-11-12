@@ -370,7 +370,9 @@ double Kit_GetPlayerDuration(const Kit_Player *player) {
 
 double Kit_GetPlayerPosition(const Kit_Player *player) {
     assert(player != NULL);
-    return Kit_GetTimerElapsed(player->sync_timer);
+    double pos = Kit_GetTimerElapsed(player->sync_timer);
+    double dur = Kit_GetPlayerDuration(player);
+    return pos >= dur ? dur : pos;
 }
 
 #define IS_RATIONAL_DEFINED(rational) (rational.num > 0 && rational.den > 0)
