@@ -23,7 +23,106 @@ struct Kit_Player {
     Kit_Timer *sync_timer; ///< Sync timer for the decoders
     const Kit_Source *src; ///< Reference to Audio/Video source
     double pause_started; ///< Temporary flag for handling pauses
+    int screen_w;
+    int screen_h;
 };
+
+static bool Kit_InitializeAudioDecoder(
+    const Kit_Source *src,
+    const Kit_Timer *main_timer,
+    const Kit_DemuxerThread *demux_thread,
+    bool is_primary,
+    int stream_index,
+    Kit_Decoder **decoder,
+    Kit_DecoderThread **thread
+) {
+    Kit_Timer *timer;
+    Kit_PacketBuffer *packet_buffer;
+
+    if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_AUDIO_INDEX)) == NULL)
+        goto exit_0;
+    if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
+        goto exit_0;
+    if((*decoder = Kit_CreateAudioDecoder(src, timer, stream_index)) == NULL)
+        goto exit_1;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_2;
+
+    return true;
+
+exit_2:
+    Kit_CloseDecoder(decoder);
+exit_1:
+    Kit_CloseTimer(&timer);
+exit_0:
+    return false;
+}
+
+static bool Kit_InitializeVideoDecoder(
+    const Kit_Source *src,
+    const Kit_Timer *main_timer,
+    const Kit_DemuxerThread *demux_thread,
+    bool is_primary,
+    int stream_index,
+    Kit_Decoder **decoder,
+    Kit_DecoderThread **thread
+) {
+    Kit_Timer *timer;
+    Kit_PacketBuffer *packet_buffer;
+
+    if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_VIDEO_INDEX)) == NULL)
+        goto exit_0;
+    if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
+        goto exit_0;
+    if((*decoder = Kit_CreateVideoDecoder(src, timer, stream_index)) == NULL)
+        goto exit_1;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_2;
+
+    return true;
+
+exit_2:
+    Kit_CloseDecoder(decoder);
+exit_1:
+    Kit_CloseTimer(&timer);
+exit_0:
+    return false;
+}
+
+static bool Kit_InitializeSubtitleDecoder(
+    const Kit_Source *src,
+    const Kit_Timer *main_timer,
+    const Kit_DemuxerThread *demux_thread,
+    const Kit_Decoder *video_decoder,
+    int stream_index,
+    int screen_w,
+    int screen_h,
+    Kit_Decoder **decoder,
+    Kit_DecoderThread **thread
+) {
+    Kit_Timer *timer;
+    Kit_PacketBuffer *packet_buffer;
+    Kit_VideoOutputFormat output;
+
+    Kit_GetVideoDecoderOutputFormat(video_decoder, &output);
+    if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_SUBTITLE_INDEX)) == NULL)
+        goto exit_0;
+    if((timer = Kit_CreateSecondaryTimer(main_timer, false)) == NULL)
+        goto exit_0;
+    if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)) == NULL)
+        goto exit_1;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_2;
+
+    return true;
+
+exit_2:
+    Kit_CloseDecoder(decoder);
+exit_1:
+    Kit_CloseTimer(&timer);
+exit_0:
+    return false;
+}
 
 Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
                              int video_index,
@@ -40,18 +139,13 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     Kit_Decoder *audio_decoder = NULL;
     Kit_Decoder *subtitle_decoder = NULL;
     Kit_Demuxer *demuxer = NULL;
-    Kit_PacketBuffer *packet_buf = NULL;
     Kit_DecoderThread *video_thread = NULL;
     Kit_DecoderThread *audio_thread = NULL;
     Kit_DecoderThread *subtitle_thread = NULL;
     Kit_DemuxerThread *demux_thread = NULL;
     Kit_Timer *timer = NULL;
-    Kit_Timer *audio_timer = NULL;
-    Kit_Timer *video_timer = NULL;
-    Kit_Timer *sub_timer = NULL;
     bool video_primary = video_index > -1;
     bool audio_primary = !video_primary && audio_index > -1;
-    bool sub_primary = !audio_primary && subtitle_index > -1;
     
     if(video_index < 0 && subtitle_index >= 0) {
         Kit_SetError("Subtitle stream selected without video stream");
@@ -61,52 +155,21 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
         Kit_SetError("Unable to allocate player");
         goto exit_0;
     }
-    if((timer = Kit_CreateTimer()) == NULL) {
+    if((timer = Kit_CreateTimer()) == NULL)
         goto exit_1;
-    }
-    if((demuxer = Kit_CreateDemuxer(src, video_index, audio_index, subtitle_index)) == NULL) {
+    if((demuxer = Kit_CreateDemuxer(src, video_index, audio_index, subtitle_index)) == NULL)
         goto exit_2;
-    }
-    if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL) {
+    if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL)
         goto exit_3;
-    }
-
-    // Initialize audio decoder
-    if(audio_index > -1) {
-        if((audio_timer = Kit_CreateSecondaryTimer(timer, audio_primary)) == NULL)
-            goto exit_3;
-        if((audio_decoder = Kit_CreateAudioDecoder(src, audio_timer, audio_index)) == NULL)
-            goto exit_3;
-        packet_buf = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_AUDIO_INDEX);
-        if((audio_thread = Kit_CreateDecoderThread(packet_buf, audio_decoder)) == NULL)
-            goto exit_3;
-    }
-
-    // Initialize video decoder
-    if(video_index > -1) {
-        if((video_timer = Kit_CreateSecondaryTimer(timer, video_primary)) == NULL)
-            goto exit_3;
-        if((video_decoder = Kit_CreateVideoDecoder(src, video_timer, video_index)) == NULL)
-            goto exit_3;
-        packet_buf = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_VIDEO_INDEX);
-        if((video_thread = Kit_CreateDecoderThread(packet_buf, video_decoder)) == NULL)
-            goto exit_3;
-    }
-
-    // Initialize subtitle decoder.
-    if(subtitle_index > -1) {
-        Kit_VideoOutputFormat output;
-        Kit_GetVideoDecoderOutputFormat(player->decoders[KIT_VIDEO_INDEX], &output);
-        if((sub_timer = Kit_CreateSecondaryTimer(timer, sub_primary)) == NULL)
-            goto exit_3;
-        subtitle_decoder = Kit_CreateSubtitleDecoder(
-                src, sub_timer, subtitle_index, output.width, output.height, screen_w, screen_h);
-        if(subtitle_decoder == NULL)
-            goto exit_3;
-        packet_buf = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_SUBTITLE_INDEX);
-        if((subtitle_thread = Kit_CreateDecoderThread(packet_buf, subtitle_decoder)) == NULL)
-            goto exit_3;
-    }
+    if(audio_index > -1)
+        if(!Kit_InitializeAudioDecoder(src, timer, demux_thread, audio_primary, audio_index, &audio_decoder, &audio_thread))
+            goto exit_4;
+    if(video_index > -1)
+        if(!Kit_InitializeVideoDecoder(src, timer, demux_thread, video_primary, video_index, &video_decoder, &video_thread))
+            goto exit_5;
+    if(subtitle_index > -1)
+        if(!Kit_InitializeSubtitleDecoder(src, timer, demux_thread, video_decoder, subtitle_index, screen_w, screen_h, &subtitle_decoder, &subtitle_thread))
+            goto exit_6;
 
     player->decoders[KIT_AUDIO_INDEX] = audio_decoder;
     player->decoders[KIT_VIDEO_INDEX] = video_decoder;
@@ -118,20 +181,20 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     player->demux_thread = demux_thread;
     player->src = src;
     player->sync_timer = timer;
+    player->screen_w = screen_w;
+    player->screen_h = screen_h;
     return player;
 
-exit_3:
-    Kit_CloseDecoderThread(&audio_thread);
+exit_6:
     Kit_CloseDecoderThread(&video_thread);
-    Kit_CloseDecoderThread(&subtitle_thread);
-    Kit_CloseDecoder(&audio_decoder);
     Kit_CloseDecoder(&video_decoder);
-    Kit_CloseDecoder(&subtitle_decoder);
+exit_5:
+    Kit_CloseDecoderThread(&audio_thread);
+    Kit_CloseDecoder(&audio_decoder);
+exit_4:
     Kit_CloseDemuxerThread(&demux_thread);
+exit_3:
     Kit_CloseDemuxer(&demuxer);
-    Kit_CloseTimer(&audio_timer);
-    Kit_CloseTimer(&video_timer);
-    Kit_CloseTimer(&sub_timer);
 exit_2:
     Kit_CloseTimer(&timer);
 exit_1:
@@ -152,11 +215,37 @@ static bool Kit_IsRunning(const Kit_Player *player) {
     return Kit_GetPlayerPosition(player) < Kit_GetPlayerDuration(player);
 }
 
+static void Kit_HaltDecoder(Kit_Player *player, int index) {
+    Kit_Decoder *decoder = player->decoders[index];
+    Kit_DecoderThread *thread = player->dec_threads[index];
+    Kit_StopDecoderThread(thread);
+    Kit_ClearDecoderBuffers(decoder);
+    Kit_SignalDecoder(decoder);
+    Kit_CloseDecoderThread(&thread);
+    Kit_CloseDecoder(&decoder);
+}
+
+static void Kit_StartThreadFor(const Kit_Player *player, Kit_BufferIndex index) {
+    switch(index) {
+        case KIT_VIDEO_INDEX:
+            Kit_StartDecoderThread(player->dec_threads[KIT_VIDEO_INDEX], "Video decoder thread");
+            return;
+        case KIT_AUDIO_INDEX:
+            Kit_StartDecoderThread(player->dec_threads[KIT_AUDIO_INDEX], "Audio decoder thread");
+            return;
+        case KIT_SUBTITLE_INDEX:
+            Kit_StartDecoderThread(player->dec_threads[KIT_SUBTITLE_INDEX], "Subtitle decoder thread");
+            return;
+        default:
+            return;
+    }
+}
+
 static void Kit_StartThreads(const Kit_Player *player) {
     Kit_StartDemuxerThread(player->demux_thread);
-    Kit_StartDecoderThread(player->dec_threads[KIT_VIDEO_INDEX], "Video decoder thread");
-    Kit_StartDecoderThread(player->dec_threads[KIT_AUDIO_INDEX], "Audio decoder thread");
-    Kit_StartDecoderThread(player->dec_threads[KIT_SUBTITLE_INDEX], "Subtitle decoder thread");
+    Kit_StartThreadFor(player, KIT_VIDEO_INDEX);
+    Kit_StartThreadFor(player, KIT_AUDIO_INDEX);
+    Kit_StartThreadFor(player, KIT_SUBTITLE_INDEX);
 }
 
 static void Kit_StopThreads(const Kit_Player *player) {
@@ -228,6 +317,8 @@ void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h) {
     const Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_INDEX];
     if(dec == NULL)
         return;
+    player->screen_w = w;
+    player->screen_h = h;
     Kit_SetSubtitleDecoderSize(dec, w, h);
 }
 
@@ -412,4 +503,102 @@ int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den) {
     // No data found anywhere, give up.
     Kit_SetError("Unable to find aspect ratio; no data from demuxer or codec");
     return 1;
+}
+
+static void Kit_IsStreamPrimary(const Kit_Player *player, bool *video_primary, bool *audio_primary) {
+    Kit_Decoder *video_decoder = player->decoders[KIT_VIDEO_INDEX];
+    Kit_Decoder *audio_decoder = player->decoders[KIT_AUDIO_INDEX];
+    *video_primary = video_decoder && video_decoder->stream->index > -1;
+    *audio_primary = audio_decoder && !*video_primary && audio_decoder->stream->index > -1;
+}
+
+int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index) {
+    Kit_Decoder *new_decoder = NULL;
+    Kit_DecoderThread *new_thread = NULL;
+    Kit_BufferIndex buffer_index;
+    bool video_primary, audio_primary;
+
+    if(index < 0) {
+        Kit_SetError("Invalid stream index");
+        return -1;
+    }
+
+    // Figure out which stream is currently the primary one. This stream is allowed to modify the sync clock.
+    Kit_IsStreamPrimary(player, &video_primary, &audio_primary);
+
+    // First, attempt to start up a new decoder instance. If this fails, we don't want to disturb the
+    // currently running decoder.
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            buffer_index = KIT_AUDIO_INDEX;
+            if(!Kit_InitializeAudioDecoder(
+                player->src,
+                player->sync_timer,
+                player->demux_thread,
+                audio_primary,
+                index,
+                &new_decoder,
+                &new_thread))
+                goto error_1;
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            buffer_index = KIT_VIDEO_INDEX;
+            if(!Kit_InitializeVideoDecoder(
+                player->src,
+                player->sync_timer,
+                player->demux_thread,
+                video_primary,
+                index,
+                &new_decoder,
+                &new_thread))
+                goto error_1;
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            buffer_index = KIT_SUBTITLE_INDEX;
+            if(!Kit_InitializeSubtitleDecoder(
+                player->src,
+                player->sync_timer,
+                player->demux_thread,
+               player->decoders[KIT_VIDEO_INDEX],
+                index,
+                player->screen_w,
+                player->screen_h,
+                &new_decoder,
+                &new_thread))
+                goto error_1;
+            break;
+        default:
+            return -1;
+    }
+
+    Kit_HaltDecoder(player, buffer_index);
+    Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, index);
+    player->decoders[buffer_index] = new_decoder;
+    player->dec_threads[buffer_index] = new_thread;
+    if(player->state == KIT_PLAYING || player->state == KIT_PAUSED)
+        Kit_StartThreadFor(player, buffer_index);
+    return 0;
+
+error_1:
+    Kit_CloseDecoder(&new_decoder);
+    Kit_CloseDecoderThread(&new_thread);
+    return -1;
+}
+
+int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type) {
+    Kit_Decoder *dec = NULL;
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            dec = player->decoders[KIT_AUDIO_INDEX];
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            dec = player->decoders[KIT_VIDEO_INDEX];
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            dec = player->decoders[KIT_SUBTITLE_INDEX];
+            break;
+        default:
+            dec = NULL;
+    }
+    return dec ? dec->stream->index : -1;
 }

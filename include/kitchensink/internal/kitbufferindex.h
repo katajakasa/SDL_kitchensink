@@ -6,6 +6,6 @@ typedef enum KitBufferIndex {
     KIT_AUDIO_INDEX,
     KIT_SUBTITLE_INDEX,
     KIT_INDEX_COUNT
-} KitBufferIndex;
+} Kit_BufferIndex;
 
 #endif // KITBUFFERINDEX

@@ -14,6 +14,43 @@
 #define ATLAS_MAX 1024
 
 
+void dump_audio_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
+    if(Kit_GetPlayerAudioStream(player) >= 0) {
+        fprintf(
+            stderr,
+            " * Audio: %s (%s), threads=%d, %dHz, %dch, %db, %s\n",
+            player_info->audio_codec.name,
+            player_info->audio_codec.description,
+            player_info->video_codec.threads,
+            player_info->audio_format.sample_rate,
+            player_info->audio_format.channels,
+            player_info->audio_format.bytes,
+            player_info->audio_format.is_signed ? "signed" : "unsigned");
+    }
+}
+
+void dump_video_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
+    if(Kit_GetPlayerVideoStream(player) >= 0) {
+        fprintf(
+            stderr,
+            " * Video: %s (%s), threads=%d, %dx%d\n",
+            player_info->video_codec.name,
+            player_info->video_codec.description,
+            player_info->video_codec.threads,
+            player_info->video_format.width,
+            player_info->video_format.height);
+    }
+}
+
+void dump_subtitle_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
+    if(Kit_GetPlayerSubtitleStream(player) >= 0) {
+        fprintf(stderr, " * Subtitle: %s (%s), threads=%d\n",
+                player_info->subtitle_codec.name,
+                player_info->subtitle_codec.description,
+                player_info->video_codec.threads);
+    }
+}
+
 void render_gui(SDL_Renderer *renderer, double percent) {
     // Get window size
     int size_w, size_h;
@@ -157,30 +194,10 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Media information:\n");
-    if(Kit_GetPlayerAudioStream(player) >= 0) {
-        fprintf(stderr, " * Audio: %s (%s), threads=%d, %dHz, %dch, %db, %s\n",
-                player_info.audio_codec.name,
-                player_info.audio_codec.description,
-                player_info.video_codec.threads,
-                player_info.audio_format.sample_rate,
-                player_info.audio_format.channels,
-                player_info.audio_format.bytes,
-                player_info.audio_format.is_signed ? "signed" : "unsigned");
-    }
-    if(Kit_GetPlayerVideoStream(player) >= 0) {
-        fprintf(stderr, " * Video: %s (%s), threads=%d, %dx%d\n",
-                player_info.video_codec.name,
-                player_info.video_codec.description,
-                player_info.video_codec.threads,
-                player_info.video_format.width,
-                player_info.video_format.height);
-    }
-    if(Kit_GetPlayerSubtitleStream(player) >= 0) {
-        fprintf(stderr, " * Subtitle: %s (%s), threads=%d\n",
-                player_info.subtitle_codec.name,
-                player_info.subtitle_codec.description,
-                player_info.video_codec.threads);
-    }
+    dump_audio_stream_info(player, &player_info);
+    dump_video_stream_info(player, &player_info);
+    dump_subtitle_stream_info(player, &player_info);
+
     int num, den;
     if(Kit_GetPlayerAspectRatio(player, &num, &den) == 0) {
         fprintf(stderr, "Aspect ratio: %d:%d\n", num, den);
@@ -243,6 +260,8 @@ int main(int argc, char *argv[]) {
     int size_h = 0;
     int screen_w = 0;
     int screen_h = 0;
+    int current_index = 0;
+    int next_index = 0;
     bool fullscreen = false;
     SDL_Rect video_area;
 
@@ -269,8 +288,47 @@ int main(int argc, char *argv[]) {
                 case SDL_KEYUP:
                     if(event.key.keysym.sym == SDLK_ESCAPE) {
                         run = false;
+                    } else if(event.key.keysym.sym == SDLK_s) {
+                        current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE);
+                        next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_SUBTITLE, current_index, 1);
+                        if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE, next_index) != 0) {
+                            fprintf(stderr, "Failed to set subtitle stream %d: %s\n", next_index, Kit_GetError());
+                        } else {
+                            fprintf(stderr, "Setting subtitle stream %d\n", next_index);
+                        }
+                        fflush(stderr);
+                    }
+                    else if(event.key.keysym.sym == SDLK_v) {
+                        current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_VIDEO);
+                        next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_VIDEO, current_index, 1);
+                        if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_VIDEO, next_index) != 0) {
+                            fprintf(stderr, "Failed to set video stream %d: %s\n", next_index, Kit_GetError());
+                        } else {
+                            fprintf(stderr, "Setting video stream %d\n", next_index);
+                        }
+                        fflush(stderr);
+                    }
+                    else if(event.key.keysym.sym == SDLK_a) {
+                        current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_AUDIO);
+                        next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_AUDIO, current_index, 1);
+                        if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_AUDIO, next_index) != 0) {
+                            fprintf(stderr, "Failed to set audio stream %d: %s\n", next_index, Kit_GetError());
+                        } else {
+                            fprintf(stderr, "Setting audio stream %d\n", next_index);
+                            Kit_GetPlayerInfo(player, &player_info);
+                            SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
+                            wanted_spec.freq = player_info.audio_format.sample_rate;
+                            wanted_spec.format = player_info.audio_format.format;
+                            wanted_spec.channels = player_info.audio_format.channels;
+                            SDL_CloseAudioDevice(audio_dev);
+                            audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
+                            dump_audio_stream_info(player, &player_info);
+                            SDL_PauseAudioDevice(audio_dev, 0);
+                        }
+                        fflush(stderr);
                     }
                     break;
+
 
                 case SDL_KEYDOWN:
                     // Find alt+enter

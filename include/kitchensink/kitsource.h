@@ -242,6 +242,32 @@ KIT_API int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType 
  */
 KIT_API double Kit_GetSourceDuration(const Kit_Source *src);
 
+/**
+ * @brief Makes a list of stream indexes with requested type
+ *
+ * This can be used to get all stream indexes of certain type, eg. all video streams.
+ *
+ * @param src Source to query from
+ * @param type Stream type to search
+ * @param list Integer list to insert into
+ * @param size Maximum size of the list
+ * @return Number of elements found
+ */
+KIT_API int Kit_GetSourceStreamList(const Kit_Source *src, const Kit_StreamType type, int *list, int size);
+
+/**
+ * @brief Gets the next stream index of given type
+ *
+ * This can be used to get the next stream index of a certain type, eg. a video stream.
+ *
+ * @param src Source to query from
+ * @param type Stream type to search
+ * @param current Index to to start iterating from
+ * @param loop Start looping from the start of the stream list if we go past the end.
+ * @return Index number if found, -1 if no more streams of given type were found.
+ */
+KIT_API int Kit_GetNextSourceStream(const Kit_Source *src, const Kit_StreamType type, int current_index, int loop);
+
 #ifdef __cplusplus
 }
 #endif

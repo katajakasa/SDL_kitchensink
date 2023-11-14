@@ -23,9 +23,10 @@ KIT_LOCAL Kit_Demuxer* Kit_CreateDemuxer(
 );
 KIT_LOCAL void Kit_CloseDemuxer(Kit_Demuxer **demuxer);
 KIT_LOCAL bool Kit_RunDemuxer(Kit_Demuxer *demuxer);
-KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, KitBufferIndex buffer_index);
+KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index);
 KIT_LOCAL void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer);
 KIT_LOCAL void Kit_SignalDemuxer(const Kit_Demuxer *demuxer);
 KIT_LOCAL bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target);
+KIT_LOCAL void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int stream_index);
 
 #endif // KITDEMUXER_H

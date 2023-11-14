@@ -22,7 +22,7 @@ KIT_LOCAL Kit_DemuxerThread* Kit_CreateDemuxerThread(Kit_Demuxer *demuxer);
 KIT_LOCAL void Kit_CloseDemuxerThread(Kit_DemuxerThread **demuxer);
 
 KIT_LOCAL void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_target);
-KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, KitBufferIndex buffer_index);
+KIT_LOCAL Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, Kit_BufferIndex buffer_index);
 
 KIT_LOCAL void Kit_StartDemuxerThread(Kit_DemuxerThread *demuxer_thread);
 KIT_LOCAL void Kit_StopDemuxerThread(Kit_DemuxerThread *demuxer_thread);
