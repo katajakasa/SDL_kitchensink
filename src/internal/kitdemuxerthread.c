@@ -65,7 +65,7 @@ void Kit_WaitDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
     demuxer_thread->thread = NULL;
 }
 
-Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, KitBufferIndex buffer_index) {
+Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, Kit_BufferIndex buffer_index) {
     assert(demuxer_thread);
     return Kit_GetDemuxerPacketBuffer(demuxer_thread->demuxer, buffer_index);
 }

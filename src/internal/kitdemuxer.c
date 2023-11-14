@@ -131,6 +131,11 @@ void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer) {
         Kit_FlushPacketBuffer(demuxer->buffers[i]);
 }
 
+void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int stream_index) {
+    Kit_FlushPacketBuffer(demuxer->buffers[index]);
+    demuxer->stream_indexes[index] = stream_index;
+}
+
 void Kit_SignalDemuxer(const Kit_Demuxer *demuxer) {
     if (!demuxer)
         return;
@@ -138,7 +143,7 @@ void Kit_SignalDemuxer(const Kit_Demuxer *demuxer) {
         Kit_SignalPacketBuffer(demuxer->buffers[i]);
 }
 
-Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, KitBufferIndex buffer_index) {
+Kit_PacketBuffer* Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index) {
     assert(demuxer);
     return demuxer->buffers[buffer_index];
 }
