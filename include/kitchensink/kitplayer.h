@@ -229,7 +229,12 @@ KIT_API int Kit_GetPlayerSubtitleData(Kit_Player *player,
  * argument. It is possible however that there is not enough data available, at which point
  * this function will read less and return value may differ from maximum allowed value.
  * Return value 0 should be taken as a hint that there is nothing available.
- * 
+ *
+ * The "backend_buffer_size" argument should be set to the size of backend (hardware) audio buffers.
+ * If your backend is SDL2, this can be provided by SDL_GetQueuedAudioSize(). This information is used
+ * to supply silence, if the output is almost empty and video stream has no audio data to give.
+ * If you don't have this value or just don't care, just set it to UINT_MAX or some other large value.
+ *
  * This function will do nothing if player playback has not been started.
  * 
  * @param player Player instance
@@ -349,8 +354,8 @@ KIT_API int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *de
 /**
  * @brief Selects stream index for specified stream type.
  *
- * This allows switching streams during or outside playback. Handy for eg.
- * switching subtitle track.
+ * This allows switching streams during or outside playback. If stream switching fails for some reason,
+ * -1 will be returned and old stream will continue to be used.
  *
  * @param player Player instance
  * @param type Stream to switch
@@ -363,7 +368,7 @@ KIT_API int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, i
  * @brief Returns the current index of the specified stream type
  *
  * @param player Player instance
- * @param type Stream to switch
+ * @param type Stream to check
  * @return Stream index or -1 on error or if stream is not set
  */
 KIT_API int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type);

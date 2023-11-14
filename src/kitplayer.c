@@ -571,12 +571,20 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
             return -1;
     }
 
+    // If we have a good new decoder, stop the old thread and decoder.
     Kit_HaltDecoder(player, buffer_index);
+
+    // Switch demuxer to track the new stream index. This will also clear the packet buffer, so that the decoder
+    // will no longer get packets from the old stream.
     Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, index);
+
+    // Set the new decoder and thread, and spin up the thread if we were already playing.
     player->decoders[buffer_index] = new_decoder;
     player->dec_threads[buffer_index] = new_thread;
     if(player->state == KIT_PLAYING || player->state == KIT_PAUSED)
         Kit_StartThreadFor(player, buffer_index);
+
+    // Et voila!
     return 0;
 
 error_1:
