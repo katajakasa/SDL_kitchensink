@@ -13,7 +13,7 @@
 #include "kitchensink/internal/audio/kitaudioutils.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5
-#define KIT_AUDIO_EARLY_THRESHOLD 0.01
+#define KIT_AUDIO_EARLY_THRESHOLD 0.05
 #define KIT_AUDIO_LATE_THRESHOLD 0.05
 
 #define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
@@ -304,6 +304,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
 no_data:
     if(backend_buffer_size < 8192) {
+        //LOG("[AUDIO] SILENCE\n");
         len = min2(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
         av_samples_set_silence(
             &buf,
