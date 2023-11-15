@@ -12,12 +12,18 @@ Features:
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
 * Synchronizing video & audio to clock
-* Seeking forwards and backwards
+* Stream seeking
 * Bitmap, text and SSA/ASS subtitle support
 
-Note! Master branch is for the development of v1.0.0 series. v0 can be found in the 
-rel-kitchensink-0 branch. v0 is no longer in active development and only bug- and security-fixes
-are accepted.
+Note! Master branch is for the development of v2.x.x series.
+* v1 can be found in the rel-kitchensink-1 branch. Only smaller bugfixes will be accepted / added.
+* v0 is no longer in development, and no fixes of any kind will be made or accepted.
+
+| Version | Supported          |
+|---------| ------------------ |
+| 2.0.x   | :white_check_mark: |
+| 1.0.x   | :white_check_mark: |
+| 0.0.x   | :x:                |
 
 ## 1. Installation
 
