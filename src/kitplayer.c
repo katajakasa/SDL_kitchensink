@@ -1,28 +1,27 @@
 #include <assert.h>
 
-#include "kitchensink/kitplayer.h"
-#include "kitchensink/kiterror.h"
-#include "kitchensink/internal/video/kitvideo.h"
 #include "kitchensink/internal/audio/kitaudio.h"
-#include "kitchensink/internal/subtitle/kitsubtitle.h"
-#include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdemuxerthread.h"
 #include "kitchensink/internal/kittimer.h"
+#include "kitchensink/internal/subtitle/kitsubtitle.h"
+#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink/internal/utils/kitlog.h"
+#include "kitchensink/internal/video/kitvideo.h"
+#include "kitchensink/kiterror.h"
+#include "kitchensink/kitplayer.h"
 
 #include "SDL_timer.h"
 
-
 struct Kit_Player {
-    Kit_PlayerState state; ///< Playback state
-    Kit_Decoder *decoders[3]; ///< Decoder contexts
-    Kit_Demuxer *demuxer; ///< Demuxer context
+    Kit_PlayerState state;             ///< Playback state
+    Kit_Decoder *decoders[3];          ///< Decoder contexts
+    Kit_Demuxer *demuxer;              ///< Demuxer context
     Kit_DecoderThread *dec_threads[3]; ///< Decoder threads
-    Kit_DemuxerThread *demux_thread; ///< Demuxer thread
-    Kit_Timer *sync_timer; ///< Sync timer for the decoders
-    const Kit_Source *src; ///< Reference to Audio/Video source
-    double pause_started; ///< Temporary flag for handling pauses
+    Kit_DemuxerThread *demux_thread;   ///< Demuxer thread
+    Kit_Timer *sync_timer;             ///< Sync timer for the decoders
+    const Kit_Source *src;             ///< Reference to Audio/Video source
+    double pause_started;              ///< Temporary flag for handling pauses
     int screen_w;
     int screen_h;
 };
@@ -109,7 +108,8 @@ static bool Kit_InitializeSubtitleDecoder(
         goto exit_0;
     if((timer = Kit_CreateSecondaryTimer(main_timer, false)) == NULL)
         goto exit_0;
-    if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)) == NULL)
+    if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)
+       ) == NULL)
         goto exit_1;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_2;
@@ -124,12 +124,9 @@ exit_0:
     return false;
 }
 
-Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
-                             int video_index,
-                             int audio_index,
-                             int subtitle_index,
-                             int screen_w,
-                             int screen_h) {
+Kit_Player *Kit_CreatePlayer(
+    const Kit_Source *src, int video_index, int audio_index, int subtitle_index, int screen_w, int screen_h
+) {
     assert(src != NULL);
     assert(screen_w >= 0);
     assert(screen_h >= 0);
@@ -146,7 +143,7 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     Kit_Timer *timer = NULL;
     bool video_primary = video_index > -1;
     bool audio_primary = !video_primary && audio_index > -1;
-    
+
     if(video_index < 0 && subtitle_index >= 0) {
         Kit_SetError("Subtitle stream selected without video stream");
         goto exit_0;
@@ -162,13 +159,27 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL)
         goto exit_3;
     if(audio_index > -1)
-        if(!Kit_InitializeAudioDecoder(src, timer, demux_thread, audio_primary, audio_index, &audio_decoder, &audio_thread))
+        if(!Kit_InitializeAudioDecoder(
+               src, timer, demux_thread, audio_primary, audio_index, &audio_decoder, &audio_thread
+           ))
             goto exit_4;
     if(video_index > -1)
-        if(!Kit_InitializeVideoDecoder(src, timer, demux_thread, video_primary, video_index, &video_decoder, &video_thread))
+        if(!Kit_InitializeVideoDecoder(
+               src, timer, demux_thread, video_primary, video_index, &video_decoder, &video_thread
+           ))
             goto exit_5;
     if(subtitle_index > -1)
-        if(!Kit_InitializeSubtitleDecoder(src, timer, demux_thread, video_decoder, subtitle_index, screen_w, screen_h, &subtitle_decoder, &subtitle_thread))
+        if(!Kit_InitializeSubtitleDecoder(
+               src,
+               timer,
+               demux_thread,
+               video_decoder,
+               subtitle_index,
+               screen_w,
+               screen_h,
+               &subtitle_decoder,
+               &subtitle_thread
+           ))
             goto exit_6;
 
     player->decoders[KIT_AUDIO_INDEX] = audio_decoder;
@@ -361,7 +372,9 @@ int Kit_GetPlayerAudioData(Kit_Player *player, size_t backend_buffer_size, unsig
     return Kit_GetAudioDecoderData(player->decoders[KIT_AUDIO_INDEX], backend_buffer_size, buffer, length);
 }
 
-int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetPlayerSubtitleData(
+    Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit
+) {
     assert(player != NULL);
     assert(texture != NULL);
     assert(sources != NULL);
@@ -371,9 +384,9 @@ int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect
     const Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_INDEX];
     if(sub_dec == NULL)
         return 0;
-    if(player->state == KIT_PAUSED)  // If paused, just return the current items
+    if(player->state == KIT_PAUSED) // If paused, just return the current items
         return Kit_GetSubtitleDecoderInfo(sub_dec, sources, targets, limit);
-    if(player->state == KIT_STOPPED)  // If stopped, do nothing.
+    if(player->state == KIT_STOPPED) // If stopped, do nothing.
         return 0;
     Kit_GetSubtitleDecoderTexture(sub_dec, texture, Kit_GetTimerElapsed(player->sync_timer));
     return Kit_GetSubtitleDecoderInfo(sub_dec, sources, targets, limit);
@@ -532,39 +545,42 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
         case KIT_STREAMTYPE_AUDIO:
             buffer_index = KIT_AUDIO_INDEX;
             if(!Kit_InitializeAudioDecoder(
-                player->src,
-                player->sync_timer,
-                player->demux_thread,
-                audio_primary,
-                index,
-                &new_decoder,
-                &new_thread))
+                   player->src,
+                   player->sync_timer,
+                   player->demux_thread,
+                   audio_primary,
+                   index,
+                   &new_decoder,
+                   &new_thread
+               ))
                 goto error_1;
             break;
         case KIT_STREAMTYPE_VIDEO:
             buffer_index = KIT_VIDEO_INDEX;
             if(!Kit_InitializeVideoDecoder(
-                player->src,
-                player->sync_timer,
-                player->demux_thread,
-                video_primary,
-                index,
-                &new_decoder,
-                &new_thread))
+                   player->src,
+                   player->sync_timer,
+                   player->demux_thread,
+                   video_primary,
+                   index,
+                   &new_decoder,
+                   &new_thread
+               ))
                 goto error_1;
             break;
         case KIT_STREAMTYPE_SUBTITLE:
             buffer_index = KIT_SUBTITLE_INDEX;
             if(!Kit_InitializeSubtitleDecoder(
-                player->src,
-                player->sync_timer,
-                player->demux_thread,
-               player->decoders[KIT_VIDEO_INDEX],
-                index,
-                player->screen_w,
-                player->screen_h,
-                &new_decoder,
-                &new_thread))
+                   player->src,
+                   player->sync_timer,
+                   player->demux_thread,
+                   player->decoders[KIT_VIDEO_INDEX],
+                   index,
+                   player->screen_w,
+                   player->screen_h,
+                   &new_decoder,
+                   &new_thread
+               ))
                 goto error_1;
             break;
         default:

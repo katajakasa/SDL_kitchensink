@@ -1,7 +1,7 @@
 ---
 Language:  Cpp
 BasedOnStyle: LLVM
-ColumnLimit: 120
+ColumnLimit: 119
 IndentWidth: 4
 SpaceBeforeParens: Never
 BreakBeforeBraces: Custom
@@ -20,4 +20,4 @@ IndentCaseLabels: true
 AllowShortEnumsOnASingleLine: false
 BinPackArguments: false
 BinPackParameters: false
-AlignAfterOpenBracket: AlwaysBreak
+AlignAfterOpenBracket: BlockIndent

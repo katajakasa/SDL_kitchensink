@@ -3,16 +3,21 @@
 #include <SDL_loadso.h>
 #endif
 
-#include <libavformat/avformat.h>
 #include "libavcodec/avcodec.h"
+#include <libavformat/avformat.h>
 
-#include "kitchensink/kitchensink.h"
 #include "kitchensink/internal/kitlibstate.h"
+#include "kitchensink/kitchensink.h"
 
-static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {}
+static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {
+}
 
-static int Kit_max(int a, int b) { return a > b ? a : b; }
-static int Kit_min(int a, int b) { return a < b ? a : b; }
+static int Kit_max(int a, int b) {
+    return a > b ? a : b;
+}
+static int Kit_min(int a, int b) {
+    return a < b ? a : b;
+}
 
 int Kit_InitASS(Kit_LibraryState *state) {
 #ifdef USE_DYNAMIC_LIBASS
@@ -79,7 +84,7 @@ void Kit_SetHint(Kit_HintType type, int value) {
     Kit_LibraryState *state = Kit_GetLibraryState();
     switch(type) {
         case KIT_HINT_THREAD_COUNT:
-            state->thread_count =  Kit_max(value, 0);
+            state->thread_count = Kit_max(value, 0);
             break;
         case KIT_HINT_FONT_HINTING:
             state->font_hinting = Kit_max(Kit_min(value, KIT_FONT_HINTING_COUNT - 1), 0);

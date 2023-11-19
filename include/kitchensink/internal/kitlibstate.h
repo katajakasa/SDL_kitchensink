@@ -18,6 +18,6 @@ typedef struct Kit_LibraryState {
     void *ass_so_handle;
 } Kit_LibraryState;
 
-KIT_LOCAL Kit_LibraryState* Kit_GetLibraryState();
+KIT_LOCAL Kit_LibraryState *Kit_GetLibraryState();
 
 #endif // KITLIBSTATE_H

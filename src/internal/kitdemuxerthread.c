@@ -1,13 +1,12 @@
 #include <SDL_timer.h>
 #include <assert.h>
 
-#include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitdemuxerthread.h"
-
+#include "kitchensink/kiterror.h"
 
 static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;
-    while (SDL_AtomicGet(&thread->run)) {
+    while(SDL_AtomicGet(&thread->run)) {
         if(SDL_AtomicGet(&thread->seek)) {
             Kit_DemuxerSeek(thread->demuxer, thread->seek_target);
             SDL_AtomicSet(&thread->seek, 0);
@@ -19,10 +18,10 @@ static int Kit_DemuxMain(void *ptr) {
     return 0;
 }
 
-Kit_DemuxerThread* Kit_CreateDemuxerThread(Kit_Demuxer *demuxer) {
+Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer) {
     Kit_DemuxerThread *demuxer_thread = NULL;
 
-    if ((demuxer_thread = calloc(1, sizeof(Kit_DemuxerThread))) == NULL) {
+    if((demuxer_thread = calloc(1, sizeof(Kit_DemuxerThread))) == NULL) {
         Kit_SetError("Unable to allocate demuxer thread");
         goto exit_0;
     }
@@ -65,7 +64,8 @@ void Kit_WaitDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
     demuxer_thread->thread = NULL;
 }
 
-Kit_PacketBuffer* Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, Kit_BufferIndex buffer_index) {
+Kit_PacketBuffer *
+Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, Kit_BufferIndex buffer_index) {
     assert(demuxer_thread);
     return Kit_GetDemuxerPacketBuffer(demuxer_thread->demuxer, buffer_index);
 }
@@ -75,7 +75,7 @@ bool Kit_IsDemuxerThreadAlive(Kit_DemuxerThread *demuxer_thread) {
 }
 
 void Kit_CloseDemuxerThread(Kit_DemuxerThread **ref) {
-    if (!ref || !*ref)
+    if(!ref || !*ref)
         return;
 
     Kit_DemuxerThread *demuxer_thread = *ref;

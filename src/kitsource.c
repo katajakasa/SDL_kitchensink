@@ -1,12 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 
-#include "kitchensink/kitsource.h"
-#include "kitchensink/kiterror.h"
 #include "kitchensink/internal/utils/kitlog.h"
+#include "kitchensink/kiterror.h"
+#include "kitchensink/kitsource.h"
 
 #define AVIO_BUF_SIZE 32768
 
@@ -20,7 +20,7 @@ static int _ScanSource(AVFormatContext *format_ctx) {
     return 0;
 }
 
-Kit_Source* Kit_CreateSourceFromUrl(const char *url) {
+Kit_Source *Kit_CreateSourceFromUrl(const char *url) {
     assert(url != NULL);
 
     Kit_Source *src = calloc(1, sizeof(Kit_Source));
@@ -49,7 +49,7 @@ EXIT_0:
     return NULL;
 }
 
-Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata) {
+Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata) {
     assert(read_cb != NULL);
 
     Kit_Source *src = calloc(1, sizeof(Kit_Source));
@@ -70,8 +70,7 @@ Kit_Source* Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
         goto EXIT_1;
     }
 
-    AVIOContext *avio_ctx = avio_alloc_context(
-        avio_buf, AVIO_BUF_SIZE, 0, userdata, read_cb, 0, seek_cb);
+    AVIOContext *avio_ctx = avio_alloc_context(avio_buf, AVIO_BUF_SIZE, 0, userdata, read_cb, 0, seek_cb);
     if(avio_ctx == NULL) {
         Kit_SetError("Unable to allocate avio context");
         goto EXIT_2;
@@ -110,14 +109,14 @@ EXIT_0:
 }
 
 static int _RWReadCallback(void *userdata, uint8_t *buf, int size) {
-    size_t bytes_read = SDL_RWread((SDL_RWops*)userdata, buf, 1, size);
+    size_t bytes_read = SDL_RWread((SDL_RWops *)userdata, buf, 1, size);
     return bytes_read == 0 ? AVERROR_EOF : bytes_read;
 }
 
 static int64_t _RWGetSize(SDL_RWops *rw_ops) {
     int64_t current_pos;
     int64_t max_pos;
-    
+
     // First, see if tell works at all, and fail with -1 if it doesn't.
     current_pos = SDL_RWtell(rw_ops);
     if(current_pos < 0) {
@@ -145,11 +144,10 @@ static int64_t _RWSeekCallback(void *userdata, int64_t offset, int whence) {
     else if((whence & ~AVSEEK_FORCE) == SEEK_END)
         rw_whence = RW_SEEK_END;
 
-    return SDL_RWseek((SDL_RWops*)userdata, offset, rw_whence);
+    return SDL_RWseek((SDL_RWops *)userdata, offset, rw_whence);
 }
 
-
-Kit_Source* Kit_CreateSourceFromRW(SDL_RWops *rw_ops) {
+Kit_Source *Kit_CreateSourceFromRW(SDL_RWops *rw_ops) {
     return Kit_CreateSourceFromCustom(_RWReadCallback, _RWSeekCallback, rw_ops);
 }
 
@@ -167,11 +165,16 @@ void Kit_CloseSource(Kit_Source *src) {
 
 static Kit_StreamType Kit_GetKitStreamType(const enum AVMediaType type) {
     switch(type) {
-        case AVMEDIA_TYPE_DATA: return KIT_STREAMTYPE_DATA;
-        case AVMEDIA_TYPE_VIDEO: return KIT_STREAMTYPE_VIDEO;
-        case AVMEDIA_TYPE_AUDIO: return KIT_STREAMTYPE_AUDIO;
-        case AVMEDIA_TYPE_SUBTITLE: return KIT_STREAMTYPE_SUBTITLE;
-        case AVMEDIA_TYPE_ATTACHMENT: return KIT_STREAMTYPE_ATTACHMENT;
+        case AVMEDIA_TYPE_DATA:
+            return KIT_STREAMTYPE_DATA;
+        case AVMEDIA_TYPE_VIDEO:
+            return KIT_STREAMTYPE_VIDEO;
+        case AVMEDIA_TYPE_AUDIO:
+            return KIT_STREAMTYPE_AUDIO;
+        case AVMEDIA_TYPE_SUBTITLE:
+            return KIT_STREAMTYPE_SUBTITLE;
+        case AVMEDIA_TYPE_ATTACHMENT:
+            return KIT_STREAMTYPE_ATTACHMENT;
         default:
             return KIT_STREAMTYPE_UNKNOWN;
     }
@@ -197,10 +200,17 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     assert(src != NULL);
     int avmedia_type = 0;
     switch(type) {
-        case KIT_STREAMTYPE_VIDEO: avmedia_type = AVMEDIA_TYPE_VIDEO; break;
-        case KIT_STREAMTYPE_AUDIO: avmedia_type = AVMEDIA_TYPE_AUDIO; break;
-        case KIT_STREAMTYPE_SUBTITLE: avmedia_type = AVMEDIA_TYPE_SUBTITLE; break;
-        default: return -1;
+        case KIT_STREAMTYPE_VIDEO:
+            avmedia_type = AVMEDIA_TYPE_VIDEO;
+            break;
+        case KIT_STREAMTYPE_AUDIO:
+            avmedia_type = AVMEDIA_TYPE_AUDIO;
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            avmedia_type = AVMEDIA_TYPE_SUBTITLE;
+            break;
+        default:
+            return -1;
     }
     int ret = av_find_best_stream((AVFormatContext *)src->format_ctx, avmedia_type, -1, -1, NULL, 0);
     if(ret == AVERROR_STREAM_NOT_FOUND) {
