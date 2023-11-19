@@ -5,7 +5,9 @@
 #define LOG(...)
 #else
 #include <stdio.h>
-#define LOG(...) fprintf(stderr, __VA_ARGS__); fflush(stderr)
+#define LOG(...)                                                                                                      \
+    fprintf(stderr, __VA_ARGS__);                                                                                     \
+    fflush(stderr)
 #endif
 
 #endif // KITLOG_H

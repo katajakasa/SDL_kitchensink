@@ -2,12 +2,15 @@
 
 ## Supported Versions
 
-Master branch is for the development of v1.0.0 series.
-v0 can be found in the rel-kitchensink-0 branch. v0 is no longer in active
+* Master branch is for the development of v2.0.0 series.
+* v1 can be found in the rel-kitchensink-1 branch. v1 will no longer receive features,
+but will receive bugfixes.
+* v0 can be found in the rel-kitchensink-0 branch. v0 is no longer in active
 development and only fixes for severe security bugs are accepted.
 
 | Version | Supported          |
-| ------- | ------------------ |
+|---------| ------------------ |
+| 2.0.x   | :white_check_mark: |
 | 1.0.x   | :white_check_mark: |
 | 0.0.x   | :x:                |
 
