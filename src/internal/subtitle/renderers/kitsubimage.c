@@ -3,12 +3,11 @@
 
 #include <SDL_surface.h>
 
-#include "kitchensink/kiterror.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/subtitle/kitatlas.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
-
+#include "kitchensink/kiterror.h"
 
 typedef struct Kit_ImageSubtitleRenderer {
     int video_w;
@@ -45,9 +44,8 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
         if(r->type != SUBTITLE_BITMAP)
             continue;
 
-        tmp = SDL_CreateRGBSurfaceWithFormatFrom(
-            r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8);
-        SDL_SetPaletteColors(tmp->format->palette, (SDL_Color*)r->data[1], 0, 256);
+        tmp = SDL_CreateRGBSurfaceWithFormatFrom(r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8);
+        SDL_SetPaletteColors(tmp->format->palette, (SDL_Color *)r->data[1], 0, 256);
         dst = SDL_CreateRGBSurfaceWithFormat(0, r->w, r->h, 32, SDL_PIXELFORMAT_RGBA32);
         SDL_BlitSurface(tmp, NULL, dst, NULL);
         SDL_FreeSurface(tmp);
@@ -59,10 +57,7 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
 }
 
 static bool process_packet(
-    const Kit_ImageSubtitleRenderer *image_renderer,
-    Kit_TextureAtlas *atlas,
-    SDL_Texture *texture,
-    double current_pts
+    const Kit_ImageSubtitleRenderer *image_renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
 ) {
     if(image_renderer->out_packet->surface == NULL && !image_renderer->out_packet->clear) {
         Kit_DelSubtitlePacketRefs(image_renderer->out_packet);
@@ -86,7 +81,9 @@ static bool process_packet(
     return true;
 }
 
-static int ren_get_img_data_cb(Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
+static int ren_get_img_data_cb(
+    Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
+) {
     const Kit_ImageSubtitleRenderer *image_renderer = renderer->userdata;
 
     Kit_CheckAtlasTextureSize(atlas, texture);
@@ -126,7 +123,8 @@ static void ren_close_img_cb(Kit_SubtitleRenderer *renderer) {
     free(image_renderer);
 }
 
-Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h) {
+Kit_SubtitleRenderer *
+Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h) {
     assert(dec != NULL);
     assert(video_w >= 0);
     assert(video_h >= 0);
@@ -152,17 +150,18 @@ Kit_SubtitleRenderer* Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int vide
             ren_flush_cb,
             ren_signal_cb,
             ren_close_img_cb,
-            image_renderer)) == NULL) {
+            image_renderer
+        )) == NULL) {
         goto exit_1;
     }
     if((buffer = Kit_CreatePacketBuffer(
-        state->subtitle_frame_buffer_size,
-        (buf_obj_alloc) Kit_CreateSubtitlePacket,
-        (buf_obj_unref) Kit_DelSubtitlePacketRefs,
-        (buf_obj_free) Kit_FreeSubtitlePacket,
-        (buf_obj_move) Kit_MoveSubtitlePacketRefs,
-        (buf_obj_ref) Kit_CreateSubtitlePacketRef
-    )) == NULL) {
+            state->subtitle_frame_buffer_size,
+            (buf_obj_alloc)Kit_CreateSubtitlePacket,
+            (buf_obj_unref)Kit_DelSubtitlePacketRefs,
+            (buf_obj_free)Kit_FreeSubtitlePacket,
+            (buf_obj_move)Kit_MoveSubtitlePacketRefs,
+            (buf_obj_ref)Kit_CreateSubtitlePacketRef
+        )) == NULL) {
         Kit_SetError("Unable to create an output buffer for subtitle renderer");
         goto exit_2;
     }

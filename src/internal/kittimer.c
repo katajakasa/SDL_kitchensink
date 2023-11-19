@@ -1,6 +1,6 @@
-#include <stdlib.h>
 #include "kitchensink/internal/kittimer.h"
 #include "kitchensink/internal/utils/kithelpers.h"
+#include <stdlib.h>
 
 typedef struct Kit_TimerValue {
     int count;
@@ -12,11 +12,11 @@ struct Kit_Timer {
     Kit_TimerValue *ref;
 };
 
-Kit_Timer* Kit_CreateTimer() {
+Kit_Timer *Kit_CreateTimer() {
     Kit_Timer *timer;
     Kit_TimerValue *value;
 
-    if ((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
+    if((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
         goto exit_0;
     }
     if((value = calloc(1, sizeof(Kit_TimerValue))) == NULL) {
@@ -34,9 +34,9 @@ exit_0:
     return NULL;
 }
 
-Kit_Timer* Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
+Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
     Kit_Timer *timer;
-    if ((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
+    if((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
         return NULL;
     }
     timer->ref = src->ref;

@@ -3,7 +3,7 @@
 
 /**
  * @brief Audio/video output format type
- * 
+ *
  * @file kitformat.h
  * @author Tuomas Virtanen
  * @date 2018-06-25

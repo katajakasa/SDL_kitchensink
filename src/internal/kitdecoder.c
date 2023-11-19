@@ -1,13 +1,12 @@
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <libavformat/avformat.h>
 
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/kiterror.h"
 
-
-Kit_Decoder* Kit_CreateDecoder(
+Kit_Decoder *Kit_CreateDecoder(
     AVStream *stream,
     Kit_Timer *sync_timer,
     int thread_count,
@@ -50,7 +49,7 @@ Kit_Decoder* Kit_CreateDecoder(
     } else if(codec->capabilities | AV_CODEC_CAP_SLICE_THREADS) {
         codec_ctx->thread_type = FF_THREAD_SLICE;
     } else {
-        codec_ctx->thread_count = 1;  // Disable threading
+        codec_ctx->thread_count = 1; // Disable threading
     }
 
     // Open the stream with selected options. Note that av_dict_set will allocate the dict!
@@ -83,7 +82,7 @@ exit_0:
 }
 
 void Kit_CloseDecoder(Kit_Decoder **ref) {
-    if (!ref || !*ref)
+    if(!ref || !*ref)
         return;
     Kit_Decoder *decoder = *ref;
     if(decoder->dec_close)

@@ -1,10 +1,10 @@
 #ifndef KITFRAMESTREAM_H
 #define KITFRAMESTREAM_H
 
-#include <stdbool.h>
 #include "kitchensink/kitconfig.h"
+#include <stdbool.h>
 
-typedef void* (*buf_obj_alloc)();
+typedef void *(*buf_obj_alloc)();
 typedef void (*buf_obj_unref)(void *obj);
 typedef void (*buf_obj_free)(void **obj);
 typedef void (*buf_obj_move)(void *dst, void *src);
@@ -12,7 +12,7 @@ typedef void (*buf_obj_ref)(void *dst, void *src);
 
 typedef struct Kit_PacketBuffer Kit_PacketBuffer;
 
-KIT_LOCAL Kit_PacketBuffer* Kit_CreatePacketBuffer(
+KIT_LOCAL Kit_PacketBuffer *Kit_CreatePacketBuffer(
     size_t capacity,
     buf_obj_alloc alloc_cb,
     buf_obj_unref unref_cb,

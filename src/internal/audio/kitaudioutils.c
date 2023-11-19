@@ -2,25 +2,33 @@
 
 #include <SDL_audio.h>
 
-enum AVSampleFormat Kit_FindAVSampleFormat(int format) {
+enum AVSampleFormat Kit_FindAVSampleFormat(int format)
+{
     switch(format) {
-        case AUDIO_U8: return AV_SAMPLE_FMT_U8;
-        case AUDIO_S16SYS: return AV_SAMPLE_FMT_S16;
-        case AUDIO_S32SYS: return AV_SAMPLE_FMT_S32;
-        default: return AV_SAMPLE_FMT_NONE;
+        case AUDIO_U8:
+            return AV_SAMPLE_FMT_U8;
+        case AUDIO_S16SYS:
+            return AV_SAMPLE_FMT_S16;
+        case AUDIO_S32SYS:
+            return AV_SAMPLE_FMT_S32;
+        default:
+            return AV_SAMPLE_FMT_NONE;
     }
 }
 
 void Kit_FindAVChannelLayout(int channels, AVChannelLayout *layout) {
     switch(channels) {
-        case 1: *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
-        case 2: *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
-        default: *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+        case 1:
+            *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
+        case 2:
+            *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+        default:
+            *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
     }
 }
 
 int Kit_FindChannelLayout(const AVChannelLayout *channel_layout) {
-    if (channel_layout->nb_channels > 2)
+    if(channel_layout->nb_channels > 2)
         return 2;
     return channel_layout->nb_channels;
 }

@@ -1,22 +1,22 @@
-#include <kitchensink/kitchensink.h>
 #include <SDL.h>
-#include <stdio.h>
+#include <kitchensink/kitchensink.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /*
-* Note! This example does not do proper error handling etc.
-* It is for example use only!
-*/
+ * Note! This example does not do proper error handling etc.
+ * It is for example use only!
+ */
 
 #define AUDIO_BUFFER_SIZE (32768)
 
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
-    const char* filename = NULL;
+    const char *filename = NULL;
 
     // Events
     bool run = true;
-    
+
     // Kitchensink
     Kit_Source *src = NULL;
     Kit_Player *player = NULL;
@@ -74,12 +74,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Create the player. No video, pick best audio stream, no subtitles, no screen
-    player = Kit_CreatePlayer(
-        src,
-        -1,
-        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
-        -1,
-        0, 0);
+    player = Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, 0, 0);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -96,13 +91,16 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Media information:\n");
-    fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
-            player_info.audio_codec.name,
-            player_info.audio_codec.description,
-            player_info.audio_format.sample_rate,
-            player_info.audio_format.channels,
-            player_info.audio_format.bytes,
-            player_info.audio_format.is_signed ? "signed" : "unsigned");
+    fprintf(
+        stderr,
+        " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
+        player_info.audio_codec.name,
+        player_info.audio_codec.description,
+        player_info.audio_format.sample_rate,
+        player_info.audio_format.channels,
+        player_info.audio_format.bytes,
+        player_info.audio_format.is_signed ? "signed" : "unsigned"
+    );
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
@@ -137,7 +135,7 @@ int main(int argc, char *argv[]) {
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIO_BUFFER_SIZE) {
-            ret = Kit_GetPlayerAudioData(player, queued, (unsigned char*)audio_buf, AUDIO_BUFFER_SIZE - queued);
+            ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
             if(ret > 0) {
                 SDL_QueueAudio(audio_dev, audio_buf, ret);
             }

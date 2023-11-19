@@ -1,5 +1,5 @@
-#include <limits.h>
 #include "kitchensink/internal/kitlibstate.h"
+#include <stddef.h>
 
 static Kit_LibraryState _library_state = {
     .init_flags = 0,
@@ -15,6 +15,6 @@ static Kit_LibraryState _library_state = {
     .ass_so_handle = NULL,
 };
 
-Kit_LibraryState* Kit_GetLibraryState() {
+Kit_LibraryState *Kit_GetLibraryState() {
     return &_library_state;
 }

@@ -3,16 +3,15 @@
 #include <SDL.h>
 #include <libavformat/avformat.h>
 
+#include "kitchensink/internal/kitlibstate.h"
+#include "kitchensink/internal/subtitle/kitatlas.h"
+#include "kitchensink/internal/subtitle/kitsubtitle.h"
+#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink/internal/subtitle/renderers/kitsubass.h"
+#include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
+#include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
 #include "kitchensink/kiterror.h"
 #include "kitchensink/kitlib.h"
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
-#include "kitchensink/internal/subtitle/kitsubtitle.h"
-#include "kitchensink/internal/subtitle/kitatlas.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubass.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
-
 
 typedef struct Kit_SubtitleDecoder {
     Kit_SubtitleRenderer *renderer;
@@ -20,7 +19,6 @@ typedef struct Kit_SubtitleDecoder {
     Kit_TextureAtlas *atlas;
     Kit_SubtitleOutputFormat output;
 } Kit_SubtitleDecoder;
-
 
 static void dec_read_subtitle(const Kit_Decoder *decoder, int64_t packet_pts) {
     Kit_SubtitleDecoder *subtitle_decoder = decoder->userdata;
@@ -102,7 +100,15 @@ int Kit_GetSubtitleDecoderOutputFormat(const Kit_Decoder *decoder, Kit_SubtitleO
     return 0;
 }
 
-Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_Timer *sync_timer, int stream_index, int video_w, int video_h, int screen_w, int screen_h) {
+Kit_Decoder *Kit_CreateSubtitleDecoder(
+    const Kit_Source *src,
+    Kit_Timer *sync_timer,
+    int stream_index,
+    int video_w,
+    int video_h,
+    int screen_w,
+    int screen_h
+) {
     assert(src != NULL);
     assert(video_w >= 0);
     assert(video_h >= 0);
@@ -130,15 +136,16 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, Kit_Timer *sync_ti
         goto exit_0;
     }
     if((decoder = Kit_CreateDecoder(
-        stream,
-        sync_timer,
-        state->thread_count,
-        dec_input_subtitle_cb,
-        dec_decode_subtitle_cb,
-        dec_flush_subtitle_cb,
-        dec_signal_subtitle_cb,
-        dec_close_subtitle_cb,
-        subtitle_decoder)) == NULL) {
+            stream,
+            sync_timer,
+            state->thread_count,
+            dec_input_subtitle_cb,
+            dec_decode_subtitle_cb,
+            dec_flush_subtitle_cb,
+            dec_signal_subtitle_cb,
+            dec_close_subtitle_cb,
+            subtitle_decoder
+        )) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.
         goto exit_1;
     }

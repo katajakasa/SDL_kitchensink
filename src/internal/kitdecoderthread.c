@@ -1,11 +1,10 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-#include "kitchensink/kiterror.h"
-#include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/kitdecoder.h"
+#include "kitchensink/internal/kitdecoderthread.h"
 #include "kitchensink/internal/utils/kitlog.h"
-
+#include "kitchensink/kiterror.h"
 
 static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *eof_received) {
     Kit_DecoderInputResult ret;
@@ -16,17 +15,17 @@ static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool 
 
     // If a valid packet was found, first check if it's a control packet. Value 1 means seek.
     // Seek packet is created in the demuxer, and is sent after avformat_seek_file() is called.
-    if(thread->scratch_packet->opaque == (void*)1) {
+    if(thread->scratch_packet->opaque == (void *)1) {
         Kit_ClearDecoderBuffers(thread->decoder);
         *pts_jumped = true;
         goto finish;
     }
-    is_eof = thread->scratch_packet->opaque == (void*)2;
+    is_eof = thread->scratch_packet->opaque == (void *)2;
 
     // If valid packet was found and it is not a control packet, it must contain stream data.
     // Attempt to add it to the ffmpeg decoder internal queue. Note that the queue may be full, in which case
     // we try again later.
-    ret = Kit_AddDecoderPacket(thread->decoder,is_eof ? NULL : thread->scratch_packet);
+    ret = Kit_AddDecoderPacket(thread->decoder, is_eof ? NULL : thread->scratch_packet);
     if(ret == KIT_DEC_INPUT_RETRY)
         goto cancel;
     if(ret == KIT_DEC_INPUT_EOF || is_eof)
@@ -42,7 +41,6 @@ cancel:
     av_packet_unref(thread->scratch_packet);
     return;
 }
-
 
 static int Kit_DecodeMain(void *ptr) {
     Kit_DecoderThread *thread = ptr;
@@ -72,10 +70,7 @@ static int Kit_DecodeMain(void *ptr) {
     return 0;
 }
 
-Kit_DecoderThread* Kit_CreateDecoderThread(
-    Kit_PacketBuffer *input,
-    Kit_Decoder *decoder
-) {
+Kit_DecoderThread *Kit_CreateDecoderThread(Kit_PacketBuffer *input, Kit_Decoder *decoder) {
     Kit_DecoderThread *decoder_thread;
     AVPacket *packet;
 
@@ -125,7 +120,7 @@ bool Kit_IsDecoderThreadAlive(Kit_DecoderThread *decoder_thread) {
 }
 
 void Kit_CloseDecoderThread(Kit_DecoderThread **ref) {
-    if (!ref || !*ref)
+    if(!ref || !*ref)
         return;
     Kit_DecoderThread *decoder_thread = *ref;
     Kit_StopDecoderThread(decoder_thread);

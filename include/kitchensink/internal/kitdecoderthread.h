@@ -1,11 +1,11 @@
 #ifndef KITDECODERTHREAD_H
 #define KITDECODERTHREAD_H
 
-#include <stdbool.h>
-#include <SDL_thread.h>
-#include "kitchensink/kitconfig.h"
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/kitpacketbuffer.h"
+#include "kitchensink/kitconfig.h"
+#include <SDL_thread.h>
+#include <stdbool.h>
 
 typedef struct Kit_DecoderThread {
     Kit_PacketBuffer *input;
@@ -15,7 +15,7 @@ typedef struct Kit_DecoderThread {
     SDL_atomic_t run;
 } Kit_DecoderThread;
 
-KIT_LOCAL Kit_DecoderThread* Kit_CreateDecoderThread(Kit_PacketBuffer *input, Kit_Decoder *decoder);
+KIT_LOCAL Kit_DecoderThread *Kit_CreateDecoderThread(Kit_PacketBuffer *input, Kit_Decoder *decoder);
 KIT_LOCAL void Kit_StartDecoderThread(Kit_DecoderThread *decoder_thread, const char *name);
 KIT_LOCAL void Kit_StopDecoderThread(Kit_DecoderThread *decoder_thread);
 KIT_LOCAL void Kit_WaitDecoderThread(Kit_DecoderThread *decoder_thread);

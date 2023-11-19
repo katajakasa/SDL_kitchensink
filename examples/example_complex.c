@@ -1,18 +1,17 @@
-#include <kitchensink/kitchensink.h>
 #include <SDL.h>
-#include <stdio.h>
+#include <kitchensink/kitchensink.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /*
-* Note! This example does not do proper error handling etc.
-* It is for example use only!
-*/
+ * Note! This example does not do proper error handling etc.
+ * It is for example use only!
+ */
 
 #define AUDIO_BUFFER_SIZE (1024 * 64)
 #define ATLAS_WIDTH 4096
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
-
 
 void dump_audio_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
     if(Kit_GetPlayerAudioStream(player) >= 0) {
@@ -25,7 +24,8 @@ void dump_audio_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_inf
             player_info->audio_format.sample_rate,
             player_info->audio_format.channels,
             player_info->audio_format.bytes,
-            player_info->audio_format.is_signed ? "signed" : "unsigned");
+            player_info->audio_format.is_signed ? "signed" : "unsigned"
+        );
     }
 }
 
@@ -38,16 +38,20 @@ void dump_video_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_inf
             player_info->video_codec.description,
             player_info->video_codec.threads,
             player_info->video_format.width,
-            player_info->video_format.height);
+            player_info->video_format.height
+        );
     }
 }
 
 void dump_subtitle_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
     if(Kit_GetPlayerSubtitleStream(player) >= 0) {
-        fprintf(stderr, " * Subtitle: %s (%s), threads=%d\n",
-                player_info->subtitle_codec.name,
-                player_info->subtitle_codec.description,
-                player_info->video_codec.threads);
+        fprintf(
+            stderr,
+            " * Subtitle: %s (%s), threads=%d\n",
+            player_info->subtitle_codec.name,
+            player_info->subtitle_codec.description,
+            player_info->video_codec.threads
+        );
     }
 }
 
@@ -92,7 +96,7 @@ void find_viewport_size(int sw, int sh, int vw, int vh, int *rw, int *rh) {
 
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
-    const char* filename = NULL;
+    const char *filename = NULL;
 
     // Video
     SDL_Window *window = NULL;
@@ -101,7 +105,7 @@ int main(int argc, char *argv[]) {
     // Events
     SDL_Event event;
     bool run = true;
-    
+
     // Kitchensink
     Kit_Source *src = NULL;
     Kit_Player *player = NULL;
@@ -118,28 +122,29 @@ int main(int argc, char *argv[]) {
     filename = argv[1];
 
     // Init SDL
-    err = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+    err = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize SDL2!\n");
         return 1;
     }
 
     // Create a resizable window.
-    window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
+    window =
+        SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a new window!\n");
         return 1;
     }
 
     // Create an accelerated renderer. Enable vsync, so we don't need to play around with SDL_Delay.
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if(renderer == NULL) {
         fprintf(stderr, "Unable to create a renderer!\n");
         return 1;
     }
 
     // Initialize Kitchensink with network and libass support.
-    err = Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS);
+    err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -177,7 +182,9 @@ int main(int argc, char *argv[]) {
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
-        1280, 720);
+        1280,
+        720
+    );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -221,11 +228,12 @@ int main(int argc, char *argv[]) {
     // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
-            renderer,
-            player_info.video_format.format,
-            SDL_TEXTUREACCESS_STATIC,
-            player_info.video_format.width,
-            player_info.video_format.height);
+        renderer,
+        player_info.video_format.format,
+        SDL_TEXTUREACCESS_STATIC,
+        player_info.video_format.width,
+        player_info.video_format.height
+    );
     if(video_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
@@ -234,10 +242,8 @@ int main(int argc, char *argv[]) {
     // This is the subtitle texture atlas. This contains all the subtitle image fragments.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
-            renderer,
-            player_info.subtitle_format.format,
-            SDL_TEXTUREACCESS_STATIC,
-            ATLAS_WIDTH, ATLAS_HEIGHT);
+        renderer, player_info.subtitle_format.format, SDL_TEXTUREACCESS_STATIC, ATLAS_WIDTH, ATLAS_HEIGHT
+    );
     if(subtitle_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a subtitle texture atlas\n");
         return 1;
@@ -267,7 +273,9 @@ int main(int argc, char *argv[]) {
 
     // Get movie area size
     SDL_GetWindowSize(window, &screen_w, &screen_h);
-    find_viewport_size(screen_w, screen_h, player_info.video_format.width, player_info.video_format.height, &size_w, &size_h);
+    find_viewport_size(
+        screen_w, screen_h, player_info.video_format.width, player_info.video_format.height, &size_w, &size_h
+    );
     SDL_RenderSetLogicalSize(renderer, size_w, size_h);
     Kit_SetPlayerScreenSize(player, size_w, size_h);
 
@@ -297,8 +305,7 @@ int main(int argc, char *argv[]) {
                             fprintf(stderr, "Setting subtitle stream %d\n", next_index);
                         }
                         fflush(stderr);
-                    }
-                    else if(event.key.keysym.sym == SDLK_v) {
+                    } else if(event.key.keysym.sym == SDLK_v) {
                         current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_VIDEO);
                         next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_VIDEO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_VIDEO, next_index) != 0) {
@@ -307,8 +314,7 @@ int main(int argc, char *argv[]) {
                             fprintf(stderr, "Setting video stream %d\n", next_index);
                         }
                         fflush(stderr);
-                    }
-                    else if(event.key.keysym.sym == SDLK_a) {
+                    } else if(event.key.keysym.sym == SDLK_a) {
                         current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_AUDIO);
                         next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_AUDIO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_AUDIO, next_index) != 0) {
@@ -328,7 +334,6 @@ int main(int argc, char *argv[]) {
                         fflush(stderr);
                     }
                     break;
-
 
                 case SDL_KEYDOWN:
                     // Find alt+enter
@@ -353,7 +358,13 @@ int main(int argc, char *argv[]) {
                         case SDL_WINDOWEVENT_SIZE_CHANGED:
                             SDL_GetWindowSize(window, &screen_w, &screen_h);
                             find_viewport_size(
-                                    screen_w, screen_h, player_info.video_format.width, player_info.video_format.height, &size_w, &size_h);
+                                screen_w,
+                                screen_h,
+                                player_info.video_format.width,
+                                player_info.video_format.height,
+                                &size_w,
+                                &size_h
+                            );
                             SDL_RenderSetLogicalSize(renderer, size_w, size_h);
                             Kit_SetPlayerScreenSize(player, size_w, size_h);
                             break;
@@ -362,7 +373,7 @@ int main(int argc, char *argv[]) {
 
                 case SDL_MOUSEBUTTONUP:
                     // Handle user clicking the progress bar
-                    if(mouse_x >= 30 && mouse_x <= size_w-30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
+                    if(mouse_x >= 30 && mouse_x <= size_w - 30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
                         double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
                         double m_time = Kit_GetPlayerDuration(player) * pos;
                         if(Kit_PlayerSeek(player, m_time) != 0) {
@@ -391,11 +402,7 @@ int main(int argc, char *argv[]) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
             while(need > 0) {
-                ret = Kit_GetPlayerAudioData(
-                        player,
-                        queued,
-                        (unsigned char*)audio_buf,
-                        AUDIO_BUFFER_SIZE);
+                ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
                     SDL_QueueAudio(audio_dev, audio_buf, ret);
@@ -442,7 +449,7 @@ int main(int argc, char *argv[]) {
     SDL_DestroyTexture(subtitle_tex);
     SDL_DestroyTexture(video_tex);
     SDL_CloseAudioDevice(audio_dev);
-    
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

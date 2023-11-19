@@ -1,11 +1,10 @@
 #include <stdlib.h>
 
-#include "kitchensink/kiterror.h"
 #include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
+#include "kitchensink/kiterror.h"
 
-
-Kit_SubtitleRenderer* Kit_CreateSubtitleRenderer(
+Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     Kit_Decoder *decoder,
     renderer_render_cb render_cb,
     renderer_get_data_cb get_data_cb,
@@ -48,7 +47,9 @@ void Kit_SignalSubtitleRenderer(Kit_SubtitleRenderer *renderer) {
         renderer->signal_cb(renderer);
 }
 
-int Kit_GetSubtitleRendererData(Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts) {
+int Kit_GetSubtitleRendererData(
+    Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
+) {
     if(renderer == NULL)
         return 0;
     if(renderer->get_data_cb != NULL)

@@ -1,21 +1,20 @@
-#include <kitchensink/kitchensink.h>
 #include <SDL.h>
-#include <stdio.h>
+#include <kitchensink/kitchensink.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /*
-* Note! This example does not do proper error handling etc.
-* It is for example use only!
-*/
+ * Note! This example does not do proper error handling etc.
+ * It is for example use only!
+ */
 
 #define AUDIO_BUFFER_SIZE (1024 * 64)
 #define ATLAS_WIDTH 4096
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
 
-
 int read_callback(void *userdata, uint8_t *buf, int buf_size) {
-    FILE *fd = (FILE*)userdata;
+    FILE *fd = (FILE *)userdata;
     if(!feof(fd)) {
         return fread(buf, 1, buf_size, fd);
     }
@@ -24,7 +23,7 @@ int read_callback(void *userdata, uint8_t *buf, int buf_size) {
 
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
-    const char* filename = NULL;
+    const char *filename = NULL;
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
     bool run = true;
@@ -41,28 +40,29 @@ int main(int argc, char *argv[]) {
     filename = argv[1];
 
     // Init SDL
-    err = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO);
+    err = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize SDL2!\n");
         return 1;
     }
 
     // Create a resizable window.
-    window = SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
+    window =
+        SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a new window!\n");
         return 1;
     }
 
     // Create an accelerated renderer. Enable vsync, so we don't need to play around with SDL_Delay.
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED|SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if(renderer == NULL) {
         fprintf(stderr, "Unable to create a renderer!\n");
         return 1;
     }
 
     // Initialize Kitchensink with network and libass support.
-    err = Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS);
+    err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -89,7 +89,9 @@ int main(int argc, char *argv[]) {
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
-        1280, 720);
+        1280,
+        720
+    );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -116,11 +118,12 @@ int main(int argc, char *argv[]) {
     // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
-            renderer,
-            player_info.video_format.format,
-            SDL_TEXTUREACCESS_STATIC,
-            player_info.video_format.width,
-            player_info.video_format.height);
+        renderer,
+        player_info.video_format.format,
+        SDL_TEXTUREACCESS_STATIC,
+        player_info.video_format.width,
+        player_info.video_format.height
+    );
     if(video_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
@@ -129,10 +132,8 @@ int main(int argc, char *argv[]) {
     // This is the subtitle texture atlas. This contains all the subtitle image fragments.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex = SDL_CreateTexture(
-            renderer,
-            player_info.subtitle_format.format,
-            SDL_TEXTUREACCESS_STATIC,
-            ATLAS_WIDTH, ATLAS_HEIGHT);
+        renderer, player_info.subtitle_format.format, SDL_TEXTUREACCESS_STATIC, ATLAS_WIDTH, ATLAS_HEIGHT
+    );
     if(subtitle_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a subtitle texture atlas\n");
         return 1;
@@ -182,11 +183,7 @@ int main(int argc, char *argv[]) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
             while(need > 0) {
-                ret = Kit_GetPlayerAudioData(
-                        player,
-                        queued,
-                        (unsigned char*)audio_buf,
-                        AUDIO_BUFFER_SIZE);
+                ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
                     SDL_QueueAudio(audio_dev, audio_buf, ret);
@@ -223,7 +220,7 @@ int main(int argc, char *argv[]) {
     SDL_DestroyTexture(subtitle_tex);
     SDL_DestroyTexture(video_tex);
     SDL_CloseAudioDevice(audio_dev);
-    
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
