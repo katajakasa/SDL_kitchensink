@@ -2,9 +2,137 @@
 #include <stdlib.h>
 
 #include <libavformat/avformat.h>
+#include <libavutil/hwcontext.h>
+#include <libavutil/pixdesc.h>
 
 #include "kitchensink/internal/kitdecoder.h"
+#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/kiterror.h"
+
+void Kit_PrintAVMethod(int methods) {
+    LOG(" * Methods:\n");
+    if(methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) {
+        LOG("   * AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX\n");
+    }
+    if(methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX) {
+        LOG("   * AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX\n");
+    }
+    if(methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL) {
+        LOG("   * AV_CODEC_HW_CONFIG_METHOD_INTERNAL\n");
+    }
+    if(methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC) {
+        LOG("   * AV_CODEC_HW_CONFIG_METHOD_AD_HOC\n");
+    }
+}
+
+void Kit_PrintPixelFormatType(enum AVPixelFormat pix_fmt) {
+    LOG(" * Pixel format: %s\n", av_get_pix_fmt_name(pix_fmt));
+}
+
+void Kit_PrintAVType(enum AVHWDeviceType type) {
+    LOG(" * Type: ");
+    switch(type) {
+        case AV_HWDEVICE_TYPE_NONE:
+            LOG("AV_HWDEVICE_TYPE_NONE\n");
+            break;
+        case AV_HWDEVICE_TYPE_VDPAU:
+            LOG("AV_HWDEVICE_TYPE_VDPAU\n");
+            break;
+        case AV_HWDEVICE_TYPE_CUDA:
+            LOG("AV_HWDEVICE_TYPE_CUDA\n");
+            break;
+        case AV_HWDEVICE_TYPE_VAAPI:
+            LOG("AV_HWDEVICE_TYPE_VAAPI\n");
+            break;
+        case AV_HWDEVICE_TYPE_DXVA2:
+            LOG("AV_HWDEVICE_TYPE_DXVA2\n");
+            break;
+        case AV_HWDEVICE_TYPE_QSV:
+            LOG("AV_HWDEVICE_TYPE_QSV\n");
+            break;
+        case AV_HWDEVICE_TYPE_VIDEOTOOLBOX:
+            LOG("AV_HWDEVICE_TYPE_VIDEOTOOLBOX\n");
+            break;
+        case AV_HWDEVICE_TYPE_D3D11VA:
+            LOG("AV_HWDEVICE_TYPE_D3D11VA\n");
+            break;
+        case AV_HWDEVICE_TYPE_DRM:
+            LOG("AV_HWDEVICE_TYPE_DRM\n");
+            break;
+        case AV_HWDEVICE_TYPE_OPENCL:
+            LOG("AV_HWDEVICE_TYPE_OPENCL\n");
+            break;
+        case AV_HWDEVICE_TYPE_MEDIACODEC:
+            LOG("AV_HWDEVICE_TYPE_MEDIACODEC\n");
+            break;
+        case AV_HWDEVICE_TYPE_VULKAN:
+            LOG("AV_HWDEVICE_TYPE_VULKAN\n");
+            break;
+    }
+}
+
+static void Kit_PrintHardwareDecoders(const AVCodec *codec) {
+    const AVCodecHWConfig *config;
+    int index = 0;
+    while((config = avcodec_get_hw_config(codec, index)) != NULL) {
+        LOG("Device %d\n", index);
+        Kit_PrintAVMethod(config->methods);
+        Kit_PrintAVType(config->device_type);
+        Kit_PrintPixelFormatType(config->pix_fmt);
+        index++;
+    }
+}
+
+static bool Kit_FindHardwareDecoder(const AVCodec *codec, enum AVHWDeviceType *type) {
+    const AVCodecHWConfig *config;
+    int index = 0;
+    while((config = avcodec_get_hw_config(codec, index++)) != NULL) {
+        if(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+           config->device_type == AV_HWDEVICE_TYPE_D3D11VA) {
+            *type = config->device_type;
+            return true;
+        }
+    }
+    return false;
+}
+
+static enum AVPixelFormat Kit_GetHardwarePixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *formats) {
+    while(*formats != AV_PIX_FMT_NONE) {
+        LOG("FMT %s\n", av_get_pix_fmt_name(*formats));
+        switch(*formats) {
+            case AV_PIX_FMT_YUV420P10:
+                return AV_PIX_FMT_YUV420P10;
+            case AV_PIX_FMT_D3D11VA_VLD:
+                return AV_PIX_FMT_D3D11;
+            case AV_PIX_FMT_YUV420P:
+            case AV_PIX_FMT_YUYV422:
+            case AV_PIX_FMT_UYVY422:
+            case AV_PIX_FMT_NV12:
+            case AV_PIX_FMT_NV21:
+            case AV_PIX_FMT_CUDA:
+            case AV_PIX_FMT_QSV:
+            case AV_PIX_FMT_DXVA2_VLD:
+            case AV_PIX_FMT_D3D11:
+            case AV_PIX_FMT_VAAPI:
+            case AV_PIX_FMT_VDPAU:
+                return *formats;
+            default:;
+        }
+        formats++;
+    }
+    return AV_PIX_FMT_NONE;
+}
+
+static bool Kit_InitHardwareDecoder(AVCodecContext *ctx, const enum AVHWDeviceType type) {
+    AVBufferRef *hw_device_ctx = NULL;
+    int err = av_hwdevice_ctx_create(&hw_device_ctx, type, NULL, NULL, 0);
+    if(err < 0) {
+        Kit_SetError("Unable to create hardware device -- %s", av_err2str(err));
+        return false;
+    }
+    ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+    return true;
+}
 
 Kit_Decoder *Kit_CreateDecoder(
     AVStream *stream,
@@ -20,6 +148,7 @@ Kit_Decoder *Kit_CreateDecoder(
     assert(stream != NULL);
     assert(thread_count >= 0);
 
+    enum AVHWDeviceType hw_type;
     Kit_Decoder *decoder = NULL;
     AVCodecContext *codec_ctx = NULL;
     AVDictionary *codec_opts = NULL;
@@ -50,6 +179,13 @@ Kit_Decoder *Kit_CreateDecoder(
         codec_ctx->thread_type = FF_THREAD_SLICE;
     } else {
         codec_ctx->thread_count = 1; // Disable threading
+    }
+
+    Kit_PrintHardwareDecoders(codec);
+    if(Kit_FindHardwareDecoder(codec, &hw_type)) {
+        codec_ctx->get_format = Kit_GetHardwarePixelFormat;
+        if(!Kit_InitHardwareDecoder(codec_ctx, hw_type))
+            goto exit_2;
     }
 
     // Open the stream with selected options. Note that av_dict_set will allocate the dict!
