@@ -13,7 +13,7 @@
 #include "kitchensink/kiterror.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5
-#define KIT_AUDIO_EARLY_THRESHOLD 0.05
+#define KIT_AUDIO_EARLY_THRESHOLD 0.1
 #define KIT_AUDIO_LATE_THRESHOLD 0.05
 
 #define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
@@ -259,7 +259,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something valid.
     while(pts > sync_ts + KIT_AUDIO_EARLY_FAIL) {
-        // LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+        LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
@@ -269,7 +269,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     // Packet is too early, wait.
     if(pts > sync_ts + KIT_AUDIO_EARLY_THRESHOLD) {
-        // LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
+        LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_CancelPacketBufferRead(audio_decoder->buffer);
         return 0;
@@ -277,14 +277,14 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     // Packet is too late, skip packets until we see something reasonable.
     while(pts < sync_ts - KIT_AUDIO_LATE_THRESHOLD) {
-        // LOG("[AUDIO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+        LOG("[AUDIO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
             goto no_data;
         pts = Kit_GetCurrentPTS(decoder);
     }
-    // LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
+    LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
 
     size = &audio_decoder->current->crop_top;
     left = &audio_decoder->current->crop_bottom;

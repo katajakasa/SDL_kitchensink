@@ -61,7 +61,7 @@ static void dec_signal_video_cb(Kit_Decoder *decoder) {
 
 static void dec_read_video(const Kit_Decoder *decoder) {
     Kit_VideoDecoder *video_decoder = decoder->userdata;
-    enum AVPixelFormat in_fmt = decoder->codec_ctx->pix_fmt;
+    enum AVPixelFormat in_fmt = video_decoder->in_frame->format;
     enum AVPixelFormat out_fmt = Kit_FindAVPixelFormat(video_decoder->output.format);
     int w = video_decoder->in_frame->width;
     int h = video_decoder->in_frame->height;
@@ -94,13 +94,28 @@ static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, con
 
 static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
+    int ret;
+    AVFrame *tmp_frame = av_frame_alloc();
     Kit_VideoDecoder *video_decoder = decoder->userdata;
-    if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->in_frame) == 0) {
-        *pts = video_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
+    if(avcodec_receive_frame(decoder->codec_ctx, tmp_frame) == 0) {
+
+        if(tmp_frame->format == AV_PIX_FMT_D3D11) {
+            if((ret = av_hwframe_transfer_data(video_decoder->in_frame, tmp_frame, 0)) < 0) {
+                LOG("Error in data transfer: %s", av_err2str(ret));
+                return false;
+            }
+            av_frame_copy_props(video_decoder->in_frame, tmp_frame);
+        } else {
+            av_frame_move_ref(video_decoder->in_frame, tmp_frame);
+        }
+
+        *pts = tmp_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
         dec_read_video(decoder);
         av_frame_unref(video_decoder->in_frame);
+        av_frame_free(&tmp_frame);
         return true;
     }
+    av_frame_free(&tmp_frame);
     return false;
 }
 
@@ -191,11 +206,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
 
     // Create scaler for handling format changes
     if((sws = Kit_GetSwsContext(
-            sws,
-            decoder->codec_ctx->width,
-            decoder->codec_ctx->height,
-            decoder->codec_ctx->pix_fmt,
-            output_format
+            sws, decoder->codec_ctx->width, decoder->codec_ctx->height, decoder->codec_ctx->pix_fmt, output_format
         )) == NULL) {
         goto exit_6;
     }
