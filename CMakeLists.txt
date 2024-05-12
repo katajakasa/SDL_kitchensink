@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 project(SDL_kitchensink C)
 include(GNUInstallDirs)
+include(CheckLibraryExists)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 set(KIT_VERSION_MAJOR "1")
@@ -49,6 +50,8 @@ endif()
 find_package(SDL2 REQUIRED)
 find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
 
+check_library_exists(m pow "" LIBM_EXISTS)
+
 set(LIBRARIES
     ${SDL2_LIBRARIES}
     ${FFMPEG_LIBRARIES}
@@ -58,6 +61,10 @@ set(INCLUDES
     ${SDL2_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIRS}
 )
+
+if(LIBM_EXISTS)
+    list(APPEND LIBRARIES "m")
+endif()
 
 if(USE_DYNAMIC_LIBASS)
     if(WIN32 OR MINGW OR MSYS)
