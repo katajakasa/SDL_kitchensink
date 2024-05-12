@@ -3,6 +3,7 @@
 
 #include <SDL.h>
 #include <libavformat/avformat.h>
+#include <libavutil/audio_fifo.h>
 #include <libswresample/swresample.h>
 
 #include "kitchensink/internal/audio/kitaudio.h"
@@ -23,6 +24,8 @@ typedef struct Kit_AudioDecoder {
     AVFrame *in_frame;            ///< Temporary AVFrame for audio decoding purposes
     AVFrame *out_frame;           ///< Temporary AVFrame fur audio resampling purposes
     AVFrame *current;             ///< Audio packet we are currently reading from
+    AVAudioFifo *fifo;            ///< FIFO for splitting and/or joining audio packets
+    int64_t fifo_start_pts;       ///< Audio fifo start PTS
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded audio packets
     Kit_AudioOutputFormat output; ///< Output audio format description
 } Kit_AudioDecoder;
@@ -37,21 +40,12 @@ int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *decoder, Kit_AudioOutputF
     return 0;
 }
 
-static void dec_read_audio(const Kit_Decoder *dec) {
-    const Kit_AudioDecoder *audio_decoder = dec->userdata;
-
-    // Setup correct settings for the output frame, these are required by swr_convert_frame.
-    Kit_FindAVChannelLayout(audio_decoder->output.channels, &audio_decoder->out_frame->ch_layout);
-    audio_decoder->out_frame->format = Kit_FindAVSampleFormat(audio_decoder->output.format);
-    audio_decoder->out_frame->sample_rate = audio_decoder->output.sample_rate;
-
-    // Convert frame and copy props to the new frame we got.
-    swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame);
-    av_frame_copy_props(audio_decoder->out_frame, audio_decoder->in_frame);
+static void write_packet(Kit_AudioDecoder *audio_decoder, int nb_samples) {
+    int total_bytes = SAMPLE_BYTES(audio_decoder) * nb_samples;
 
     // Save bytes left in the frame. Misuse crop values, since they are only used for video packets by ffmpeg.
-    audio_decoder->out_frame->crop_top = SAMPLE_BYTES(audio_decoder) * audio_decoder->out_frame->nb_samples;
-    audio_decoder->out_frame->crop_bottom = audio_decoder->out_frame->crop_top;
+    audio_decoder->out_frame->crop_top = total_bytes;
+    audio_decoder->out_frame->crop_bottom = total_bytes;
 
     // Write video packet to packet buffer. This may block!
     // if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
@@ -61,10 +55,65 @@ static void dec_read_audio(const Kit_Decoder *dec) {
     }
 }
 
+/**
+ * Setup correct settings for the output frame, these are required by swr_convert_frame.
+ */
+static void prepare_out_frame(const Kit_AudioDecoder *audio_decoder) {
+    Kit_FindAVChannelLayout(audio_decoder->output.channels, &audio_decoder->out_frame->ch_layout);
+    audio_decoder->out_frame->format = Kit_FindAVSampleFormat(audio_decoder->output.format);
+    audio_decoder->out_frame->sample_rate = audio_decoder->output.sample_rate;
+}
+
+/**
+ * Process the input frame, and write the contents to the FIFO buffer.
+ */
+static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
+    prepare_out_frame(audio_decoder);
+    swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame);
+    av_audio_fifo_write(
+        audio_decoder->fifo, (void **)audio_decoder->out_frame->data, audio_decoder->out_frame->nb_samples
+    );
+    if(audio_decoder->fifo_start_pts == -1)
+        audio_decoder->fifo_start_pts = audio_decoder->in_frame->best_effort_timestamp;
+    av_frame_unref(audio_decoder->out_frame);
+}
+
+/**
+ * This is used to ramp up buffer size limit. When buffer is (almost) empty, we want to quickly get data in
+ * for consumption. When buffer is more full, we want to use larger buffers for efficiency.
+ */
+static int get_limit(Kit_AudioDecoder *audio_decoder) {
+    size_t size = Kit_GetPacketBufferLength(audio_decoder->buffer);
+    if(size > 8)
+        return 8192;
+    return pow(2, size + 4);
+}
+
+/**
+ * If there is enough data in the FIFO, flush it out as a packet.
+ */
+static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
+    int fifo_samples = av_audio_fifo_size(audio_decoder->fifo);
+    int nb_sample_limit = get_limit(audio_decoder);
+    if(fifo_samples > nb_sample_limit || flush) {
+        // Setup an appropriately sized AVFrame
+        prepare_out_frame(audio_decoder);
+        audio_decoder->out_frame->nb_samples = fifo_samples;
+        audio_decoder->out_frame->best_effort_timestamp = audio_decoder->fifo_start_pts;
+        av_frame_get_buffer(audio_decoder->out_frame, 0);
+
+        // Read all available data from the FIFO
+        av_audio_fifo_read(audio_decoder->fifo, (void **)audio_decoder->out_frame->data, fifo_samples);
+        audio_decoder->fifo_start_pts = -1;
+        write_packet(audio_decoder, fifo_samples);
+    }
+}
+
 static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     assert(decoder);
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
     Kit_FlushPacketBuffer(audio_decoder->buffer);
+    av_audio_fifo_reset(audio_decoder->fifo);
 }
 
 static void dec_signal_audio_cb(Kit_Decoder *decoder) {
@@ -88,15 +137,21 @@ static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, con
 
 static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder != NULL);
-    Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    int ret;
 
-    if(avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame) == 0) {
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    ret = avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame);
+    if(ret == 0) {
         *pts = audio_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
-        dec_read_audio(decoder);
+        process_decoded_frame(audio_decoder);
+        read_fifo_frame(audio_decoder, false);
         av_frame_unref(audio_decoder->in_frame);
         return true;
     }
-
+    if(ret == AVERROR_EOF) {
+        // If this is the end of the stream, flush the FIFO.
+        read_fifo_frame(audio_decoder, true);
+    }
     return false;
 }
 
@@ -108,6 +163,7 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
     av_frame_free(&audio_dec->in_frame);
     av_frame_free(&audio_dec->out_frame);
     av_frame_free(&audio_dec->current);
+    av_audio_fifo_free(audio_dec->fifo);
     swr_free(&audio_dec->swr);
     Kit_FreePacketBuffer(&audio_dec->buffer);
     free(audio_dec);
@@ -124,8 +180,9 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
     AVFrame *in_frame = NULL;
     AVFrame *out_frame = NULL;
     AVFrame *current = NULL;
-    AVChannelLayout layout;
+    AVChannelLayout out_layout;
     AVStream *stream = NULL;
+    AVAudioFifo *fifo = NULL;
     SwrContext *swr = NULL;
     Kit_AudioOutputFormat output;
 
@@ -185,10 +242,10 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
     output.is_signed = Kit_FindSignedness(decoder->codec_ctx->sample_fmt);
     output.format = Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
 
-    Kit_FindAVChannelLayout(output.channels, &layout);
+    Kit_FindAVChannelLayout(output.channels, &out_layout);
     if(swr_alloc_set_opts2(
            &swr,
-           &layout,
+           &out_layout,
            Kit_FindAVSampleFormat(output.format),
            output.sample_rate,
            &decoder->codec_ctx->ch_layout,
@@ -204,6 +261,11 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
         Kit_SetError("Unable to initialize audio resampler context");
         goto exit_swr;
     }
+    fifo = av_audio_fifo_alloc(Kit_FindAVSampleFormat(output.format), out_layout.nb_channels, 1024 * 16);
+    if(fifo == NULL) {
+        Kit_SetError("Unable to allocate audio FIFO for stream %d", stream_index);
+        goto exit_swr;
+    }
 
     audio_decoder->current = current;
     audio_decoder->in_frame = in_frame;
@@ -211,6 +273,8 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
     audio_decoder->swr = swr;
     audio_decoder->buffer = buffer;
     audio_decoder->output = output;
+    audio_decoder->fifo = fifo;
+    audio_decoder->fifo_start_pts = -1;
     return decoder;
 
 exit_swr:
