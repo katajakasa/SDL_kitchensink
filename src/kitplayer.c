@@ -6,7 +6,6 @@
 #include "kitchensink/internal/kittimer.h"
 #include "kitchensink/internal/subtitle/kitsubtitle.h"
 #include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/internal/video/kitvideo.h"
 #include "kitchensink/kiterror.h"
 #include "kitchensink/kitplayer.h"
@@ -22,8 +21,8 @@ struct Kit_Player {
     Kit_Timer *sync_timer;             ///< Sync timer for the decoders
     const Kit_Source *src;             ///< Reference to Audio/Video source
     double pause_started;              ///< Temporary flag for handling pauses
-    int screen_w;
-    int screen_h;
+    int screen_w;                      ///< Width of the screen surface (for positioning subtitles)
+    int screen_h;                      ///< Height of the screen surface (for positioning subtitles)
 };
 
 static bool Kit_InitializeAudioDecoder(
@@ -158,17 +157,21 @@ Kit_Player *Kit_CreatePlayer(
         goto exit_2;
     if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL)
         goto exit_3;
-    if(audio_index > -1)
+    if(audio_index > -1) {
         if(!Kit_InitializeAudioDecoder(
                src, timer, demux_thread, audio_primary, audio_index, &audio_decoder, &audio_thread
-           ))
+           )) {
             goto exit_4;
-    if(video_index > -1)
+        }
+    }
+    if(video_index > -1) {
         if(!Kit_InitializeVideoDecoder(
                src, timer, demux_thread, video_primary, video_index, &video_decoder, &video_thread
-           ))
+           )) {
             goto exit_5;
-    if(subtitle_index > -1)
+        }
+    }
+    if(subtitle_index > -1) {
         if(!Kit_InitializeSubtitleDecoder(
                src,
                timer,
@@ -179,8 +182,10 @@ Kit_Player *Kit_CreatePlayer(
                screen_h,
                &subtitle_decoder,
                &subtitle_thread
-           ))
+           )) {
             goto exit_6;
+        }
+    }
 
     player->decoders[KIT_AUDIO_INDEX] = audio_decoder;
     player->decoders[KIT_VIDEO_INDEX] = video_decoder;
