@@ -65,7 +65,8 @@ static void prepare_out_frame(const Kit_AudioDecoder *audio_decoder) {
 }
 
 /**
- * Process the input frame, and write the contents to the FIFO buffer.
+ * Process the input frame, and write the contents to the FIFO buffer. Note that this should be relatively efficient,
+ * as the fifo will just grab the buffer from the frame to its internal frame list.
  */
 static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
     prepare_out_frame(audio_decoder);
@@ -79,8 +80,8 @@ static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
 }
 
 /**
- * This is used to ramp up buffer size limit. When buffer is (almost) empty, we want to quickly get data in
- * for consumption. When buffer is more full, we want to use larger buffers for efficiency.
+ * This is used to ramp up buffer size limit. When frame output is (almost) empty, we want to quickly get data in
+ * for consumption. When frame output is more full, we want to use larger buffers for efficiency.
  */
 static int get_limit(Kit_AudioDecoder *audio_decoder) {
     size_t size = Kit_GetPacketBufferLength(audio_decoder->buffer);
@@ -90,7 +91,7 @@ static int get_limit(Kit_AudioDecoder *audio_decoder) {
 }
 
 /**
- * If there is enough data in the FIFO, flush it out as a packet.
+ * If there is enough data in the FIFO, flush it out as a packet. This will do a memory copy!
  */
 static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
     int fifo_samples = av_audio_fifo_size(audio_decoder->fifo);
