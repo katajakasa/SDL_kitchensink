@@ -7,6 +7,7 @@ FFmpeg and SDL2 based library for audio and video playback, written in C99.
 Documentation is available at http://katajakasa.github.io/SDL_kitchensink/
 
 Features:
+
 * Decoding video, audio and subtitles via FFmpeg
 * Dumping video and subtitle data on SDL_textures
 * Dumping audio data in the usual mono/stereo interleaved formats
@@ -14,13 +15,15 @@ Features:
 * Synchronizing video & audio to clock
 * Stream seeking
 * Bitmap, text and SSA/ASS subtitle support
+* Video hardware decoding (optionally)
 
 Note! Master branch is for the development of v2.x.x series.
+
 * v1 can be found in the rel-kitchensink-1 branch. Only smaller bugfixes will be accepted / added.
 * v0 is no longer in development, and no fixes of any kind will be made or accepted.
 
 | Version | Supported          |
-|---------| ------------------ |
+|---------|--------------------|
 | 2.0.x   | :white_check_mark: |
 | 1.0.x   | :white_check_mark: |
 | 0.0.x   | :x:                |
@@ -38,12 +41,14 @@ have kitchensink, you will need to compile it yourself. Please see the "Compilin
 ## 2. Library requirements
 
 Build requirements:
+
 * CMake (>=3.7)
 * GCC (C99 support required)
 
 Library requirements:
+
 * SDL2 2.0.5 or newer
-* FFmpeg 3.2 or newer
+* FFmpeg 5.0 or newer
 * libass (optional, supports runtime linking via SDL_LoadSO)
 
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions
@@ -59,6 +64,7 @@ sudo apt-get install libsdl2-dev libavcodec-dev libavformat-dev \
 ### 2.2. MSYS2 64bit
 
 These are for x86_64. For 32bit installation, just change the package names a bit .
+
 ```
 pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ```
@@ -66,6 +72,7 @@ pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ## 3. Compiling
 
 By default, both static and dynamic libraries are built.
+
 * Set BUILD_STATIC off if you don't want to build static library
 * Set BUILD_SHARED off if you don't want to build shared library
 * Dynamic library is called libSDL_kitchensink.dll or .so
@@ -73,6 +80,7 @@ By default, both static and dynamic libraries are built.
 * If you build in debug mode (```-DCMAKE_BUILD_TYPE=Debug```), libraries will be postfixed with 'd'.
 
 Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The files will be installed to
+
 * CMAKE_INSTALL_PREFIX/lib for libraries (.dll.a, .a, etc.)
 * CMAKE_INSTALL_PREFIX/bin for binaries (.dll, .so)
 * CMAKE_INSTALL_PREFIX/include for headers
@@ -103,6 +111,7 @@ Make sure llvm is installed, then add ```-DUSE_ASAN=1``` to the cmake arguments 
 supported on all OSes (eg. windows).
 
 After building, you can run with the following (make sure to set correct llvm-symbolizer path):
+
 ```
 ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./complex <my videofile>
 ```
@@ -110,14 +119,16 @@ ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./complex
 ## 4. Q&A
 
 Q: What's with the USE_DYNAMIC_LIBASS cmake flag ?
+
 * A: It can be used to link the libass dynamically when needed. This also makes it possible to build the
-     library without libass, if needed. Using this flag is not recommended however, and it will probably
-     be deprecated in the next major version(s). If you use it, you might need to also patch the library
-     path and name to match yours in kitchensink source.
+  library without libass, if needed. Using this flag is not recommended however, and it will probably
+  be deprecated in the next major version(s). If you use it, you might need to also patch the library
+  path and name to match yours in kitchensink source.
 
 Q: Why the name SDL_kitchensink
+
 * A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
-     kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
+  kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
 ## 5. Examples
 
@@ -127,7 +138,7 @@ show simple use cases for the library.
 
 ## 6. FFMPEG & licensing
 
-Note that FFmpeg has a rather complex license. Please take a look at 
+Note that FFmpeg has a rather complex license. Please take a look at
 [FFmpeg Legal page](http://ffmpeg.org/legal.html) for details.
 
 ## 7. License
