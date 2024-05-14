@@ -65,6 +65,10 @@ typedef struct Kit_PlayerInfo {
  * For streams, either video and/or audio stream MUST be set! Either set the stream indexes manually,
  * or pick them automatically by using Kit_GetBestSourceStream().
  *
+ * If hardware accelerated decoding has been enabled in Kit_Init(), then an automatic acquisition
+ * of hardware decoder context is attempted. If acquiring a hardware decoder fails, we fall back to standard
+ * software decoding.
+ *
  * On success, this will return an initialized Kit_Player which can later be freed by Kit_ClosePlayer().
  * On error, NULL is returned and a more detailed error is available via Kit_GetError().
  *
