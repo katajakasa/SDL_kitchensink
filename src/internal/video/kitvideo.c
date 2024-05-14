@@ -126,6 +126,7 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
     Kit_VideoDecoder *video_decoder = ref->userdata;
     Kit_FreePacketBuffer(&video_decoder->buffer);
     av_frame_free(&video_decoder->in_frame);
+    av_frame_free(&video_decoder->tmp_frame);
     av_frame_free(&video_decoder->current);
     av_frame_free(&video_decoder->out_frame);
     sws_freeContext(video_decoder->sws);
