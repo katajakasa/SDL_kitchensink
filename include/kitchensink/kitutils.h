@@ -32,12 +32,19 @@ KIT_API const char *Kit_GetSDLAudioFormatString(unsigned int type);
 KIT_API const char *Kit_GetSDLPixelFormatString(unsigned int type);
 
 /**
- * @brief Returns a descriptibe string for Kitchensink stream types
+ * @brief Returns a descriptive string for Kitchensink stream types
  *
  * @param type Kit_StreamType
  * @return Format string, eg. "KIT_STREAMTYPE_VIDEO"
  */
 KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
+
+/**
+ * @brief Returns a descriptive string for Kitchensink hardware video decoder type
+ * @param type Kit_HardwareDeviceType
+ * @return Format string, eg. "KIT_HWDEVICE_TYPE_VDPAU"
+ */
+KIT_API const char *Kit_GetHardwareDecoderTypeString(unsigned int type);
 
 #ifdef __cplusplus
 }

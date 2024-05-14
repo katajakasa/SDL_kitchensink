@@ -21,6 +21,7 @@ typedef struct Kit_VideoDecoder {
     struct SwsContext *sws;       ///< Video scaler context
     AVFrame *in_frame;            ///< Raw frame from decoder
     AVFrame *out_frame;           ///< Scaled+converted frame from sws
+    AVFrame *tmp_frame;           ///< Intermediary frame for HW decoding
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded video packets
     Kit_VideoOutputFormat output; ///< Output video format description
     AVFrame *current;             ///< video frame we are currently reading from
@@ -61,19 +62,20 @@ static void dec_signal_video_cb(Kit_Decoder *decoder) {
 
 static void dec_read_video(const Kit_Decoder *decoder) {
     Kit_VideoDecoder *video_decoder = decoder->userdata;
-    enum AVPixelFormat in_fmt = decoder->codec_ctx->pix_fmt;
+    enum AVPixelFormat in_fmt = video_decoder->in_frame->format;
     enum AVPixelFormat out_fmt = Kit_FindAVPixelFormat(video_decoder->output.format);
     int w = video_decoder->in_frame->width;
     int h = video_decoder->in_frame->height;
 
+    // Convert frame format, if needed. Note that converter context MAY need to be changed here,
+    // as video frame size can, in theory, change whenever.
     video_decoder->sws = Kit_GetSwsContext(video_decoder->sws, w, h, in_fmt, out_fmt);
     sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
     av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
 
     // Write video packet to packet buffer. This may block!
-    // if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
-    // If write fails, unref the packet. Fails should only happen if we are closing or seeking, so it is
-    // fine.
+    // - if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
+    // - If write fails, unref the packet. Fails should only happen if we are closing or seeking, so it is fine.
     if(!Kit_WritePacketBuffer(video_decoder->buffer, video_decoder->out_frame)) {
         av_frame_unref(video_decoder->out_frame);
     }
@@ -82,7 +84,7 @@ static void dec_read_video(const Kit_Decoder *decoder) {
 static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder);
     switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
-        case AVERROR(EOF):
+        case AVERROR_EOF:
             return KIT_DEC_INPUT_EOF;
         case AVERROR(ENOMEM):
         case AVERROR(EAGAIN):
@@ -95,7 +97,20 @@ static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, con
 static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
     Kit_VideoDecoder *video_decoder = decoder->userdata;
-    if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->in_frame) == 0) {
+    if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->tmp_frame) == 0) {
+        // Process the temporary frame, and then make sure result is in in_frame.
+        // If the frame is hardware frame, we need to pull it from the hardware device first!
+        if(video_decoder->tmp_frame->format == decoder->hw_fmt) {
+            if(av_hwframe_transfer_data(video_decoder->in_frame, video_decoder->tmp_frame, 0) < 0) {
+                return false;
+            }
+            av_frame_copy_props(video_decoder->in_frame, video_decoder->tmp_frame);
+            av_frame_unref(video_decoder->tmp_frame);
+        } else {
+            av_frame_move_ref(video_decoder->in_frame, video_decoder->tmp_frame);
+        }
+
+        // Process input frame (if HW decoding is used, it has been pulled from the GPU).
         *pts = video_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
         dec_read_video(decoder);
         av_frame_unref(video_decoder->in_frame);
@@ -128,6 +143,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
     Kit_PacketBuffer *buffer = NULL;
     AVFrame *in_frame = NULL;
     AVFrame *out_frame = NULL;
+    AVFrame *tmp_frame = NULL;
     AVFrame *current = NULL;
     struct SwsContext *sws = NULL;
     Kit_VideoOutputFormat output;
@@ -166,9 +182,13 @@ Kit_Decoder *Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
         Kit_SetError("Unable to allocate temporary output video frame for stream %d", stream_index);
         goto exit_3;
     }
+    if((tmp_frame = av_frame_alloc()) == NULL) {
+        Kit_SetError("Unable to allocate temporary hardware video frame for stream %d", stream_index);
+        goto exit_4;
+    }
     if((current = av_frame_alloc()) == NULL) {
         Kit_SetError("Unable to allocate temporary flip video frame for stream %d", stream_index);
-        goto exit_4;
+        goto exit_5;
     }
     if((buffer = Kit_CreatePacketBuffer(
             state->video_frame_buffer_size,
@@ -179,7 +199,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
             (buf_obj_ref)av_frame_ref
         )) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
-        goto exit_5;
+        goto exit_6;
     }
 
     // Set format configs
@@ -188,30 +208,29 @@ Kit_Decoder *Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
     output.width = decoder->codec_ctx->width;
     output.height = decoder->codec_ctx->height;
     output.format = Kit_FindSDLPixelFormat(output_format);
+    output.hw_device_type = Kit_FindHWDeviceType(decoder->hw_type);
 
     // Create scaler for handling format changes
-    if((sws = Kit_GetSwsContext(
-            sws,
-            decoder->codec_ctx->width,
-            decoder->codec_ctx->height,
-            decoder->codec_ctx->pix_fmt,
-            output_format
-        )) == NULL) {
-        goto exit_6;
+    sws = Kit_GetSwsContext(sws, output.width, output.height, decoder->codec_ctx->pix_fmt, output_format);
+    if(sws == NULL) {
+        goto exit_7;
     }
 
     video_decoder->in_frame = in_frame;
     video_decoder->out_frame = out_frame;
+    video_decoder->tmp_frame = tmp_frame;
     video_decoder->current = current;
     video_decoder->sws = sws;
     video_decoder->buffer = buffer;
     video_decoder->output = output;
     return decoder;
 
-exit_6:
+exit_7:
     Kit_FreePacketBuffer(&buffer);
-exit_5:
+exit_6:
     av_frame_free(&current);
+exit_5:
+    av_frame_free(&tmp_frame);
 exit_4:
     av_frame_free(&out_frame);
 exit_3:

@@ -60,7 +60,8 @@ typedef enum Kit_HintType
 enum
 {
     KIT_INIT_NETWORK = 0x1, ///< Initialise ffmpeg network support
-    KIT_INIT_ASS = 0x2      ///< Initialize libass support (library must be linked statically or loadable dynamically)
+    KIT_INIT_ASS = 0x2,     ///< Initialize libass support (library must be linked statically or loadable dynamically)
+    KIT_INIT_HW_DECODE = 0x4, ///< Enable hardware decoding
 };
 
 /**
@@ -72,12 +73,13 @@ enum
  * Following flags can be used to initialize subsystems:
  * - `KIT_INIT_NETWORK` for ffmpeg network support (playback from the internet, for example)
  * - `KIT_INIT_ASS` for libass subtitles (text and ass/ssa subtitle support)
+ * - `KIT_INIT_HW_DECODE` to enable hardware decoding capabilities. Hardware is picked automatically.
  *
  * Note that if this function fails, the failure reason should be available via Kit_GetError().
  *
  * For example:
  * ```
- * if(Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS) != 0) {
+ * if(Kit_Init(KIT_INIT_NETWORK|KIT_INIT_ASS|KIT_INIT_HW_DECODE) != 0) {
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }

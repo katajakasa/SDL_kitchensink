@@ -1,5 +1,6 @@
 #include <SDL.h>
 
+#include "kitchensink/kitformat.h"
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kitutils.h"
 
@@ -96,6 +97,10 @@ const char *Kit_GetSDLPixelFormatString(unsigned int type) {
             return "SDL_PIXELFORMAT_UYVY";
         case SDL_PIXELFORMAT_YVYU:
             return "SDL_PIXELFORMAT_YVYU";
+        case SDL_PIXELFORMAT_NV12:
+            return "SDL_PIXELFORMAT_NV12";
+        case SDL_PIXELFORMAT_NV21:
+            return "SDL_PIXELFORMAT_NV21";
         default:
             return NULL;
     }
@@ -115,6 +120,39 @@ const char *Kit_GetKitStreamTypeString(unsigned int type) {
             return "KIT_STREAMTYPE_SUBTITLE";
         case KIT_STREAMTYPE_ATTACHMENT:
             return "KIT_STREAMTYPE_ATTACHMENT";
+        default:
+            return NULL;
+    }
+}
+
+const char *Kit_GetHardwareDecoderTypeString(unsigned int type) {
+    switch(type) {
+        case KIT_HWDEVICE_TYPE_NONE:
+            return "NONE";
+        case KIT_HWDEVICE_TYPE_VDPAU:
+            return "VDPAU";
+        case KIT_HWDEVICE_TYPE_CUDA:
+            return "CUDA";
+        case KIT_HWDEVICE_TYPE_VAAPI:
+            return "VAAPI";
+        case KIT_HWDEVICE_TYPE_DXVA2:
+            return "DXVA2";
+        case KIT_HWDEVICE_TYPE_QSV:
+            return "QSV";
+        case KIT_HWDEVICE_TYPE_VIDEOTOOLBOX:
+            return "VIDEOTOOLBOX";
+        case KIT_HWDEVICE_TYPE_D3D11VA:
+            return "D3D11VA";
+        case KIT_HWDEVICE_TYPE_DRM:
+            return "DRM";
+        case KIT_HWDEVICE_TYPE_OPENCL:
+            return "OPENCL";
+        case KIT_HWDEVICE_TYPE_MEDIACODEC:
+            return "MEDIACODEC";
+        case KIT_HWDEVICE_TYPE_VULKAN:
+            return "VULKAN";
+        case KIT_HWDEVICE_TYPE_UNKNOWN:
+            return "UNKNOWN";
         default:
             return NULL;
     }

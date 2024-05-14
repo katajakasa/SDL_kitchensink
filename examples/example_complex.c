@@ -33,12 +33,13 @@ void dump_video_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_inf
     if(Kit_GetPlayerVideoStream(player) >= 0) {
         fprintf(
             stderr,
-            " * Video: %s (%s), threads=%d, %dx%d\n",
+            " * Video: %s (%s), threads=%d, %dx%d, hardware=%s\n",
             player_info->video_codec.name,
             player_info->video_codec.description,
             player_info->video_codec.threads,
             player_info->video_format.width,
-            player_info->video_format.height
+            player_info->video_format.height,
+            Kit_GetHardwareDecoderTypeString(player_info->video_format.hw_device_type)
         );
     }
 }
@@ -144,7 +145,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Initialize Kitchensink with network and libass support.
-    err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS);
+    err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS | KIT_INIT_HW_DECODE);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;

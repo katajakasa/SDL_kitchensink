@@ -31,15 +31,17 @@ typedef void (*dec_close_cb)(Kit_Decoder *decoder);
 
 struct Kit_Decoder {
     Kit_Timer *sync_timer;
-    AVRational aspect_ratio;   ///< Aspect ratio for the current frame (may change frame-to-frame)
-    AVCodecContext *codec_ctx; ///< FFMpeg internal: Codec context
-    AVStream *stream;          ///< FFMpeg internal: Data stream
-    void *userdata;            ///< Decoder specific information (Audio, video, subtitle context)
-    dec_input_cb dec_input;    ///< Decoder packet input function callback
-    dec_decode_cb dec_decode;  ///< Decoder decoding function callback
-    dec_flush_cb dec_flush;    ///< Decoder buffer flusher function callback
-    dec_signal_cb dec_signal;  ///< Decoder kill signal handler function callback (This is called before shutdown).
-    dec_close_cb dec_close;    ///< Decoder close function callback
+    AVRational aspect_ratio;     ///< Aspect ratio for the current frame (may change frame-to-frame)
+    AVCodecContext *codec_ctx;   ///< FFMpeg internal: Codec context
+    AVStream *stream;            ///< FFMpeg internal: Data stream
+    enum AVPixelFormat hw_fmt;   ///< FFMpeg internal: Hardware pixel format (if in use)
+    enum AVHWDeviceType hw_type; ///< FFMpeg internal: Hardware device type (if in use)
+    void *userdata;              ///< Decoder specific information (Audio, video, subtitle context)
+    dec_input_cb dec_input;      ///< Decoder packet input function callback
+    dec_decode_cb dec_decode;    ///< Decoder decoding function callback
+    dec_flush_cb dec_flush;      ///< Decoder buffer flusher function callback
+    dec_signal_cb dec_signal;    ///< Decoder kill signal handler function callback (This is called before shutdown).
+    dec_close_cb dec_close;      ///< Decoder close function callback
 };
 
 KIT_LOCAL Kit_Decoder *Kit_CreateDecoder(

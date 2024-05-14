@@ -17,7 +17,8 @@ static enum AVPixelFormat supported_list[] = {
     AV_PIX_FMT_BGR565,
     AV_PIX_FMT_BGRA,
     AV_PIX_FMT_RGBA,
-    AV_PIX_FMT_NONE};
+    AV_PIX_FMT_NONE
+};
 
 enum AVPixelFormat Kit_FindBestAVPixelFormat(enum AVPixelFormat fmt)
 {
@@ -38,6 +39,37 @@ unsigned int Kit_FindSDLPixelFormat(enum AVPixelFormat fmt) {
             return SDL_PIXELFORMAT_NV21;
         default:
             return SDL_PIXELFORMAT_RGBA32;
+    }
+}
+
+Kit_HardwareDeviceType Kit_FindHWDeviceType(enum AVHWDeviceType type) {
+    switch(type) {
+        case AV_HWDEVICE_TYPE_NONE:
+            return KIT_HWDEVICE_TYPE_NONE;
+        case AV_HWDEVICE_TYPE_VDPAU:
+            return KIT_HWDEVICE_TYPE_VDPAU;
+        case AV_HWDEVICE_TYPE_CUDA:
+            return KIT_HWDEVICE_TYPE_CUDA;
+        case AV_HWDEVICE_TYPE_VAAPI:
+            return KIT_HWDEVICE_TYPE_VAAPI;
+        case AV_HWDEVICE_TYPE_DXVA2:
+            return KIT_HWDEVICE_TYPE_DXVA2;
+        case AV_HWDEVICE_TYPE_QSV:
+            return KIT_HWDEVICE_TYPE_QSV;
+        case AV_HWDEVICE_TYPE_VIDEOTOOLBOX:
+            return KIT_HWDEVICE_TYPE_VIDEOTOOLBOX;
+        case AV_HWDEVICE_TYPE_D3D11VA:
+            return KIT_HWDEVICE_TYPE_D3D11VA;
+        case AV_HWDEVICE_TYPE_DRM:
+            return KIT_HWDEVICE_TYPE_DRM;
+        case AV_HWDEVICE_TYPE_OPENCL:
+            return KIT_HWDEVICE_TYPE_OPENCL;
+        case AV_HWDEVICE_TYPE_MEDIACODEC:
+            return KIT_HWDEVICE_TYPE_MEDIACODEC;
+        case AV_HWDEVICE_TYPE_VULKAN:
+            return KIT_HWDEVICE_TYPE_VULKAN;
+        default:
+            return KIT_HWDEVICE_TYPE_UNKNOWN;
     }
 }
 
