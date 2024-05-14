@@ -41,23 +41,26 @@ static bool Kit_FindHardwareDecoder(
             continue;
         }
         if((constraints = av_hwdevice_get_hwframe_constraints(*hw_device_ctx, config)) == NULL) {
-            goto fail;
+            goto fail_1;
         }
         if(constraints->max_height < h || constraints->min_height > h) {
-            goto fail;
+            goto fail_2;
         }
         if(constraints->max_width < w || constraints->min_width > w) {
-            goto fail;
+            goto fail_2;
         }
         if(!Kit_TestSWFormat(constraints)) {
-            goto fail;
+            goto fail_2;
         }
 
         *type = config->device_type;
         *hw_fmt = config->pix_fmt;
+        av_hwframe_constraints_free(&constraints);
         return true;
 
-    fail:
+    fail_2:
+        av_hwframe_constraints_free(&constraints);
+    fail_1:
         av_buffer_unref(hw_device_ctx);
         *hw_device_ctx = NULL;
     }
