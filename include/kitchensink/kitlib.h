@@ -49,8 +49,8 @@ typedef enum Kit_HintType
     KIT_HINT_AUDIO_BUFFER_PACKETS,    ///< Audio input buffer packets (default: 64)
     KIT_HINT_SUBTITLE_BUFFER_PACKETS, ///< Subtitle input buffer packets (default: 64)
     KIT_HINT_VIDEO_BUFFER_FRAMES,     ///< Video output buffer frames (default: 2)
-    KIT_HINT_AUDIO_BUFFER_FRAMES,     ///< Audio output buffers (default: 16)
-    KIT_HINT_SUBTITLE_BUFFER_FRAMES   ///< Subtitle output buffers (default: 32)
+    KIT_HINT_AUDIO_BUFFER_FRAMES,     ///< Audio output buffers (default: 64)
+    KIT_HINT_SUBTITLE_BUFFER_FRAMES   ///< Subtitle output buffers (default: 64)
 } Kit_HintType;
 
 /**

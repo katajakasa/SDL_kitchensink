@@ -85,9 +85,9 @@ static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
  */
 static int get_limit(Kit_AudioDecoder *audio_decoder) {
     size_t size = Kit_GetPacketBufferLength(audio_decoder->buffer);
-    if(size > 8)
-        return 8192;
-    return pow(2, size + 4);
+    if(size < 16)
+        return 0;
+    return pow(2, min2(size - 8, 13));
 }
 
 /**

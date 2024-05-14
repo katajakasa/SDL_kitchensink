@@ -154,7 +154,6 @@ int main(int argc, char *argv[]) {
     // Reduce buffering to use less memory
     // Note! Some video files may require larger buffers!
     Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 1);
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 16);
 
     // Open up the sourcefile.
     // This can be a local file, network url, ...
