@@ -133,7 +133,7 @@ Kit_Decoder *Kit_CreateDecoder(
     if(is_hw_enabled) {
         if(Kit_FindHardwareDecoder(codec, codec_ctx->width, codec_ctx->height, &hw_type, &hw_fmt, &hw_device_ctx)) {
             codec_ctx->get_format = Kit_GetHardwarePixelFormat;
-            codec_ctx->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+            codec_ctx->hw_device_ctx = hw_device_ctx;
         }
     }
 
