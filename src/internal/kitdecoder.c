@@ -40,7 +40,7 @@ static bool Kit_FindHardwareDecoder(
         if(av_hwdevice_ctx_create(hw_device_ctx, config->device_type, NULL, NULL, 0) < 0) {
             continue;
         }
-        if((constraints = av_hwdevice_get_hwframe_constraints(*hw_device_ctx, config)) == NULL) {
+        if((constraints = av_hwdevice_get_hwframe_constraints(*hw_device_ctx, NULL)) == NULL) {
             goto fail_1;
         }
         if(constraints->max_height < h || constraints->min_height > h) {
