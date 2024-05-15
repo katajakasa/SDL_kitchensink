@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
     int current_index = 0;
     int next_index = 0;
     bool fullscreen = false;
-    SDL_Rect video_area;
+    SDL_Rect video_area = {0, 0, 0, 0};
 
     // Get movie area size
     SDL_GetWindowSize(window, &screen_w, &screen_h);
