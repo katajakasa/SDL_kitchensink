@@ -21,50 +21,53 @@ static bool Kit_TestSWFormat(AVHWFramesConstraints *constraints) {
     return false;
 }
 
-static bool Kit_FindHardwareDecoder(
-    const AVCodec *codec,
-    unsigned int w,
-    unsigned int h,
-    enum AVHWDeviceType *type,
-    enum AVPixelFormat *hw_fmt,
-    AVBufferRef **hw_device_ctx
+static AVBufferRef *Kit_TestHWDevice(const AVCodecHWConfig *config, unsigned int w, unsigned int h) {
+    AVBufferRef *hw_device_ctx;
+    AVHWFramesConstraints *constraints;
+
+    if(!(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)) {
+        goto exit_0;
+    }
+    if(av_hwdevice_ctx_create(&hw_device_ctx, config->device_type, NULL, NULL, 0) != 0) {
+        goto exit_0;
+    }
+    if((constraints = av_hwdevice_get_hwframe_constraints(hw_device_ctx, NULL)) == NULL) {
+        goto exit_1;
+    }
+    if(constraints->max_height < h || constraints->min_height > h) {
+        goto exit_2;
+    }
+    if(constraints->max_width < w || constraints->min_width > w) {
+        goto exit_2;
+    }
+    if(!Kit_TestSWFormat(constraints)) {
+        goto exit_2;
+    }
+
+    av_hwframe_constraints_free(&constraints);
+    return av_buffer_ref(hw_device_ctx);
+
+exit_2:
+    av_hwframe_constraints_free(&constraints);
+exit_1:
+    av_buffer_unref(&hw_device_ctx);
+exit_0:
+    return NULL;
+}
+
+static AVBufferRef *Kit_FindHardwareDecoder(
+    const AVCodec *codec, unsigned int w, unsigned int h, enum AVHWDeviceType *type, enum AVPixelFormat *hw_fmt
 ) {
     const AVCodecHWConfig *config;
-    AVHWFramesConstraints *constraints;
-    int index = 0;
-
-    while((config = avcodec_get_hw_config(codec, index++)) != NULL) {
-        if(!(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)) {
-            continue;
+    AVBufferRef *hw_device_ctx;
+    for(int index = 0; (config = avcodec_get_hw_config(codec, index)) != NULL; index++) {
+        if((hw_device_ctx = Kit_TestHWDevice(config, w, h)) != NULL) {
+            *type = config->device_type;
+            *hw_fmt = config->pix_fmt;
+            return hw_device_ctx;
         }
-        if(av_hwdevice_ctx_create(hw_device_ctx, config->device_type, NULL, NULL, 0) < 0) {
-            continue;
-        }
-        if((constraints = av_hwdevice_get_hwframe_constraints(*hw_device_ctx, NULL)) == NULL) {
-            goto fail_1;
-        }
-        if(constraints->max_height < h || constraints->min_height > h) {
-            goto fail_2;
-        }
-        if(constraints->max_width < w || constraints->min_width > w) {
-            goto fail_2;
-        }
-        if(!Kit_TestSWFormat(constraints)) {
-            goto fail_2;
-        }
-
-        *type = config->device_type;
-        *hw_fmt = config->pix_fmt;
-        av_hwframe_constraints_free(&constraints);
-        return true;
-
-    fail_2:
-        av_hwframe_constraints_free(&constraints);
-    fail_1:
-        av_buffer_unref(hw_device_ctx);
-        *hw_device_ctx = NULL;
     }
-    return false;
+    return NULL;
 }
 
 static enum AVPixelFormat Kit_GetHardwarePixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *formats) {
@@ -131,7 +134,8 @@ Kit_Decoder *Kit_CreateDecoder(
     // Try to initialize the hardware decoder for this codec.
     bool is_hw_enabled = Kit_GetLibraryState()->init_flags & KIT_INIT_HW_DECODE;
     if(is_hw_enabled) {
-        if(Kit_FindHardwareDecoder(codec, codec_ctx->width, codec_ctx->height, &hw_type, &hw_fmt, &hw_device_ctx)) {
+        hw_device_ctx = Kit_FindHardwareDecoder(codec, codec_ctx->width, codec_ctx->height, &hw_type, &hw_fmt);
+        if(hw_device_ctx != NULL) {
             codec_ctx->get_format = Kit_GetHardwarePixelFormat;
             codec_ctx->hw_device_ctx = hw_device_ctx;
         }
