@@ -80,6 +80,7 @@ static enum AVPixelFormat Kit_GetHardwarePixelFormat(AVCodecContext *ctx, const 
         }
         prev = *fmt;
     }
+    // This is the last format (software format!) or AV_PIX_FMT_NONE.
     return prev;
 }
 
