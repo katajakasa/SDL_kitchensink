@@ -72,12 +72,15 @@ static AVBufferRef *Kit_FindHardwareDecoder(
 
 static enum AVPixelFormat Kit_GetHardwarePixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *formats) {
     Kit_Decoder *decoder = ctx->opaque;
-    while(*formats != AV_PIX_FMT_NONE) {
-        if(decoder->hw_fmt == *formats)
-            return *formats;
-        formats++;
+    enum AVPixelFormat prev = AV_PIX_FMT_NONE;
+    const enum AVPixelFormat *fmt;
+    for(fmt = formats; *fmt != AV_PIX_FMT_NONE; fmt++) {
+        if(decoder->hw_fmt == *fmt) {
+            return *fmt;
+        }
+        prev = *fmt;
     }
-    return AV_PIX_FMT_NONE;
+    return prev;
 }
 
 Kit_Decoder *Kit_CreateDecoder(
