@@ -11,6 +11,9 @@
 #include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/kiterror.h"
 
+/**
+ * Check if hardware context supports an output format that we can feed to swscale
+ */
 static bool Kit_TestSWFormat(AVHWFramesConstraints *constraints) {
     enum AVPixelFormat *test;
     for(test = constraints->valid_sw_formats; *test != AV_PIX_FMT_NONE; test++) {
@@ -21,6 +24,9 @@ static bool Kit_TestSWFormat(AVHWFramesConstraints *constraints) {
     return false;
 }
 
+/**
+ * Make sure our hardware device seems like it can handle the video stream we want to feed it.
+ */
 static AVBufferRef *Kit_TestHWDevice(const AVCodecHWConfig *config, unsigned int w, unsigned int h) {
     AVBufferRef *hw_device_ctx;
     AVHWFramesConstraints *constraints;
@@ -55,6 +61,10 @@ exit_0:
     return NULL;
 }
 
+/**
+ * Find an actual hardware decoder we can use. It must be able to decode our stream, and must output something
+ * we can actually deal with or convert.
+ */
 static AVBufferRef *Kit_FindHardwareDecoder(
     const AVCodec *codec, unsigned int w, unsigned int h, enum AVHWDeviceType *type, enum AVPixelFormat *hw_fmt
 ) {
@@ -70,6 +80,11 @@ static AVBufferRef *Kit_FindHardwareDecoder(
     return NULL;
 }
 
+/**
+ * Attempt to negotiate a hardware pixel format. If we can't find a good one, then just fall back to the
+ * software format and disregard hardware. According to ffmpeg docs, it always suggests software format last,
+ * so use that as a fallback.
+ */
 static enum AVPixelFormat Kit_GetHardwarePixelFormat(AVCodecContext *ctx, const enum AVPixelFormat *formats) {
     Kit_Decoder *decoder = ctx->opaque;
     enum AVPixelFormat prev = AV_PIX_FMT_NONE;
@@ -123,7 +138,7 @@ Kit_Decoder *Kit_CreateDecoder(
         goto exit_2;
     }
     codec_ctx->pkt_timebase = stream->time_base;
-    codec_ctx->opaque = decoder;
+    codec_ctx->opaque = decoder; // Used by Kit_GetHardwarePixelFormat()
 
     // Attempt to set up threading, if supported.
     codec_ctx->thread_count = thread_count;
