@@ -411,25 +411,40 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     Kit_GetSubtitleDecoderOutputFormat(subtitle_decoder, &info->subtitle_format);
 }
 
-int Kit_GetPlayerVideoBufferState(
-    const Kit_Player *player, unsigned int *frames_length, unsigned int *frames_capacity
+void Kit_GetPlayerVideoBufferState(
+    const Kit_Player *player,
+    unsigned int *frames_length,
+    unsigned int *frames_capacity,
+    unsigned int *packets_length,
+    unsigned int *packets_capacity
 ) {
     assert(player != NULL);
-    return Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_VIDEO_INDEX, packets_length, packets_capacity);
 }
 
-int Kit_GetPlayerAudioBufferState(
-    const Kit_Player *player, unsigned int *samples_length, unsigned int *samples_capacity
+void Kit_GetPlayerAudioBufferState(
+    const Kit_Player *player,
+    unsigned int *samples_length,
+    unsigned int *samples_capacity,
+    unsigned int *packets_length,
+    unsigned int *packets_capacity
 ) {
     assert(player != NULL);
-    return Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_AUDIO_INDEX, packets_length, packets_capacity);
 }
 
-int Kit_GetPlayerSubtitleBufferState(
-    const Kit_Player *player, unsigned int *items_length, unsigned int *items_capacity
+void Kit_GetPlayerSubtitleBufferState(
+    const Kit_Player *player,
+    unsigned int *items_length,
+    unsigned int *items_capacity,
+    unsigned int *packets_length,
+    unsigned int *packets_capacity
 ) {
     assert(player != NULL);
-    return Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_SUBTITLE_INDEX, packets_length, packets_capacity);
 }
 
 Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {

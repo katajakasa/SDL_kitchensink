@@ -59,21 +59,27 @@ void dump_subtitle_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_
 void render_buffer_bar(const Kit_Player *player, int tick) {
     if(tick % 30 != 0) // Restrict refresh rate
         return;
-    unsigned int audio_buf_len = 0, audio_buf_max = 0;
-    unsigned int video_buf_len = 0, video_buf_max = 0;
-    unsigned int subtitle_buf_len = 0, subtitle_buf_max = 0;
-    Kit_GetPlayerSubtitleBufferState(player, &subtitle_buf_len, &subtitle_buf_max);
-    Kit_GetPlayerVideoBufferState(player, &video_buf_len, &video_buf_max);
-    Kit_GetPlayerAudioBufferState(player, &audio_buf_len, &audio_buf_max);
+    unsigned int ao_len = 0, ao_max = 0, ai_len = 0, ai_max = 0;
+    unsigned int vo_len = 0, vo_max = 0, vi_len = 0, vi_max = 0;
+    unsigned int so_len = 0, so_max = 0, si_len = 0, si_max = 0;
+    Kit_GetPlayerSubtitleBufferState(player, &so_len, &so_max, &si_len, &si_max);
+    Kit_GetPlayerVideoBufferState(player, &vo_len, &vo_max, &vi_len, &vi_max);
+    Kit_GetPlayerAudioBufferState(player, &ao_len, &ao_max, &ai_len, &ai_max);
     fprintf(
         stderr,
-        "\rBuffering -- Video: %d/%d, Audio: %02d/%02d, Subtitle: %04d/%04d",
-        video_buf_len,
-        video_buf_max,
-        audio_buf_len,
-        audio_buf_max,
-        subtitle_buf_len,
-        subtitle_buf_max
+        "\rInput -> V:%3d/%3d A:%2d/%2d S:%2d/%2d, Output -> V:%d/%d A:%2d/%2d S:%4d/%4d",
+        vi_len,
+        vi_max,
+        ai_len,
+        ai_max,
+        si_len,
+        si_max,
+        vo_len,
+        vo_max,
+        ao_len,
+        ao_max,
+        so_len,
+        so_max
     );
     fflush(stderr);
 }

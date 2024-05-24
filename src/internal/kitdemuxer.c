@@ -174,3 +174,15 @@ bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target) {
     }
     return false;
 }
+
+void Kit_GetDemuxerBufferState(
+    const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index, unsigned int *length, unsigned int *capacity
+) {
+    Kit_PacketBuffer *buffer;
+    if(!demuxer || !(buffer = demuxer->buffers[buffer_index]))
+        return;
+    if(length != NULL)
+        *length = Kit_GetPacketBufferLength(buffer);
+    if(capacity != NULL)
+        *capacity = Kit_GetPacketBufferCapacity(buffer);
+}
