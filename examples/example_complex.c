@@ -56,6 +56,28 @@ void dump_subtitle_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_
     }
 }
 
+void render_buffer_bar(const Kit_Player *player, int tick) {
+    if(tick % 30 != 0) // Restrict refresh rate
+        return;
+    unsigned int audio_buf_len = 0, audio_buf_max = 0;
+    unsigned int video_buf_len = 0, video_buf_max = 0;
+    unsigned int subtitle_buf_len = 0, subtitle_buf_max = 0;
+    Kit_GetPlayerSubtitleBufferState(player, &subtitle_buf_len, &subtitle_buf_max);
+    Kit_GetPlayerVideoBufferState(player, &video_buf_len, &video_buf_max);
+    Kit_GetPlayerAudioBufferState(player, &audio_buf_len, &audio_buf_max);
+    fprintf(
+        stderr,
+        "\rBuffering -- Video: %d/%d, Audio: %02d/%02d, Subtitle: %04d/%04d",
+        video_buf_len,
+        video_buf_max,
+        audio_buf_len,
+        audio_buf_max,
+        subtitle_buf_len,
+        subtitle_buf_max
+    );
+    fflush(stderr);
+}
+
 void render_gui(SDL_Renderer *renderer, double percent) {
     // Get window size
     int size_w, size_h;
@@ -268,6 +290,7 @@ int main(int argc, char *argv[]) {
     int screen_h = 0;
     int current_index = 0;
     int next_index = 0;
+    int tick = 0;
     bool fullscreen = false;
     SDL_Rect video_area = {0, 0, 0, 0};
 
@@ -440,6 +463,9 @@ int main(int argc, char *argv[]) {
 
         // Render to screen + wait for vsync
         SDL_RenderPresent(renderer);
+
+        // Fetch buffering status and render the nice status to console
+        render_buffer_bar(player, tick++);
     }
 
     Kit_ClosePlayer(player);

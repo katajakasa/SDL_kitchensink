@@ -158,6 +158,39 @@ KIT_API int Kit_GetPlayerAudioStream(const Kit_Player *player);
 KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
 
 /**
+ * Fetch buffering state for video stream (if a stream is selected). IT is safe to pass NULL as an argument.
+ *
+ * @param player Player instance
+ * @param frames_length Current size of the buffer in frames
+ * @param frames_size Current maximum size of the buffer in frames
+ * @return Returns 0 if buffer information was fetched, 1 if not.
+ */
+KIT_API int
+Kit_GetPlayerVideoBufferState(const Kit_Player *player, unsigned int *frames_length, unsigned int *frames_size);
+
+/**
+ * Fetch buffering state for audio stream (if a stream is selected). IT is safe to pass NULL as an argument.
+ *
+ * @param player Player instance
+ * @param samples_length Current size of the buffer in samples
+ * @param samples_size Current maximum size of the buffer in samples
+ * @return Returns 0 if buffer information was fetched, 1 if not.
+ */
+KIT_API int
+Kit_GetPlayerAudioBufferState(const Kit_Player *player, unsigned int *samples_length, unsigned int *samples_size);
+
+/**
+ * Fetch buffering state for subtitle stream (if a stream is selected). IT is safe to pass NULL as an argument.
+ *
+ * @param player Player instance
+ * @param items_length Current size of the buffer in subtitle elements
+ * @param items_size Current maximum size of the buffer in subtitle elements
+ * @return Returns 0 if buffer information was fetched, 1 if not.
+ */
+KIT_API int
+Kit_GetPlayerSubtitleBufferState(const Kit_Player *player, unsigned int *items_length, unsigned int *items_size);
+
+/**
  * @brief Fetches a new video frame from the player
  *
  * Note that the output texture must be previously allocated and valid.

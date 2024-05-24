@@ -119,6 +119,16 @@ static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     return false;
 }
 
+static void dec_get_video_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
+    assert(ref);
+    assert(ref->userdata);
+    Kit_VideoDecoder *video_decoder = ref->userdata;
+    if(length != NULL)
+        *length = Kit_GetPacketBufferLength(video_decoder->buffer);
+    if(capacity != NULL)
+        *capacity = Kit_GetPacketBufferCapacity(video_decoder->buffer);
+}
+
 static void dec_close_video_cb(Kit_Decoder *ref) {
     if(ref == NULL)
         return;
@@ -170,6 +180,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(const Kit_Source *src, Kit_Timer *sync_timer
             dec_flush_video_cb,
             dec_signal_video_cb,
             dec_close_video_cb,
+            dec_get_video_buffers_cb,
             video_decoder
         )) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

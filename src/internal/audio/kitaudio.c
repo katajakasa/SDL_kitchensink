@@ -123,6 +123,16 @@ static void dec_signal_audio_cb(Kit_Decoder *decoder) {
     Kit_SignalPacketBuffer(audio_decoder->buffer);
 }
 
+static void dec_get_audio_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
+    assert(ref);
+    assert(ref->userdata);
+    Kit_AudioDecoder *audio_decoder = ref->userdata;
+    if(length != NULL)
+        *length = Kit_GetPacketBufferLength(audio_decoder->buffer);
+    if(capacity != NULL)
+        *capacity = Kit_GetPacketBufferCapacity(audio_decoder->buffer);
+}
+
 static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder != NULL);
     switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
@@ -207,6 +217,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
             dec_flush_audio_cb,
             dec_signal_audio_cb,
             dec_close_audio_cb,
+            dec_get_audio_buffers_cb,
             audio_decoder
         )) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

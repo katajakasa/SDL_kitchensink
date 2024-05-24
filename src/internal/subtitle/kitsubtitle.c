@@ -77,6 +77,16 @@ static bool dec_decode_subtitle_cb(const Kit_Decoder *dec, double *pts) {
     return false;
 }
 
+static void dec_get_subtitle_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
+    assert(ref);
+    assert(ref->userdata);
+    Kit_SubtitleDecoder *subtitle_decoder = ref->userdata;
+    if(length != NULL)
+        *length = subtitle_decoder->atlas->cur_items;
+    if(capacity != NULL)
+        *capacity = subtitle_decoder->atlas->max_items;
+}
+
 static void dec_close_subtitle_cb(Kit_Decoder *ref) {
     if(ref == NULL)
         return;
@@ -144,6 +154,7 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
             dec_flush_subtitle_cb,
             dec_signal_subtitle_cb,
             dec_close_subtitle_cb,
+            dec_get_subtitle_buffers_cb,
             subtitle_decoder
         )) == NULL) {
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.

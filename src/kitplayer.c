@@ -411,6 +411,27 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     Kit_GetSubtitleDecoderOutputFormat(subtitle_decoder, &info->subtitle_format);
 }
 
+int Kit_GetPlayerVideoBufferState(
+    const Kit_Player *player, unsigned int *frames_length, unsigned int *frames_capacity
+) {
+    assert(player != NULL);
+    return Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity);
+}
+
+int Kit_GetPlayerAudioBufferState(
+    const Kit_Player *player, unsigned int *samples_length, unsigned int *samples_capacity
+) {
+    assert(player != NULL);
+    return Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity);
+}
+
+int Kit_GetPlayerSubtitleBufferState(
+    const Kit_Player *player, unsigned int *items_length, unsigned int *items_capacity
+) {
+    assert(player != NULL);
+    return Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity);
+}
+
 Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
     assert(player != NULL);
     Kit_VerifyState(player);

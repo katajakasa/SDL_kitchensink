@@ -108,6 +108,7 @@ Kit_Decoder *Kit_CreateDecoder(
     dec_flush_cb dec_flush,
     dec_signal_cb dec_signal,
     dec_close_cb dec_close,
+    dec_get_buffers_cb dec_get_buffers,
     void *userdata
 ) {
     assert(stream != NULL);
@@ -180,6 +181,7 @@ Kit_Decoder *Kit_CreateDecoder(
     decoder->dec_flush = dec_flush;
     decoder->dec_signal = dec_signal;
     decoder->dec_close = dec_close;
+    decoder->dec_get_buffers = dec_get_buffers;
     decoder->userdata = userdata;
     return decoder;
 
@@ -239,6 +241,14 @@ int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *codec) {
     snprintf(codec->name, KIT_CODEC_NAME_MAX, "%s", decoder->codec_ctx->codec->name);
     snprintf(codec->description, KIT_CODEC_DESC_MAX, "%s", decoder->codec_ctx->codec->long_name);
     return 0;
+}
+
+int Kit_GetDecoderBufferState(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity) {
+    if(decoder && decoder->dec_get_buffers) {
+        decoder->dec_get_buffers(decoder, length, capacity);
+        return 0;
+    }
+    return 1;
 }
 
 int Kit_GetDecoderStreamIndex(const Kit_Decoder *decoder) {
