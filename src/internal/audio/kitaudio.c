@@ -115,6 +115,7 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
     Kit_FlushPacketBuffer(audio_decoder->buffer);
     av_audio_fifo_reset(audio_decoder->fifo);
+    audio_decoder->fifo_start_pts = -1;
 }
 
 static void dec_signal_audio_cb(Kit_Decoder *decoder) {
