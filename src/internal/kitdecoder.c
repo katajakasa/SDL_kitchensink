@@ -51,7 +51,7 @@ static AVBufferRef *Kit_TestHWDevice(const AVCodecHWConfig *config, unsigned int
     }
 
     av_hwframe_constraints_free(&constraints);
-    return av_buffer_ref(hw_device_ctx);
+    return hw_device_ctx;
 
 exit_2:
     av_hwframe_constraints_free(&constraints);
