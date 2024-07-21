@@ -474,6 +474,9 @@ int main(int argc, char *argv[]) {
         render_buffer_bar(player, tick++);
     }
 
+    // Ensure newline after status line.
+    fprintf(stderr, "\n");
+
     Kit_ClosePlayer(player);
     Kit_CloseSource(src);
     Kit_Quit();
