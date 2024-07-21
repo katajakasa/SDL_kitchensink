@@ -218,7 +218,7 @@ KIT_API void Kit_GetPlayerSubtitleBufferState(
  *
  * It is important to select the correct texture format and size. If you pick a different
  * texture format or size from what the decoder outputs, then the decoder will attempt to convert
- * the frames to fit the texture. This will slow down the decoder a *lot* however, so if possible,
+ * the frames to fit the texture. This will slow down the decoder a *lot* so if possible,
  * pick the texture format from what Kit_GetPlayerInfo() outputs.
  *
  * Access flag for the texture *MUST* always be SDL_TEXTUREACCESS_STATIC! Anything else will lead to
@@ -277,16 +277,11 @@ Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *so
 
 /**
  * @brief Fetches audio data from the player
- *
+ * This function will attempt to read the maximum amount of data requested by the length
+ * argument. If there is less data available than requested, try to read maximum currently available.
  * Note that the output buffer must be previously allocated.
  *
- * Outputted audio data will be precisely what is described by the output format struct given
- * by Kit_GetPlayerInfo().
- *
- * This function will attempt to read the maximum allowed amount of data allowed by the length
- * argument. It is possible however that there is not enough data available, at which point
- * this function will read less and return value may differ from maximum allowed value.
- * Return value 0 should be taken as a hint that there is nothing available.
+ * Audio data format can be acquired by calling Kit_GetPlayerInfo().
  *
  * The "backend_buffer_size" argument should be set to the size of backend (hardware) audio buffers.
  * If your backend is SDL2, this can be provided by SDL_GetQueuedAudioSize(). This information is used
