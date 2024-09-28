@@ -200,7 +200,6 @@ void Kit_CloseDecoder(Kit_Decoder **ref) {
     Kit_Decoder *decoder = *ref;
     if(decoder->dec_close)
         decoder->dec_close(decoder);
-    avcodec_close(decoder->codec_ctx);
     avcodec_free_context(&decoder->codec_ctx);
     Kit_CloseTimer(&decoder->sync_timer);
     free(decoder);
