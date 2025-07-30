@@ -108,7 +108,6 @@ EXIT_3:
     for(int i = 0; i < KIT_DEC_BUF_COUNT; i++) {
         Kit_DestroyBuffer(dec->buffer[i]);
     }
-    avcodec_close(codec_ctx);
 EXIT_2:
     av_dict_free(&codec_opts);
     avcodec_free_context(&codec_ctx);
@@ -127,7 +126,6 @@ void Kit_CloseDecoder(Kit_Decoder *dec) {
         Kit_DestroyBuffer(dec->buffer[i]);
     }
     SDL_DestroyMutex(dec->output_lock);
-    avcodec_close(dec->codec_ctx);
     avcodec_free_context(&dec->codec_ctx);
     free(dec);
 }
