@@ -7,7 +7,7 @@ on:
       - master
   pull_request:
   repository_dispatch:
-    types: [run_build]
+    types: [ run_build ]
 
 jobs:
   ci:
@@ -20,24 +20,24 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "gcc 11",   cc: gcc-11   }
-          - { name: "gcc 12",   cc: gcc-12   }
-          - { name: "gcc 13",   cc: gcc-13   }
-          - { name: "clang 13", cc: clang-13 }
+          - { name: "gcc 11",   cc: gcc-11 }
+          - { name: "gcc 12",   cc: gcc-12 }
+          - { name: "gcc 13",   cc: gcc-13 }
           - { name: "clang 14", cc: clang-14 }
           - { name: "clang 15", cc: clang-15 }
+          - { name: "clang 16", cc: clang-16 }
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get -y install libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev \
-          libswresample-dev libswscale-dev libass-dev clang-tidy ${{ matrix.config.cc }}
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libswresample-dev libswscale-dev libass-dev clang-tidy ${{ matrix.config.cc }}
 
-    - name: Build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DUSE_TIDY=1 -DBUILD_EXAMPLES=1 ..
-        make -j2
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DUSE_TIDY=1 -DBUILD_EXAMPLES=1 ..
+          make -j2
