@@ -24,11 +24,6 @@ int Kit_InitASS(Kit_LibraryState *state) {
     load_libass(state->ass_so_handle);
 #endif
     state->libass_handle = ass_library_init();
-    state->thread_count = 1;
-    state->font_hinting = KIT_FONT_HINTING_NONE;
-    state->video_buf_frames = 3;
-    state->audio_buf_frames = 64;
-    state->subtitle_buf_frames = 64;
     ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     return 0;
 }
