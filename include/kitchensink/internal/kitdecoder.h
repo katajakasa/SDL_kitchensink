@@ -29,6 +29,7 @@ struct Kit_Decoder {
     int stream_index;            ///< Source stream index for the current stream
     double clock_sync;           ///< Sync source for current stream
     double clock_pos;            ///< Current pts for the stream
+    bool sync_enabled;           ///< Whether sync is enabled; disabled for audio-only sources.
     AVRational aspect_ratio;     ///< Aspect ratio for the current frame (may change frome-to-frame)
     Kit_OutputFormat output;     ///< Output format for the decoder
 

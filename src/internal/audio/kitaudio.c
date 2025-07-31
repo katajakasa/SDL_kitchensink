@@ -322,7 +322,6 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     int ret = 0;
     int bytes_per_sample = 0;
     double bytes_per_second = 0;
-    double sync_ts = 0;
 
     // First, peek the next packet. Make sure we have something to read.
     packet = Kit_PeekDecoderOutput(dec);
@@ -333,14 +332,16 @@ int Kit_GetAudioDecoderData(Kit_Decoder *dec, unsigned char *buf, int len) {
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
     // For audio, it is possible that we cannot find good packet. Then just don't read anything.
-    sync_ts = _GetSystemTime() - dec->clock_sync;
-    if(packet->pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
-        return 0;
-    }
-    while(packet != NULL && packet->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
-        Kit_AdvanceDecoderOutput(dec);
-        free_out_audio_packet_cb(packet);
-        packet = Kit_PeekDecoderOutput(dec);
+    if (dec->sync_enabled) {
+        double sync_ts = _GetSystemTime() - dec->clock_sync;
+        if(packet->pts > sync_ts + KIT_AUDIO_SYNC_THRESHOLD) {
+            return 0;
+        }
+        while(packet != NULL && packet->pts < sync_ts - KIT_AUDIO_SYNC_THRESHOLD) {
+            Kit_AdvanceDecoderOutput(dec);
+            free_out_audio_packet_cb(packet);
+            packet = Kit_PeekDecoderOutput(dec);
+        }
     }
     if(packet == NULL) {
         return 0;

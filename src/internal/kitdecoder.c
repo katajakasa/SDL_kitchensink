@@ -84,6 +84,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     dec->stream_index = stream_index;
     dec->codec_ctx = codec_ctx;
     dec->format_ctx = format_ctx;
+    dec->sync_enabled = true;
 
     // Allocate input/output ringbuffers
     for(int i = 0; i < 2; i++) {
