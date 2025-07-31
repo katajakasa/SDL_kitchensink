@@ -165,8 +165,14 @@ Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
     }
 
     // Initialize audio decoder
-    player->decoders[KIT_AUDIO_DEC] = Kit_CreateAudioDecoder(src, audio_stream_index);
-    if(player->decoders[KIT_AUDIO_DEC] == NULL && audio_stream_index >= 0) {
+    Kit_Decoder *audio_dec = Kit_CreateAudioDecoder(src, audio_stream_index);
+    if (audio_dec) {
+        player->decoders[KIT_AUDIO_DEC] = audio_dec;
+        if (subtitle_stream_index < 0 && video_stream_index < 0) {
+            // If audio stream is the only stream, don't bother syncing.
+            audio_dec->sync_enabled = false;
+        }
+    } else if (audio_stream_index >= 0) {
         goto EXIT_1;
     }
 

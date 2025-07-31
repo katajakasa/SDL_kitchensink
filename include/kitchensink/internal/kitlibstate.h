@@ -11,6 +11,11 @@ typedef struct Kit_LibraryState {
     unsigned int video_buf_frames;
     unsigned int audio_buf_frames;
     unsigned int subtitle_buf_frames;
+    unsigned int video_buf_packets;
+    unsigned int audio_buf_packets;
+    unsigned int subtitle_buf_packets;
+    int analyze_duration;
+    int probe_size;
     ASS_Library *libass_handle;
     void *ass_so_handle;
 } Kit_LibraryState;

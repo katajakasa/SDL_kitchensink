@@ -24,11 +24,6 @@ int Kit_InitASS(Kit_LibraryState *state) {
     load_libass(state->ass_so_handle);
 #endif
     state->libass_handle = ass_library_init();
-    state->thread_count = 1;
-    state->font_hinting = KIT_FONT_HINTING_NONE;
-    state->video_buf_frames = 3;
-    state->audio_buf_frames = 64;
-    state->subtitle_buf_frames = 64;
     ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     return 0;
 }
@@ -104,6 +99,21 @@ void Kit_SetHint(Kit_HintType type, int value) {
         case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
             state->subtitle_buf_frames = Kit_max(value, 1);
             break;
+        case KIT_HINT_VIDEO_BUFFER_PACKETS:
+            state->video_buf_packets = Kit_max(value, 1);
+            break;
+        case KIT_HINT_AUDIO_BUFFER_PACKETS:
+            state->audio_buf_packets = Kit_max(value, 1);
+            break;
+        case KIT_HINT_SUBTITLE_BUFFER_PACKETS:
+            state->subtitle_buf_packets = Kit_max(value, 1);
+            break;
+        case KIT_HINT_ANALYZE_DURATION:
+            state->analyze_duration = value;
+            break;
+        case KIT_HINT_PROBE_SIZE:
+            state->probe_size = value;
+            break;
     }
 }
 
@@ -120,6 +130,16 @@ int Kit_GetHint(Kit_HintType type) {
             return state->audio_buf_frames;
         case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
             return state->subtitle_buf_frames;
+        case KIT_HINT_VIDEO_BUFFER_PACKETS:
+            return state->video_buf_packets;
+        case KIT_HINT_AUDIO_BUFFER_PACKETS:
+            return state->audio_buf_packets;
+        case KIT_HINT_SUBTITLE_BUFFER_PACKETS:
+            return state->subtitle_buf_packets;
+        case KIT_HINT_ANALYZE_DURATION:
+            return state->analyze_duration;
+        case KIT_HINT_PROBE_SIZE:
+            return state->probe_size;
         default:
             return 0;
     }

@@ -45,7 +45,12 @@ typedef enum Kit_HintType {
     KIT_HINT_THREAD_COUNT, ///< Set thread count for ffmpeg (1 by default). Set to 0 for autodetect.
     KIT_HINT_VIDEO_BUFFER_FRAMES, ///< Video output buffer frames (3 by default)
     KIT_HINT_AUDIO_BUFFER_FRAMES, ///< Audio output buffers (64 by default)
-    KIT_HINT_SUBTITLE_BUFFER_FRAMES ///< Subtitle output buffers (64 by default, used by image subtitles)
+    KIT_HINT_SUBTITLE_BUFFER_FRAMES, ///< Subtitle output buffers (64 by default, used by image subtitles)
+    KIT_HINT_VIDEO_BUFFER_PACKETS, ///< Video input buffer packets (1024 by default)
+    KIT_HINT_AUDIO_BUFFER_PACKETS, ///< Audio input buffer packets (1024 by default)
+    KIT_HINT_SUBTITLE_BUFFER_PACKETS, ///< Subtitle input buffer packets (1024 by default)
+    KIT_HINT_PROBE_SIZE,  ///< How many bytes ffmpeg probes the file to determine streams
+    KIT_HINT_ANALYZE_DURATION,  ///< How many microseconds ffmpeg analyzes the stream
 } Kit_HintType;
 
 /**

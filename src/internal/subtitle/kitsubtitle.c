@@ -97,6 +97,7 @@ Kit_Decoder* Kit_CreateSubtitleDecoder(const Kit_Source *src, int stream_index, 
     Kit_Decoder *dec = Kit_CreateDecoder(
         src,
         stream_index,
+        state->subtitle_buf_packets,
         state->subtitle_buf_frames,
         free_out_subtitle_packet_cb,
         state->thread_count);
