@@ -6,14 +6,13 @@
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/kiterror.h"
 
-#define BUFFER_IN_SIZE 256
-
 static void free_in_video_packet_cb(void *packet) {
     av_packet_free((AVPacket**)&packet);
 }
 
 Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index, 
-                               int out_b_size, dec_free_packet_cb free_out_cb,
+                               int in_b_size, int out_b_size,
+                               dec_free_packet_cb free_out_cb,
                                int thread_count) {
     assert(src != NULL);
     assert(out_b_size > 0);
@@ -23,7 +22,7 @@ Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
     AVDictionary *codec_opts = NULL;
     const AVCodec *codec = NULL;
     AVFormatContext *format_ctx = src->format_ctx;
-    int bsizes[2] = {BUFFER_IN_SIZE, out_b_size};
+    int bsizes[2] = {in_b_size, out_b_size};
     dec_free_packet_cb free_hooks[2] = {free_in_video_packet_cb, free_out_cb};
 
     // Make sure index seems correct

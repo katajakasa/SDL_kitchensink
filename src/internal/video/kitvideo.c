@@ -215,6 +215,7 @@ Kit_Decoder* Kit_CreateVideoDecoder(const Kit_Source *src, int stream_index) {
     Kit_Decoder *dec = Kit_CreateDecoder(
         src,
         stream_index,
+        state->video_buf_packets,
         state->video_buf_frames,
         free_out_video_packet_cb,
         state->thread_count);

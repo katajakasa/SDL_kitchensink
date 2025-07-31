@@ -45,7 +45,8 @@ struct Kit_Decoder {
 };
 
 KIT_LOCAL Kit_Decoder* Kit_CreateDecoder(const Kit_Source *src, int stream_index,
-                                         int out_b_size, dec_free_packet_cb free_out_cb,
+                                         int in_b_size, int out_b_size,
+                                         dec_free_packet_cb free_out_cb,
                                          int thread_count);
 KIT_LOCAL void Kit_CloseDecoder(Kit_Decoder *dec);
 

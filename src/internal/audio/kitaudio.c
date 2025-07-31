@@ -223,6 +223,7 @@ Kit_Decoder* Kit_CreateAudioDecoder(const Kit_Source *src, int stream_index) {
     Kit_Decoder *dec = Kit_CreateDecoder(
         src,
         stream_index,
+        state->audio_buf_packets,
         state->audio_buf_frames,
         free_out_audio_packet_cb,
         state->thread_count);

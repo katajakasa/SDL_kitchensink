@@ -6,13 +6,14 @@
 
 #include "kitchensink/kitsource.h"
 #include "kitchensink/kiterror.h"
+#include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/utils/kitlog.h"
 
 #define AVIO_BUF_SIZE 32768
 
 static int _ScanSource(AVFormatContext *format_ctx) {
-    av_opt_set_int(format_ctx, "probesize", INT_MAX, 0);
-    av_opt_set_int(format_ctx, "analyzeduration", INT_MAX, 0);
+    av_opt_set_int(format_ctx, "probesize", Kit_GetLibraryState()->probe_size, 0);
+    av_opt_set_int(format_ctx, "analyzeduration", Kit_GetLibraryState()->analyze_duration, 0);
     if(avformat_find_stream_info(format_ctx, NULL) < 0) {
         Kit_SetError("Unable to fetch source information");
         return 1;
