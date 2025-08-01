@@ -468,7 +468,7 @@ void Kit_PlayerPlay(Kit_Player *player) {
         case KIT_STOPPED:
             Kit_StartThreads(player);
             player->state = KIT_PLAYING;
-            Kit_SetTimerBase(player->sync_timer);
+            Kit_ResetTimerBase(player->sync_timer);
             break;
     }
 }

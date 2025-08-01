@@ -14,8 +14,6 @@
 #include "kitchensink/kiterror.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5.0
-#define KIT_AUDIO_EARLY_THRESHOLD 0.05
-#define KIT_AUDIO_LATE_THRESHOLD 0.10
 #define KIT_AUDIO_EARLY_THRESHOLD 0.015
 #define KIT_AUDIO_LATE_THRESHOLD 0.045
 
@@ -328,8 +326,9 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
         goto no_data;
 
-    // If packet should not yet be played, stop here and wait.
-    // If packet should have already been played, skip it and try to find a better packet.
+    // Initialize timer if this is the primary sync source and it's not yet initialized.
+    Kit_InitTimerBase(decoder->sync_timer);
+
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 

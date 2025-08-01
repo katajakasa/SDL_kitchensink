@@ -270,8 +270,9 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
         return 1;
 
-    // If packet should not yet be played, stop here and wait.
-    // If packet should have already been played, skip it and try to find a better packet.
+    // Initialize timer if this is the primary sync source and it's not yet initialized.
+    Kit_InitTimerBase(decoder->sync_timer);
+
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 

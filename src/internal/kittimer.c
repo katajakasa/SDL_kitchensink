@@ -4,6 +4,7 @@
 
 typedef struct Kit_TimerValue {
     int count;
+    bool initialized;
     double value;
 } Kit_TimerValue;
 
@@ -24,6 +25,7 @@ Kit_Timer *Kit_CreateTimer() {
     }
 
     value->count = 1;
+    value->initialized = false;
     timer->ref = value;
     timer->writeable = true;
     return timer;
@@ -43,6 +45,19 @@ Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
     timer->ref->count++;
     timer->writeable = writeable;
     return timer;
+}
+
+void Kit_InitTimerBase(Kit_Timer *timer) {
+    if(timer->writeable && !timer->ref->initialized) {
+        timer->ref->value = Kit_GetSystemTime();
+        timer->ref->initialized = true;
+    }
+}
+
+void Kit_ResetTimerBase(Kit_Timer *timer) {
+    if(timer->writeable) {
+        timer->ref->initialized = false;
+    }
 }
 
 void Kit_SetTimerBase(Kit_Timer *timer) {
