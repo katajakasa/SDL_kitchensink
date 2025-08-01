@@ -1,4 +1,5 @@
 #include <SDL.h>
+#include <limits.h>
 #include <kitchensink/kitchensink.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -8,7 +9,10 @@
  * It is for example use only!
  */
 
-#define AUDIO_BUFFER_SIZE (32768)
+#define AUDIO_BUFFER_SIZE (1024 * 256)
+#define AUDIO_BUFFER_PACKETS 16
+#define AUDIO_BUFFER_FRAMES 32
+#define AUDIO_PREBUFFER_FRAMES 8
 
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
@@ -47,8 +51,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Set input and output buffering to reduce latency
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 16);
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, 32);
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, AUDIO_BUFFER_PACKETS);
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, AUDIO_BUFFER_FRAMES);
 
     // Open up the sourcefile.
     src = Kit_CreateSourceFromUrl(filename);
@@ -112,6 +116,8 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
+    unsigned int buffer_now = 0, buffer_prev = 0;
+    bool initial_buffering_done = false;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -128,10 +134,24 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        // When application starts, wait for audio to be buffered. This prevents stutter in network streams.
+        if(!initial_buffering_done) {
+            Kit_GetPlayerAudioBufferState(player, &buffer_now, NULL, NULL, NULL);
+            if (buffer_now != buffer_prev) {
+                fprintf(stderr, "Buffering, %d / %d ...\n", buffer_now, AUDIO_PREBUFFER_FRAMES);
+                buffer_prev = buffer_now;
+            }
+            if (buffer_now < AUDIO_PREBUFFER_FRAMES) {
+                SDL_Delay(100);
+                continue;
+            }
+            initial_buffering_done = true;
+        }
+
         // Refresh audio
         int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIO_BUFFER_SIZE) {
-            ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
+            ret = Kit_GetPlayerAudioData(player, UINT_MAX, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
             if(ret > 0) {
                 SDL_QueueAudio(audio_dev, audio_buf, ret);
             }
