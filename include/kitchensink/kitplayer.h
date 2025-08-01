@@ -234,7 +234,7 @@ KIT_API void Kit_GetPlayerSubtitleBufferState(
  * @param area Rendered video surface area or NULL.
  * @return 0 on success, 1 on error
  */
-KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
+KIT_API int Kit_GetPlayerVideoSDLTexture(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 
 /**
  * @brief Fetches subtitle data from the player
@@ -273,7 +273,7 @@ KIT_API int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture, SDL
  * @return Number of sources or <0 on error
  */
 KIT_API int
-Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
+Kit_GetPlayerSubtitleSDLTexture(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
 
 /**
  * @brief Fetches audio data from the player

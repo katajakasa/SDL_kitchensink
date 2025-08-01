@@ -177,12 +177,12 @@ int main(int argc, char *argv[]) {
         }
 
         // Refresh video texture and render it
-        Kit_GetPlayerVideoData(player, video_tex, NULL);
+        Kit_GetPlayerVideoSDLTexture(player, video_tex, NULL);
         SDL_RenderCopy(renderer, video_tex, NULL, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
-        int got = Kit_GetPlayerSubtitleData(player, subtitle_tex, sources, targets, ATLAS_MAX);
+        int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
             SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
         }
