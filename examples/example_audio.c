@@ -46,13 +46,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Set ffmpeg arguments for file data probing.
-    Kit_SetHint(KIT_HINT_ANALYZE_DURATION, 100 * 1000); // 100 milliseconds (value is in microseconds)
-    Kit_SetHint(KIT_HINT_PROBE_SIZE, 128 * 1024); // 128 kilobytes (value is in bytes)
-
     // Set input and output buffering to reduce latency
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, 32); // 32 demuxed packets waiting to be decoded
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 3); // 3 decoded frames (max)
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 16);
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, 32);
 
     // Open up the sourcefile.
     src = Kit_CreateSourceFromUrl(filename);

@@ -67,6 +67,10 @@ double Kit_GetTimerElapsed(const Kit_Timer *timer) {
     return Kit_GetSystemTime() - timer->ref->value;
 }
 
+bool Kit_IsTimerPrimary(const Kit_Timer *timer) {
+    return timer->writeable;
+}
+
 void Kit_CloseTimer(Kit_Timer **ref) {
     if(!ref || !*ref)
         return;

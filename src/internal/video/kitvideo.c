@@ -264,33 +264,39 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
     assert(decoder != NULL);
     assert(texture != NULL);
 
-    Kit_VideoDecoder *video_decoder = decoder->userdata;
+    const Kit_VideoDecoder *video_decoder = decoder->userdata;
     SDL_Rect frame_area;
-    double sync_ts;
-    double pts;
 
     if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
         return 1;
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    pts = Kit_GetCurrentPTS(decoder);
-    sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+    double pts = Kit_GetCurrentPTS(decoder);
+    double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
-    // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something
-    // valid.
-    while(pts > sync_ts + KIT_VIDEO_EARLY_FAIL) {
-        // LOG("[VIDEO] FAIL-EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
-        av_frame_unref(video_decoder->current);
-        Kit_FinishPacketBufferRead(video_decoder->buffer);
-        if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
-            return 1;
-        pts = Kit_GetCurrentPTS(decoder);
+    // If packet is far too early, the stream jumped or was seeked.
+    if (Kit_IsTimerPrimary(decoder->sync_timer)) {
+        // If this stream is the sync source, then reset this as the new sync timestamp.
+        if(pts > sync_ts + KIT_VIDEO_EARLY_FAIL) {
+            // LOG("[VIDEO] NO SYNC pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_FAIL);
+            Kit_AddTimerBase(decoder->sync_timer, -(pts - sync_ts));
+            sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+        }
+    } else {
+        while(pts > sync_ts + KIT_VIDEO_EARLY_FAIL) {
+            // LOG("[VIDEO] FAIL-EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_FAIL);
+            av_frame_unref(video_decoder->current);
+            Kit_FinishPacketBufferRead(video_decoder->buffer);
+            if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
+                return 1;
+            pts = Kit_GetCurrentPTS(decoder);
+        }
     }
 
     // Packet is too early, wait.
     if(pts > sync_ts + KIT_VIDEO_EARLY_THRESHOLD) {
-        // LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+        //LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_CancelPacketBufferRead(video_decoder->buffer);
         return 1;
@@ -298,7 +304,7 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
 
     // Packet is too late, skip packets until we see something reasonable.
     while(pts < sync_ts - KIT_VIDEO_LATE_THRESHOLD) {
-        // LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
+        //LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))

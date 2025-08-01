@@ -13,9 +13,11 @@
 #include "kitchensink/internal/utils/kitlog.h"
 #include "kitchensink/kiterror.h"
 
-#define KIT_AUDIO_EARLY_FAIL 5
+#define KIT_AUDIO_EARLY_FAIL 5.0
 #define KIT_AUDIO_EARLY_THRESHOLD 0.05
-#define KIT_AUDIO_LATE_THRESHOLD 0.05
+#define KIT_AUDIO_LATE_THRESHOLD 0.10
+#define KIT_AUDIO_EARLY_THRESHOLD 0.015
+#define KIT_AUDIO_LATE_THRESHOLD 0.045
 
 #define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
 
@@ -316,13 +318,10 @@ static double Kit_GetCurrentPTS(const Kit_Decoder *decoder) {
 int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, unsigned char *buf, size_t len) {
     assert(decoder != NULL);
 
-    Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    int pos;
+    const Kit_AudioDecoder *audio_decoder = decoder->userdata;
     int ret = 0;
     size_t *size;
     size_t *left;
-    double sync_ts;
-    double pts;
 
     if(len <= 0)
         return 0;
@@ -331,17 +330,28 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     // If packet should not yet be played, stop here and wait.
     // If packet should have already been played, skip it and try to find a better packet.
-    pts = Kit_GetCurrentPTS(decoder);
-    sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+    double pts = Kit_GetCurrentPTS(decoder);
+    double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
-    // If packet is far too early, the stream jumped or was seeked. Skip packets until we see something valid.
-    while(pts > sync_ts + KIT_AUDIO_EARLY_FAIL) {
-        // LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
-        av_frame_unref(audio_decoder->current);
-        Kit_FinishPacketBufferRead(audio_decoder->buffer);
-        if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
-            goto no_data;
-        pts = Kit_GetCurrentPTS(decoder);
+    // If packet is far too early, the stream jumped or was seeked.
+    if (Kit_IsTimerPrimary(decoder->sync_timer)) {
+        // If this stream is the sync source, then reset this as the new sync timestamp.
+        if(pts > sync_ts + KIT_AUDIO_EARLY_FAIL) {
+            // LOG("[AUDIO] NO SYNC pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_FAIL);
+            // LOG("[AUDIO] Adjusting by = %lf\n", -(pts - sync_ts));
+            Kit_AddTimerBase(decoder->sync_timer, -(pts - sync_ts));
+            sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+        }
+    } else {
+        // If this stream is NOT the sync source, try to skip packets until we see something reasonable.
+        while(pts > sync_ts + KIT_AUDIO_EARLY_FAIL) {
+            // LOG("[AUDIO] FAIL-EARLY: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_FAIL);
+            av_frame_unref(audio_decoder->current);
+            Kit_FinishPacketBufferRead(audio_decoder->buffer);
+            if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
+                goto no_data;
+            pts = Kit_GetCurrentPTS(decoder);
+        }
     }
 
     // Packet is too early, wait.
@@ -349,12 +359,12 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
         // LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_CancelPacketBufferRead(audio_decoder->buffer);
-        return 0;
+        goto no_data;
     }
 
     // Packet is too late, skip packets until we see something reasonable.
     while(pts < sync_ts - KIT_AUDIO_LATE_THRESHOLD) {
-        // LOG("[AUDIO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+        // LOG("[AUDIO] LATE: pts = %lf < %lf - %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
@@ -368,7 +378,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     len = floor(len / SAMPLE_BYTES(audio_decoder)) * SAMPLE_BYTES(audio_decoder);
     if(*left) {
         ret = (len > *left) ? *left : len;
-        pos = *size - *left;
+        int pos = *size - *left;
         memcpy(buf, audio_decoder->current->data[0] + pos, ret);
         *left -= ret;
     }
@@ -382,9 +392,9 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     return ret;
 
 no_data:
-    if(backend_buffer_size < 8192) {
-        // LOG("[AUDIO] SILENCE\n");
-        len = min2(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
+    len = min2(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
+    if(backend_buffer_size < len * SAMPLE_BYTES(audio_decoder)) {
+        // LOG("[AUDIO] SILENCE due to backend size %ld < %ld\n", backend_buffer_size, len * SAMPLE_BYTES(audio_decoder));
         av_samples_set_silence(
             &buf, 0, len, audio_decoder->output.channels, Kit_FindAVSampleFormat(audio_decoder->output.format)
         );
