@@ -272,6 +272,12 @@ int Kit_GetVideoDecoderData(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect
 
     // Initialize timer if this is the primary sync source and it's not yet initialized.
     Kit_InitTimerBase(decoder->sync_timer);
+    if(!Kit_IsTimerInitialized(decoder->sync_timer)) {
+        // If this was not the sync source and timer is not set, wait for another stream to set it.
+        av_frame_unref(video_decoder->current);
+        Kit_CancelPacketBufferRead(video_decoder->buffer);
+        return 0;
+    }
 
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);

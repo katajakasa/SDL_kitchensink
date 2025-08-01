@@ -8,7 +8,7 @@
  * It is for example use only!
  */
 
-#define AUDIO_BUFFER_SIZE (1024 * 64)
+#define AUDIO_BUFFER_SIZE (1024 * 32)
 #define ATLAS_WIDTH 4096
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024

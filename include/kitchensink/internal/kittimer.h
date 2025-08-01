@@ -10,6 +10,7 @@ KIT_LOCAL Kit_Timer *Kit_CreateTimer();
 KIT_LOCAL Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable);
 
 KIT_LOCAL void Kit_InitTimerBase(Kit_Timer *timer);
+KIT_LOCAL bool Kit_IsTimerInitialized(const Kit_Timer *timer);
 KIT_LOCAL void Kit_ResetTimerBase(Kit_Timer *timer);
 KIT_LOCAL void Kit_SetTimerBase(Kit_Timer *timer);
 KIT_LOCAL void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust);

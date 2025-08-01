@@ -14,7 +14,7 @@
 /**
  * Check if hardware context supports an output format that we can feed to swscale
  */
-static bool Kit_TestSWFormat(AVHWFramesConstraints *constraints) {
+static bool Kit_TestSWFormat(const AVHWFramesConstraints *constraints) {
     enum AVPixelFormat *test;
     for(test = constraints->valid_sw_formats; *test != AV_PIX_FMT_NONE; test++) {
         if(sws_isSupportedInput(*test)) {

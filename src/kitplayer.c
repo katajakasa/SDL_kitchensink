@@ -20,7 +20,6 @@ struct Kit_Player {
     Kit_DemuxerThread *demux_thread;   ///< Demuxer thread
     Kit_Timer *sync_timer;             ///< Sync timer for the decoders
     const Kit_Source *src;             ///< Reference to Audio/Video source
-    double pause_started;              ///< Temporary flag for handling pauses
     int screen_w;                      ///< Width of the screen surface (for positioning subtitles)
     int screen_h;                      ///< Height of the screen surface (for positioning subtitles)
 };
@@ -455,20 +454,18 @@ Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
 
 void Kit_PlayerPlay(Kit_Player *player) {
     assert(player != NULL);
-    double tmp;
     switch(player->state) {
         case KIT_PLAYING:
         case KIT_CLOSED:
             break;
         case KIT_PAUSED:
-            tmp = Kit_GetSystemTime() - player->pause_started;
-            Kit_AddTimerBase(player->sync_timer, tmp);
+            Kit_ResetTimerBase(player->sync_timer);
             player->state = KIT_PLAYING;
             break;
         case KIT_STOPPED:
             Kit_StartThreads(player);
-            player->state = KIT_PLAYING;
             Kit_ResetTimerBase(player->sync_timer);
+            player->state = KIT_PLAYING;
             break;
     }
 }
@@ -491,7 +488,6 @@ void Kit_PlayerPause(Kit_Player *player) {
     assert(player != NULL);
     if(player->state != KIT_PAUSED) {
         player->state = KIT_PAUSED;
-        player->pause_started = Kit_GetSystemTime();
     }
 }
 

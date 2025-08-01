@@ -25,6 +25,7 @@ Kit_Timer *Kit_CreateTimer() {
     }
 
     value->count = 1;
+    value->value = 0;
     value->initialized = false;
     timer->ref = value;
     timer->writeable = true;
@@ -54,6 +55,10 @@ void Kit_InitTimerBase(Kit_Timer *timer) {
     }
 }
 
+bool Kit_IsTimerInitialized(const Kit_Timer *timer) {
+    return timer->ref->initialized;
+}
+
 void Kit_ResetTimerBase(Kit_Timer *timer) {
     if(timer->writeable) {
         timer->ref->initialized = false;
@@ -63,18 +68,21 @@ void Kit_ResetTimerBase(Kit_Timer *timer) {
 void Kit_SetTimerBase(Kit_Timer *timer) {
     if(timer->writeable) {
         timer->ref->value = Kit_GetSystemTime();
+        timer->ref->initialized = true;
     }
 }
 
 void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust) {
     if(timer->writeable) {
         timer->ref->value = Kit_GetSystemTime() - adjust;
+        timer->ref->initialized = true;
     }
 }
 
 void Kit_AddTimerBase(Kit_Timer *timer, double add) {
     if(timer->writeable) {
         timer->ref->value += add;
+        timer->ref->initialized = true;
     }
 }
 
