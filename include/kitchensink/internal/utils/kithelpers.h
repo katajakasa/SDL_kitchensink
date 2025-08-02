@@ -5,7 +5,9 @@
 #include <libavformat/avformat.h>
 #include "kitchensink/kitconfig.h"
 
-KIT_LOCAL double _GetSystemTime();
-KIT_LOCAL bool attachment_is_font(const AVStream *stream);
+KIT_LOCAL double Kit_GetSystemTime();
+KIT_LOCAL bool Kit_StreamIsFontAttachment(const AVStream *stream);
+
+KIT_LOCAL int min2(int a, int b);
 
 #endif // KITHELPERS_H

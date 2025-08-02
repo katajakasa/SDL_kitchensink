@@ -12,7 +12,7 @@ on:
 jobs:
   ci:
     name: Run CI on ${{ matrix.config.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CC: ${{ matrix.config.cc }}
 
@@ -20,12 +20,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "gcc 11",   cc: gcc-11 }
           - { name: "gcc 12",   cc: gcc-12 }
           - { name: "gcc 13",   cc: gcc-13 }
-          - { name: "clang 14", cc: clang-14 }
-          - { name: "clang 15", cc: clang-15 }
+          - { name: "gcc 14",   cc: gcc-14 }
           - { name: "clang 16", cc: clang-16 }
+          - { name: "clang 17", cc: clang-17 }
+          - { name: "clang 18", cc: clang-18 }
 
     steps:
       - uses: actions/checkout@v4
