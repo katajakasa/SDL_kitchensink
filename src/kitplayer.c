@@ -108,16 +108,14 @@ static bool Kit_InitializeSubtitleDecoder(
         goto exit_0;
     if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)
        ) == NULL)
-        goto exit_1;
+        goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
-        goto exit_2;
+        goto exit_1;
 
     return true;
 
-exit_2:
-    Kit_CloseDecoder(decoder);
 exit_1:
-    Kit_CloseTimer(&timer);
+    Kit_CloseDecoder(decoder); // This will also free the timer.
 exit_0:
     return false;
 }

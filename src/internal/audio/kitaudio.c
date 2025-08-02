@@ -302,6 +302,7 @@ exit_in_frame:
     av_frame_free(&in_frame);
 exit_decoder:
     Kit_CloseDecoder(&decoder);
+    return NULL; // Above frees the audio_decoder also.
 exit_audio_dec:
     free(audio_decoder);
 exit_none:

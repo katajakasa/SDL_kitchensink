@@ -249,6 +249,7 @@ exit_3:
     av_frame_free(&in_frame);
 exit_2:
     Kit_CloseDecoder(&decoder);
+    return NULL; // Above frees the video_decoder also.
 exit_1:
     free(video_decoder);
 exit_0:

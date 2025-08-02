@@ -204,6 +204,7 @@ exit_3:
     Kit_FreeAtlas(atlas);
 exit_2:
     Kit_CloseDecoder(&decoder);
+    return NULL; // Above frees the subtitle_decoder also.
 exit_1:
     free(subtitle_decoder);
 exit_0:
