@@ -60,6 +60,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    Kit_SetHint(KIT_HINT_VIDEO_BUFFER_PACKETS, 128);
+
     // Open up the sourcefile.
     // This can be a local file, network url, ...
     src = Kit_CreateSourceFromUrl(filename);
