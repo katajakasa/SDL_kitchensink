@@ -138,6 +138,8 @@ int main(int argc, char *argv[]) {
     char audio_buf[AUDIO_BUFFER_SIZE];
     SDL_Rect sources[ATLAS_MAX];
     SDL_Rect targets[ATLAS_MAX];
+    Uint32 bufclock_delta = 200;
+    Uint64 bufclock_stop = 0;
 
     // Get movie area size
     SDL_RenderSetLogicalSize(renderer, pinfo.video_format.width, pinfo.video_format.height);
@@ -154,6 +156,27 @@ int main(int argc, char *argv[]) {
                     run = false;
                     break;
             }
+        }
+
+        if(bufclock_stop > SDL_GetTicks()) {
+            SDL_Delay(1);
+            continue;
+        }
+
+        unsigned int ao_len = 0, ao_max = 0, ai_len = 0, ai_max = 0;
+        unsigned int vo_len = 0, vo_max = 0, vi_len = 0, vi_max = 0;
+        Kit_GetPlayerAudioBufferState(player, &ao_len, &ao_max, &ai_len, &ai_max);
+        Kit_GetPlayerVideoBufferState(player, &vo_len, &vo_max, &vi_len, &vi_max);
+
+        if((!ao_len && Kit_GetPlayerAudioStream(player) != -1) ||
+           (!vo_len && Kit_GetPlayerVideoStream(player) != -1)) {
+            Kit_PlayerPause(player);
+            fprintf(stderr, "Buffer underrun, refilling for %d ms\n",
+                    bufclock_delta);
+            bufclock_stop = SDL_GetTicks() + bufclock_delta;
+            bufclock_delta *= 2.5;
+        } else {
+            Kit_PlayerPlay(player);
         }
 
         // Refresh audio
