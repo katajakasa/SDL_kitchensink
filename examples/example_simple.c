@@ -161,13 +161,11 @@ int main(int argc, char *argv[]) {
         if(queued < AUDIO_BUFFER_SIZE) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
-            while(need > 0) {
+            if(need > 0) {
                 ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
                     SDL_QueueAudio(audio_dev, audio_buf, ret);
-                } else {
-                    break;
                 }
             }
             // If we now have data, start playback (again)
