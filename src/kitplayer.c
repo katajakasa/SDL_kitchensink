@@ -1,5 +1,5 @@
-#include <assert.h>
 #include <SDL_timer.h>
+#include <assert.h>
 
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/kitdecoderthread.h"

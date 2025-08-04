@@ -183,8 +183,6 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
         case AV_CODEC_ID_DVD_SUBTITLE:
         case AV_CODEC_ID_DVB_SUBTITLE:
         case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
-        case AV_CODEC_ID_XSUB:
-        case AV_CODEC_ID_DVB_TELETEXT:
             renderer = Kit_CreateImageSubtitleRenderer(decoder, video_w, video_h, screen_w, screen_h);
             break;
         default:

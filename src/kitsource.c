@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include <libavformat/avformat.h>
@@ -114,11 +115,8 @@ static int _RWReadCallback(void *userdata, uint8_t *buf, int size) {
 }
 
 static int64_t _RWGetSize(SDL_RWops *rw_ops) {
-    int64_t current_pos;
-    int64_t max_pos;
-
     // First, see if tell works at all, and fail with -1 if it doesn't.
-    current_pos = SDL_RWtell(rw_ops);
+    const int64_t current_pos = SDL_RWtell(rw_ops);
     if(current_pos < 0) {
         return -1;
     }
@@ -127,7 +125,7 @@ static int64_t _RWGetSize(SDL_RWops *rw_ops) {
     if(SDL_RWseek(rw_ops, 0, RW_SEEK_END) < 0) {
         return -1; // Seek failed, never mind then
     }
-    max_pos = SDL_RWtell(rw_ops);
+    const int64_t max_pos = SDL_RWtell(rw_ops);
     SDL_RWseek(rw_ops, current_pos, RW_SEEK_SET);
     return max_pos;
 }
@@ -196,6 +194,36 @@ int Kit_GetSourceStreamInfo(const Kit_Source *src, Kit_SourceStreamInfo *info, i
     return 0;
 }
 
+static bool Kit_IsSubtitleSupported(const enum AVCodecID type) {
+    switch(type) {
+        case AV_CODEC_ID_TEXT:
+        case AV_CODEC_ID_HDMV_TEXT_SUBTITLE:
+        case AV_CODEC_ID_SRT:
+        case AV_CODEC_ID_SUBRIP:
+        case AV_CODEC_ID_SSA:
+        case AV_CODEC_ID_ASS:
+            return true; // Text types
+        case AV_CODEC_ID_DVD_SUBTITLE:
+        case AV_CODEC_ID_DVB_SUBTITLE:
+        case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
+            return true; // Image types
+        default:
+            return false;
+    }
+}
+
+static int Kit_GetBestSubtitleStream(const Kit_Source *src) {
+    AVFormatContext *format_ctx = src->format_ctx;
+    for(int i = 0; i < format_ctx->nb_streams; i++) {
+        const AVStream *stream = format_ctx->streams[i];
+        if(stream->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE &&
+           Kit_IsSubtitleSupported(stream->codecpar->codec_id)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     assert(src != NULL);
     int avmedia_type = 0;
@@ -207,8 +235,7 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
             avmedia_type = AVMEDIA_TYPE_AUDIO;
             break;
         case KIT_STREAMTYPE_SUBTITLE:
-            avmedia_type = AVMEDIA_TYPE_SUBTITLE;
-            break;
+            return Kit_GetBestSubtitleStream(src);
         default:
             return -1;
     }
