@@ -14,8 +14,6 @@
 #include "kitchensink/kitformat.h"
 
 #define KIT_VIDEO_EARLY_FAIL 1.0
-#define KIT_VIDEO_EARLY_THRESHOLD 0.005
-#define KIT_VIDEO_LATE_THRESHOLD 0.05
 
 typedef struct Kit_VideoDecoder {
     struct SwsContext *sws;       ///< Video scaler context
@@ -291,6 +289,8 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
 
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+    const double early_threshold = Kit_GetLibraryState()->video_early_threshold / 1000.0;
+    const double late_threshold = Kit_GetLibraryState()->video_late_threshold / 1000.0;
 
     // If packet is far too early, the stream jumped or was seeked.
     if(Kit_IsTimerPrimary(decoder->sync_timer)) {
@@ -312,16 +312,16 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
     }
 
     // Packet is too early, wait.
-    if(pts > sync_ts + KIT_VIDEO_EARLY_THRESHOLD) {
-        // LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+    if(pts > sync_ts + early_threshold) {
+        // LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, early_threshold);
         av_frame_unref(video_decoder->current);
         Kit_CancelPacketBufferRead(video_decoder->buffer);
         return false;
     }
 
     // Packet is too late, skip packets until we see something reasonable.
-    while(pts < sync_ts - KIT_VIDEO_LATE_THRESHOLD) {
-        // LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
+    while(pts < sync_ts - late_threshold) {
+        // LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, late_threshold);
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))

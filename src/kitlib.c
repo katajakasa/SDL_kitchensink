@@ -109,6 +109,18 @@ void Kit_SetHint(Kit_HintType type, int value) {
         case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
             state->subtitle_frame_buffer_size = Kit_max(value, 1);
             break;
+        case KIT_HINT_AUDIO_EARLY_THRESHOLD:
+            state->audio_early_threshold = Kit_max(value, 0);
+            break;
+        case KIT_HINT_AUDIO_LATE_THRESHOLD:
+            state->audio_late_threshold = Kit_max(value, 0);
+            break;
+        case KIT_HINT_VIDEO_EARLY_THRESHOLD:
+            state->video_early_threshold = Kit_max(value, 0);
+            break;
+        case KIT_HINT_VIDEO_LATE_THRESHOLD:
+            state->video_late_threshold = Kit_max(value, 0);
+            break;
     }
 }
 
@@ -131,6 +143,14 @@ int Kit_GetHint(Kit_HintType type) {
             return state->audio_frame_buffer_size;
         case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
             return state->subtitle_frame_buffer_size;
+        case KIT_HINT_AUDIO_EARLY_THRESHOLD:
+            return state->audio_early_threshold;
+        case KIT_HINT_AUDIO_LATE_THRESHOLD:
+            return state->audio_late_threshold;
+        case KIT_HINT_VIDEO_EARLY_THRESHOLD:
+            return state->video_early_threshold;
+        case KIT_HINT_VIDEO_LATE_THRESHOLD:
+            return state->video_late_threshold;
         default:
             return 0;
     }

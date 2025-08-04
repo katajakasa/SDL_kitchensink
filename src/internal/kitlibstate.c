@@ -11,6 +11,10 @@ static Kit_LibraryState _library_state = {
     .video_frame_buffer_size = 2,
     .audio_frame_buffer_size = 64,
     .subtitle_frame_buffer_size = 64,
+    .audio_early_threshold = 30,
+    .audio_late_threshold = 50,
+    .video_early_threshold = 5,
+    .video_late_threshold = 50,
     .libass_handle = NULL,
     .ass_so_handle = NULL,
 };

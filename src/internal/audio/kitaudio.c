@@ -14,8 +14,6 @@
 #include "kitchensink/kiterror.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5.0
-#define KIT_AUDIO_EARLY_THRESHOLD 0.03
-#define KIT_AUDIO_LATE_THRESHOLD 0.05
 
 #define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
 
@@ -346,6 +344,8 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
+    const double early_threshold = Kit_GetLibraryState()->audio_early_threshold / 1000.0;
+    const double late_threshold = Kit_GetLibraryState()->audio_late_threshold / 1000.0;
 
     // If packet is far too early, the stream jumped or was seeked.
     if(Kit_IsTimerPrimary(decoder->sync_timer)) {
@@ -369,16 +369,16 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     }
 
     // Packet is too early, wait.
-    if(pts > sync_ts + KIT_AUDIO_EARLY_THRESHOLD) {
-        // LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_THRESHOLD);
+    if(pts > sync_ts + early_threshold) {
+        // LOG("[AUDIO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, early_threshold);
         av_frame_unref(audio_decoder->current);
         Kit_CancelPacketBufferRead(audio_decoder->buffer);
         goto no_data;
     }
 
     // Packet is too late, skip packets until we see something reasonable.
-    while(pts < sync_ts - KIT_AUDIO_LATE_THRESHOLD) {
-        // LOG("[AUDIO] LATE: pts = %lf < %lf - %lf\n", pts, sync_ts, KIT_AUDIO_LATE_THRESHOLD);
+    while(pts < sync_ts - late_threshold) {
+        // LOG("[AUDIO] LATE: pts = %lf < %lf - %lf\n", pts, sync_ts, late_threshold);
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))

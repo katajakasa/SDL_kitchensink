@@ -50,12 +50,15 @@ typedef enum Kit_HintType
     KIT_HINT_SUBTITLE_BUFFER_PACKETS, ///< Subtitle input buffer packets (default: 64)
     KIT_HINT_VIDEO_BUFFER_FRAMES,     ///< Video output buffer frames (default: 2)
     KIT_HINT_AUDIO_BUFFER_FRAMES,     ///< Audio output buffers (default: 64)
-    KIT_HINT_SUBTITLE_BUFFER_FRAMES   ///< Subtitle output buffers (default: 64)
+    KIT_HINT_SUBTITLE_BUFFER_FRAMES,  ///< Subtitle output buffers (default: 64)
+    KIT_HINT_VIDEO_LATE_THRESHOLD,    ///< Late threshold for video frames in milliseconds (default: 50ms)
+    KIT_HINT_VIDEO_EARLY_THRESHOLD,   ///< Early threshold for video frames in milliseconds (default: 5ms)
+    KIT_HINT_AUDIO_LATE_THRESHOLD,    ///< Late threshold for audio frames in milliseconds (default: 50ms)
+    KIT_HINT_AUDIO_EARLY_THRESHOLD,   ///< Early threshold for audio frames in milliseconds (default: 30ms)
 } Kit_HintType;
 
 /**
  * @brief Library initialization options, please see Kit_Init()
- *
  */
 enum
 {
