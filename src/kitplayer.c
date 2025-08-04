@@ -620,21 +620,49 @@ int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den) {
 }
 
 static void Kit_IsStreamPrimary(const Kit_Player *player, bool *video_primary, bool *audio_primary) {
-    Kit_Decoder *video_decoder = player->decoders[KIT_VIDEO_INDEX];
-    Kit_Decoder *audio_decoder = player->decoders[KIT_AUDIO_INDEX];
+    const Kit_Decoder *video_decoder = player->decoders[KIT_VIDEO_INDEX];
+    const Kit_Decoder *audio_decoder = player->decoders[KIT_AUDIO_INDEX];
     *video_primary = video_decoder && video_decoder->stream->index > -1;
     *audio_primary = audio_decoder && !*video_primary && audio_decoder->stream->index > -1;
 }
 
+int Kit_ClosePlayerStream(Kit_Player *player, const Kit_StreamType type) {
+    assert(player != NULL);
+
+    Kit_BufferIndex buffer_index;
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            buffer_index = KIT_AUDIO_INDEX;
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            buffer_index = KIT_VIDEO_INDEX;
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            buffer_index = KIT_SUBTITLE_INDEX;
+            break;
+        default:
+            return 1;
+    }
+
+    // Stop and clear the old decoder and output buffers
+    Kit_HaltDecoder(player, buffer_index);
+    // Clear the demuxer packets
+    Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, -1);
+    player->decoders[buffer_index] = NULL;
+    player->dec_threads[buffer_index] = NULL;
+    return 0;
+}
+
 int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index) {
+    assert(player != NULL);
     Kit_Decoder *new_decoder = NULL;
     Kit_DecoderThread *new_thread = NULL;
     Kit_BufferIndex buffer_index;
     bool video_primary, audio_primary;
 
+    // If index is -1, it means we are closing the stream.
     if(index < 0) {
-        Kit_SetError("Invalid stream index");
-        return -1;
+        return Kit_ClosePlayerStream(player, type);
     }
 
     // Figure out which stream is currently the primary one. This stream is allowed to modify the sync clock.
@@ -687,7 +715,7 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
                 goto error_1;
             break;
         default:
-            return -1;
+            return 1;
     }
 
     // If we have a good new decoder, stop the old thread and decoder.
@@ -709,7 +737,7 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
 error_1:
     Kit_CloseDecoder(&new_decoder);
     Kit_CloseDecoderThread(&new_thread);
-    return -1;
+    return 1;
 }
 
 int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type) {
@@ -727,5 +755,5 @@ int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type) {
         default:
             dec = NULL;
     }
-    return dec ? dec->stream->index : -1;
+    return (dec != NULL) ? dec->stream->index : -1;
 }

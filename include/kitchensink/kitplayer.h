@@ -510,17 +510,28 @@ KIT_API double Kit_GetPlayerPosition(const Kit_Player *player);
 KIT_API int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den);
 
 /**
+ * @brief Closes a stream for specified stream type.
+ *
+ * @param player Player instance
+ * @param type Stream to close
+ * @return 0 on success, 1 on failure.
+ */
+KIT_API int Kit_ClosePlayerStream(Kit_Player *player, Kit_StreamType type);
+
+/**
  * @brief Selects stream index for specified stream type.
  *
  * This allows switching streams during or outside playback. If stream switching fails for some reason,
- * -1 will be returned and old stream will continue to be used.
+ * 1 will be returned and old stream will continue to be used.
+ *
+ * Setting index to -1 will close the stream completely.
  *
  * @param player Player instance
  * @param type Stream to switch
  * @param index Index to use (list can be queried from the source)
  * @return 0 on success, 1 on failure.
  */
-KIT_API int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index);
+KIT_API int Kit_SetPlayerStream(Kit_Player *player, Kit_StreamType type, int index);
 
 /**
  * @brief Returns the current index of the specified stream type
@@ -529,7 +540,7 @@ KIT_API int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, i
  * @param type Stream to check
  * @return Stream index or -1 on error or if stream is not set
  */
-KIT_API int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type);
+KIT_API int Kit_GetPlayerStream(const Kit_Player *player, Kit_StreamType type);
 
 #ifdef __cplusplus
 }
