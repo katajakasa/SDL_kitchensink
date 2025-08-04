@@ -557,8 +557,10 @@ void Kit_PlayerPause(Kit_Player *player) {
 
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
-    if(player->state == KIT_STOPPED || player->state == KIT_CLOSED)
+    if(player->state == KIT_STOPPED || player->state == KIT_CLOSED) {
+        Kit_SetError("Player is closed");
         return 1;
+    }
     const double duration = Kit_GetPlayerDuration(player);
     if(seek_set <= 0)
         seek_set = 0;
@@ -641,6 +643,7 @@ int Kit_ClosePlayerStream(Kit_Player *player, const Kit_StreamType type) {
             buffer_index = KIT_SUBTITLE_INDEX;
             break;
         default:
+            Kit_SetError("Unknown stream type");
             return 1;
     }
 
@@ -715,6 +718,7 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
                 goto error_1;
             break;
         default:
+            Kit_SetError("Unknown stream type");
             return 1;
     }
 
@@ -735,6 +739,7 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
     return 0;
 
 error_1:
+    Kit_SetError("Failed to initialize decoder");
     Kit_CloseDecoder(&new_decoder);
     Kit_CloseDecoderThread(&new_thread);
     return 1;
