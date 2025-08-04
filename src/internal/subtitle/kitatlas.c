@@ -1,12 +1,7 @@
 #include <assert.h>
 
 #include "kitchensink/internal/subtitle/kitatlas.h"
-
-static int Kit_min(int a, int b) {
-    if(a < b)
-        return a;
-    return b;
-}
+#include "kitchensink/internal/utils/kithelpers.h"
 
 Kit_TextureAtlas *Kit_CreateAtlas() {
     Kit_TextureAtlas *atlas = calloc(1, sizeof(Kit_TextureAtlas));

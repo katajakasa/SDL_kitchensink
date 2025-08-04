@@ -31,6 +31,14 @@ bool Kit_StreamIsFontAttachment(const AVStream *stream) {
     return false;
 }
 
-int min2(int a, int b) {
+int Kit_max(int a, int b) {
+    return a > b ? a : b;
+}
+
+int Kit_min(int a, int b) {
     return a < b ? a : b;
+}
+
+int Kit_clamp(int v, int min, int max) {
+    return Kit_max(Kit_min(v, max), min);
 }

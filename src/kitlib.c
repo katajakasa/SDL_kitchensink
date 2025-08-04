@@ -6,17 +6,11 @@
 #include "libavcodec/avcodec.h"
 #include <libavformat/avformat.h>
 
+#include "kitchensink/internal/utils/kithelpers.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/kitchensink.h"
 
 static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {
-}
-
-static int Kit_max(int a, int b) {
-    return a > b ? a : b;
-}
-static int Kit_min(int a, int b) {
-    return a < b ? a : b;
 }
 
 int Kit_InitASS(Kit_LibraryState *state) {

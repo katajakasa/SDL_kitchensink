@@ -85,7 +85,7 @@ static int get_limit(Kit_AudioDecoder *audio_decoder) {
     size_t size = Kit_GetPacketBufferLength(audio_decoder->buffer);
     if(size < 16)
         return 0;
-    return pow(2, min2(size - 8, 13));
+    return pow(2, Kit_min(size - 8, 13));
 }
 
 /**
@@ -406,7 +406,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     return ret;
 
 no_data:
-    len = min2(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
+    len = Kit_min(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
     if(backend_buffer_size < len * SAMPLE_BYTES(audio_decoder)) {
         // LOG("[AUDIO] SILENCE due to backend size %ld < %ld\n", backend_buffer_size, len *
         // SAMPLE_BYTES(audio_decoder));
