@@ -14,8 +14,8 @@
 #include "kitchensink/kiterror.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5.0
-#define KIT_AUDIO_EARLY_THRESHOLD 0.015
-#define KIT_AUDIO_LATE_THRESHOLD 0.045
+#define KIT_AUDIO_EARLY_THRESHOLD 0.03
+#define KIT_AUDIO_LATE_THRESHOLD 0.05
 
 #define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
 
