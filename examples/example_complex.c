@@ -331,27 +331,27 @@ int main(int argc, char *argv[]) {
                         current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE);
                         next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_SUBTITLE, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE, next_index) != 0) {
-                            fprintf(stderr, "Failed to set subtitle stream %d: %s\n", next_index, Kit_GetError());
+                            fprintf(stderr, "\33[2K\rFailed to set subtitle stream %d: %s\n", next_index, Kit_GetError());
                         } else {
-                            fprintf(stderr, "Setting subtitle stream %d\n", next_index);
+                            fprintf(stderr, "\33[2K\rSetting subtitle stream %d\n", next_index);
                         }
                         fflush(stderr);
                     } else if(event.key.keysym.sym == SDLK_v) {
                         current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_VIDEO);
                         next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_VIDEO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_VIDEO, next_index) != 0) {
-                            fprintf(stderr, "Failed to set video stream %d: %s\n", next_index, Kit_GetError());
+                            fprintf(stderr, "\33[2K\rFailed to set video stream %d: %s\n", next_index, Kit_GetError());
                         } else {
-                            fprintf(stderr, "Setting video stream %d\n", next_index);
+                            fprintf(stderr, "\33[2K\rSetting video stream %d\n", next_index);
                         }
                         fflush(stderr);
                     } else if(event.key.keysym.sym == SDLK_a) {
                         current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_AUDIO);
                         next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_AUDIO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_AUDIO, next_index) != 0) {
-                            fprintf(stderr, "Failed to set audio stream %d: %s\n", next_index, Kit_GetError());
+                            fprintf(stderr, "\33[2K\rFailed to set audio stream %d: %s\n", next_index, Kit_GetError());
                         } else {
-                            fprintf(stderr, "Setting audio stream %d\n", next_index);
+                            fprintf(stderr, "\33[2K\rSetting audio stream %d\n", next_index);
                             Kit_GetPlayerInfo(player, &player_info);
                             SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
                             wanted_spec.freq = player_info.audio_format.sample_rate;
