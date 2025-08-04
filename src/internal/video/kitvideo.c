@@ -144,10 +144,7 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateVideoDecoder(
-    const Kit_Source *src,
-    const Kit_VideoFormatRequest *format_request,
-    Kit_Timer *sync_timer,
-    const int stream_index
+    const Kit_Source *src, const Kit_VideoFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
 ) {
     assert(src != NULL);
 
@@ -296,7 +293,7 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
     // If packet is far too early, the stream jumped or was seeked.
-    if (Kit_IsTimerPrimary(decoder->sync_timer)) {
+    if(Kit_IsTimerPrimary(decoder->sync_timer)) {
         // If this stream is the sync source, then reset this as the new sync timestamp.
         if(pts > sync_ts + KIT_VIDEO_EARLY_FAIL) {
             // LOG("[VIDEO] NO SYNC pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_FAIL);
@@ -316,7 +313,7 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
 
     // Packet is too early, wait.
     if(pts > sync_ts + KIT_VIDEO_EARLY_THRESHOLD) {
-        //LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
+        // LOG("[VIDEO] EARLY pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_VIDEO_EARLY_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_CancelPacketBufferRead(video_decoder->buffer);
         return false;
@@ -324,7 +321,7 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
 
     // Packet is too late, skip packets until we see something reasonable.
     while(pts < sync_ts - KIT_VIDEO_LATE_THRESHOLD) {
-        //LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
+        // LOG("[VIDEO] LATE: pts = %lf < %lf + %lf\n", pts, sync_ts, KIT_VIDEO_LATE_THRESHOLD);
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))

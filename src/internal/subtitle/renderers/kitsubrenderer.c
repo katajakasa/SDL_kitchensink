@@ -59,7 +59,9 @@ int Kit_GetSubtitleRendererSDLTexture(
     return 0;
 }
 
-int Kit_GetSubtitleRendererRawFrames(Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts) {
+int Kit_GetSubtitleRendererRawFrames(
+    Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts
+) {
     if(renderer == NULL)
         return 0;
     if(renderer->get_raw_frames_cb != NULL)

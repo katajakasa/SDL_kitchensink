@@ -10,7 +10,8 @@ static const char *const font_mime[] = {
     "application/x-font-opentype",
     "application/vnd.ms-opentype",
     "application/font-sfnt",
-    NULL};
+    NULL
+};
 
 double Kit_GetSystemTime() {
     return (double)av_gettime() / 1000000.0;

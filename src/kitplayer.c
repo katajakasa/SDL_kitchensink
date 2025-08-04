@@ -177,14 +177,28 @@ Kit_Player *Kit_CreatePlayer(
         goto exit_3;
     if(audio_stream_index > -1) {
         if(!Kit_InitializeAudioDecoder(
-               src, timer, demux_thread, &tmp_audio_format_request, audio_primary, audio_stream_index, &audio_decoder, &audio_thread
+               src,
+               timer,
+               demux_thread,
+               &tmp_audio_format_request,
+               audio_primary,
+               audio_stream_index,
+               &audio_decoder,
+               &audio_thread
            )) {
             goto exit_4;
         }
     }
     if(video_stream_index > -1) {
         if(!Kit_InitializeVideoDecoder(
-               src, timer, demux_thread, &tmp_video_format_request, video_primary, video_stream_index, &video_decoder, &video_thread
+               src,
+               timer,
+               demux_thread,
+               &tmp_video_format_request,
+               video_primary,
+               video_stream_index,
+               &video_decoder,
+               &video_thread
            )) {
             goto exit_5;
         }
@@ -401,7 +415,9 @@ void Kit_UnlockPlayerVideoRawFrame(const Kit_Player *player) {
     Kit_UnlockVideoDecoderRaw(player->decoders[KIT_VIDEO_INDEX]);
 }
 
-int Kit_GetPlayerAudioData(const Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length) {
+int Kit_GetPlayerAudioData(
+    const Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length
+) {
     assert(player != NULL);
     assert(buffer != NULL);
     if(player->decoders[KIT_AUDIO_INDEX] == NULL)
@@ -433,13 +449,17 @@ int Kit_GetPlayerSubtitleSDLTexture(
     return Kit_GetSubtitleDecoderSDLTextureInfo(sub_dec, sources, targets, limit);
 }
 
-int Kit_GetPlayerSubtitleRawFrames(const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets) {
+int Kit_GetPlayerSubtitleRawFrames(
+    const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets
+) {
     assert(player != NULL);
     if(player->decoders[KIT_SUBTITLE_INDEX] == NULL)
         return 0;
     if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
         return 0;
-    return Kit_GetSubtitleDecoderRawFrames(player->decoders[KIT_SUBTITLE_INDEX], items, sources, targets, Kit_GetTimerElapsed(player->sync_timer));
+    return Kit_GetSubtitleDecoderRawFrames(
+        player->decoders[KIT_SUBTITLE_INDEX], items, sources, targets, Kit_GetTimerElapsed(player->sync_timer)
+    );
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {

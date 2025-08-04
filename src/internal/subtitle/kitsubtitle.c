@@ -230,7 +230,9 @@ int Kit_GetSubtitleDecoderSDLTextureInfo(const Kit_Decoder *dec, SDL_Rect *sourc
     return Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
 }
 
-int Kit_GetSubtitleDecoderRawFrames(const Kit_Decoder *dec, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets, double sync_ts) {
+int Kit_GetSubtitleDecoderRawFrames(
+    const Kit_Decoder *dec, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets, double sync_ts
+) {
     Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     return Kit_GetSubtitleRendererRawFrames(subtitle_dec->renderer, items, sources, targets, sync_ts);
 }

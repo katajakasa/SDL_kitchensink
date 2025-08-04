@@ -23,12 +23,12 @@ typedef void (*renderer_close_cb)(Kit_SubtitleRenderer *ren);
 struct Kit_SubtitleRenderer {
     Kit_Decoder *decoder;
     void *userdata;
-    renderer_render_cb render_cb;     ///< Subtitle rendering function callback
-    renderer_get_data_cb get_data_cb; ///< Subtitle data getter function callback
-    renderer_set_size_cb set_size_cb; ///< Screen size setter function callback
-    renderer_flush_cb flush_cb;       ///< Flush subtitle renderer buffers
-    renderer_signal_cb signal_cb;     ///< Shutdown signal handler function callback
-    renderer_close_cb close_cb;       ///< Subtitle renderer close function callback
+    renderer_render_cb render_cb;                 ///< Subtitle rendering function callback
+    renderer_get_data_cb get_data_cb;             ///< Subtitle data getter function callback
+    renderer_set_size_cb set_size_cb;             ///< Screen size setter function callback
+    renderer_flush_cb flush_cb;                   ///< Flush subtitle renderer buffers
+    renderer_signal_cb signal_cb;                 ///< Shutdown signal handler function callback
+    renderer_close_cb close_cb;                   ///< Subtitle renderer close function callback
     renderer_get_raw_frames_cb get_raw_frames_cb; ///< Get raw frames function callback
 };
 

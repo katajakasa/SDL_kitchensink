@@ -182,10 +182,7 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateAudioDecoder(
-    const Kit_Source *src,
-    const Kit_AudioFormatRequest *format_request,
-    Kit_Timer *sync_timer,
-    const int stream_index
+    const Kit_Source *src, const Kit_AudioFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
 ) {
     assert(src != NULL);
 
@@ -255,11 +252,16 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     }
 
     memset(&output, 0, sizeof(Kit_AudioOutputFormat));
-    output.sample_rate = (format_request->sample_rate > -1) ? format_request->sample_rate : decoder->codec_ctx->sample_rate;
-    output.channels = (format_request->channels > -1) ? format_request->channels : Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
-    output.bytes = (format_request->bytes > -1) ? format_request->bytes : Kit_FindBytes(decoder->codec_ctx->sample_fmt);
-    output.is_signed = (format_request->is_signed > -1) ? format_request->is_signed : Kit_FindSignedness(decoder->codec_ctx->sample_fmt);
-    output.format = (format_request->format != 0) ? format_request->format : Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
+    output.sample_rate =
+        (format_request->sample_rate > -1) ? format_request->sample_rate : decoder->codec_ctx->sample_rate;
+    output.channels = (format_request->channels > -1) ? format_request->channels
+                                                      : Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
+    output.bytes =
+        (format_request->bytes > -1) ? format_request->bytes : Kit_FindBytes(decoder->codec_ctx->sample_fmt);
+    output.is_signed = (format_request->is_signed > -1) ? format_request->is_signed
+                                                        : Kit_FindSignedness(decoder->codec_ctx->sample_fmt);
+    output.format = (format_request->format != 0) ? format_request->format
+                                                  : Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
 
     Kit_FindAVChannelLayout(output.channels, &out_layout);
     if(swr_alloc_set_opts2(
@@ -346,7 +348,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
 
     // If packet is far too early, the stream jumped or was seeked.
-    if (Kit_IsTimerPrimary(decoder->sync_timer)) {
+    if(Kit_IsTimerPrimary(decoder->sync_timer)) {
         // If this stream is the sync source, then reset this as the new sync timestamp.
         if(pts > sync_ts + KIT_AUDIO_EARLY_FAIL) {
             // LOG("[AUDIO] NO SYNC pts = %lf > %lf + %lf\n", pts, sync_ts, KIT_AUDIO_EARLY_FAIL);
@@ -406,7 +408,8 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 no_data:
     len = min2(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
     if(backend_buffer_size < len * SAMPLE_BYTES(audio_decoder)) {
-        // LOG("[AUDIO] SILENCE due to backend size %ld < %ld\n", backend_buffer_size, len * SAMPLE_BYTES(audio_decoder));
+        // LOG("[AUDIO] SILENCE due to backend size %ld < %ld\n", backend_buffer_size, len *
+        // SAMPLE_BYTES(audio_decoder));
         av_samples_set_silence(
             &buf, 0, len, audio_decoder->output.channels, Kit_FindAVSampleFormat(audio_decoder->output.format)
         );

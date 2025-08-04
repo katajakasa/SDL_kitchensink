@@ -122,10 +122,14 @@ static bool Kit_ProcessPacketToCache(Kit_ImageSubtitleRenderer *image_renderer, 
         const unsigned int index = image_renderer->cached_items_size;
         image_renderer->cached_items_size++;
 
-        image_renderer->cached_items = realloc(image_renderer->cached_items, image_renderer->cached_items_size * sizeof(unsigned char *));
-        image_renderer->cached_surfaces = realloc(image_renderer->cached_surfaces, image_renderer->cached_items_size * sizeof(SDL_Surface *));
-        image_renderer->cached_dst_rects = realloc(image_renderer->cached_dst_rects, image_renderer->cached_items_size * sizeof(SDL_Rect));
-        image_renderer->cached_src_rects = realloc(image_renderer->cached_src_rects, image_renderer->cached_items_size * sizeof(SDL_Rect));
+        image_renderer->cached_items =
+            realloc(image_renderer->cached_items, image_renderer->cached_items_size * sizeof(unsigned char *));
+        image_renderer->cached_surfaces =
+            realloc(image_renderer->cached_surfaces, image_renderer->cached_items_size * sizeof(SDL_Surface *));
+        image_renderer->cached_dst_rects =
+            realloc(image_renderer->cached_dst_rects, image_renderer->cached_items_size * sizeof(SDL_Rect));
+        image_renderer->cached_src_rects =
+            realloc(image_renderer->cached_src_rects, image_renderer->cached_items_size * sizeof(SDL_Rect));
 
         image_renderer->cached_surfaces[index] = image_renderer->out_packet->surface;
         image_renderer->cached_items[index] = image_renderer->out_packet->surface->pixels;

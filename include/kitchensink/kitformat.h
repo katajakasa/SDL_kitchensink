@@ -40,10 +40,11 @@ typedef enum
  * Note that any requests here will cause software conversion, which may be slow!
  */
 typedef struct Kit_VideoFormatRequest {
-    unsigned int hw_device_types; ///< Bitmap of allowed hardware acceleration types. Defaults to KIT_HWDEVICE_TYPE_ALL.
+    unsigned int
+        hw_device_types; ///< Bitmap of allowed hardware acceleration types. Defaults to KIT_HWDEVICE_TYPE_ALL.
     unsigned int format; ///< Requested surface format. Defaults to SDL_PIXELFORMAT_UNKNOWN (allow any).
-    int width; ///< Requested width in pixels. Defaults to -1 (no change).
-    int height; ///< Requested height in pixels. Defaults to -1 (no change).
+    int width;           ///< Requested width in pixels. Defaults to -1 (no change).
+    int height;          ///< Requested height in pixels. Defaults to -1 (no change).
 } Kit_VideoFormatRequest;
 
 /**

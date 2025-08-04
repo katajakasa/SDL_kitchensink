@@ -290,7 +290,8 @@ KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *
  * @param area Rendered video surface area or NULL
  * @return 0 on success, 1 on error
  */
-KIT_API int Kit_LockPlayerVideoRawFrame(const Kit_Player *player, unsigned char ***data, int **line_size, SDL_Rect *area);
+KIT_API int
+Kit_LockPlayerVideoRawFrame(const Kit_Player *player, unsigned char ***data, int **line_size, SDL_Rect *area);
 
 /**
  * @brief Unlocks the player video output.
@@ -338,14 +339,15 @@ KIT_API void Kit_UnlockPlayerVideoRawFrame(const Kit_Player *player);
  * @param limit Defines the maximum size of your rectangle lists
  * @return Number of sources or <0 on error
  */
-KIT_API int
-Kit_GetPlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
+KIT_API int Kit_GetPlayerSubtitleSDLTexture(
+    const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit
+);
 
 /**
  * @brief Fetches raw subtitle frames from the player
  *
- * When called, this function will set the pointers for the items and targets lists of frame data and target rectangles.
- * The pointers will be valid until the next time this function is called OR until the player is closed.
+ * When called, this function will set the pointers for the items and targets lists of frame data and target
+ * rectangles. The pointers will be valid until the next time this function is called OR until the player is closed.
  *
  * Each source rectangle represents the size of the source data, and each target rectangle will have the width
  * and height of the final subtitle block, and the x and y coordinates of where it should be rendered.
@@ -373,7 +375,9 @@ Kit_GetPlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Texture *texture, 
  * @param targets List of target rectangles to render
  * @return Number of sources or <0 on error
  */
-KIT_API int Kit_GetPlayerSubtitleRawFrames(const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets);
+KIT_API int Kit_GetPlayerSubtitleRawFrames(
+    const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets
+);
 
 /**
  * @brief Fetches audio data from the player
