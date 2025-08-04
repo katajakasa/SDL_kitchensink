@@ -9,6 +9,7 @@
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/kitlibstate.h"
 #include "kitchensink/internal/utils/kitlog.h"
+#include "kitchensink/internal/video/kitvideoutils.h"
 #include "kitchensink/kiterror.h"
 
 /**
@@ -66,12 +67,19 @@ exit_0:
  * we can actually deal with or convert.
  */
 static AVBufferRef *Kit_FindHardwareDecoder(
-    const AVCodec *codec, unsigned int w, unsigned int h, enum AVHWDeviceType *type, enum AVPixelFormat *hw_fmt
+    const AVCodec *codec,
+    unsigned int hw_device_types,
+    unsigned int w,
+    unsigned int h,
+    enum AVHWDeviceType *type,
+    enum AVPixelFormat *hw_fmt
 ) {
     const AVCodecHWConfig *config;
-    AVBufferRef *hw_device_ctx;
+
     for(int index = 0; (config = avcodec_get_hw_config(codec, index)) != NULL; index++) {
-        if((hw_device_ctx = Kit_TestHWDevice(config, w, h)) != NULL) {
+        Kit_HardwareDeviceType kit_type = Kit_FindHWDeviceType(config->device_type);
+        AVBufferRef *hw_device_ctx = Kit_TestHWDevice(config, w, h);
+        if(hw_device_types & kit_type && hw_device_ctx != NULL) {
             *type = config->device_type;
             *hw_fmt = config->pix_fmt;
             return hw_device_ctx;
@@ -155,7 +163,8 @@ Kit_Decoder *Kit_CreateDecoder(
     // Try to initialize the hardware decoder for this codec.
     bool is_hw_enabled = Kit_GetLibraryState()->init_flags & KIT_INIT_HW_DECODE;
     if(is_hw_enabled) {
-        hw_device_ctx = Kit_FindHardwareDecoder(codec, codec_ctx->width, codec_ctx->height, &hw_type, &hw_fmt);
+        hw_device_ctx =
+            Kit_FindHardwareDecoder(codec, hw_device_types, codec_ctx->width, codec_ctx->height, &hw_type, &hw_fmt);
         if(hw_device_ctx != NULL) {
             codec_ctx->get_format = Kit_GetHardwarePixelFormat;
             codec_ctx->hw_device_ctx = hw_device_ctx;

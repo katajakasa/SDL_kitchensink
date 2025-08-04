@@ -43,16 +43,14 @@ static bool Kit_InitializeAudioDecoder(
     if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
         goto exit_0;
     if((*decoder = Kit_CreateAudioDecoder(src, format_request, timer, stream_index)) == NULL)
-        goto exit_1;
+        goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
-        goto exit_2;
+        goto exit_1;
 
     return true;
 
-exit_2:
-    Kit_CloseDecoder(decoder);
 exit_1:
-    Kit_CloseTimer(&timer);
+    Kit_CloseDecoder(decoder);
 exit_0:
     return false;
 }
@@ -75,16 +73,14 @@ static bool Kit_InitializeVideoDecoder(
     if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
         goto exit_0;
     if((*decoder = Kit_CreateVideoDecoder(src, format_request, timer, stream_index)) == NULL)
-        goto exit_1;
+        goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
-        goto exit_2;
+        goto exit_1;
 
     return true;
 
-exit_2:
-    Kit_CloseDecoder(decoder);
 exit_1:
-    Kit_CloseTimer(&timer);
+    Kit_CloseDecoder(decoder);
 exit_0:
     return false;
 }
@@ -118,7 +114,7 @@ static bool Kit_InitializeSubtitleDecoder(
     return true;
 
 exit_1:
-    Kit_CloseDecoder(decoder); // This will also free the timer.
+    Kit_CloseDecoder(decoder);
 exit_0:
     return false;
 }
