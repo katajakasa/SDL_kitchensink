@@ -210,6 +210,8 @@ int main(int argc, char *argv[]) {
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
+        NULL,
+        NULL,
         1280,
         720
     );

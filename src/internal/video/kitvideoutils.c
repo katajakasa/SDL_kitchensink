@@ -20,12 +20,12 @@ static enum AVPixelFormat supported_list[] = {
     AV_PIX_FMT_NONE
 };
 
-enum AVPixelFormat Kit_FindBestAVPixelFormat(enum AVPixelFormat fmt)
+enum AVPixelFormat Kit_FindBestAVPixelFormat(const enum AVPixelFormat fmt)
 {
     return avcodec_find_best_pix_fmt_of_list(supported_list, fmt, 1, NULL);
 }
 
-unsigned int Kit_FindSDLPixelFormat(enum AVPixelFormat fmt) {
+unsigned int Kit_FindSDLPixelFormat(const enum AVPixelFormat fmt) {
     switch(fmt) {
         case AV_PIX_FMT_YUV420P:
             return SDL_PIXELFORMAT_YV12;
@@ -42,7 +42,7 @@ unsigned int Kit_FindSDLPixelFormat(enum AVPixelFormat fmt) {
     }
 }
 
-Kit_HardwareDeviceType Kit_FindHWDeviceType(enum AVHWDeviceType type) {
+Kit_HardwareDeviceType Kit_FindHWDeviceType(const enum AVHWDeviceType type) {
     switch(type) {
         case AV_HWDEVICE_TYPE_NONE:
             return KIT_HWDEVICE_TYPE_NONE;
@@ -69,11 +69,11 @@ Kit_HardwareDeviceType Kit_FindHWDeviceType(enum AVHWDeviceType type) {
         case AV_HWDEVICE_TYPE_VULKAN:
             return KIT_HWDEVICE_TYPE_VULKAN;
         default:
-            return KIT_HWDEVICE_TYPE_UNKNOWN;
+            return KIT_HWDEVICE_TYPE_NONE;
     }
 }
 
-enum AVPixelFormat Kit_FindAVPixelFormat(unsigned int fmt)
+enum AVPixelFormat Kit_FindAVPixelFormat(const unsigned int fmt)
 {
     switch(fmt) {
         case SDL_PIXELFORMAT_YV12:

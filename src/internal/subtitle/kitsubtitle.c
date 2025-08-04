@@ -22,11 +22,9 @@ typedef struct Kit_SubtitleDecoder {
 
 static void dec_read_subtitle(const Kit_Decoder *decoder, int64_t packet_pts) {
     Kit_SubtitleDecoder *subtitle_decoder = decoder->userdata;
-    double pts = 0;
-    double start;
-    double end;
 
     // Start and end presentation timestamps for subtitle frame
+    double pts = 0;
     if(packet_pts != AV_NOPTS_VALUE)
         pts = packet_pts * av_q2d(decoder->stream->time_base);
 
@@ -34,8 +32,8 @@ static void dec_read_subtitle(const Kit_Decoder *decoder, int64_t packet_pts) {
     if(subtitle_decoder->scratch_frame.end_display_time == UINT_MAX)
         subtitle_decoder->scratch_frame.end_display_time = 30000;
 
-    start = subtitle_decoder->scratch_frame.start_display_time / 1000.0F;
-    end = subtitle_decoder->scratch_frame.end_display_time / 1000.0F;
+    const double start = subtitle_decoder->scratch_frame.start_display_time / 1000.0F;
+    const double end = subtitle_decoder->scratch_frame.end_display_time / 1000.0F;
 
     // Create a packet. This should be filled by renderer.
     Kit_RunSubtitleRenderer(subtitle_decoder->renderer, &subtitle_decoder->scratch_frame, pts, start, end);
@@ -149,6 +147,7 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
             stream,
             sync_timer,
             state->thread_count,
+            KIT_HWDEVICE_TYPE_ALL,
             dec_input_subtitle_cb,
             dec_decode_subtitle_cb,
             dec_flush_subtitle_cb,
@@ -218,15 +217,20 @@ void Kit_SetSubtitleDecoderSize(const Kit_Decoder *dec, int screen_w, int screen
     Kit_SetSubtitleRendererSize(subtitle_dec->renderer, screen_w, screen_h);
 }
 
-void Kit_GetSubtitleDecoderTexture(const Kit_Decoder *dec, SDL_Texture *texture, double sync_ts) {
+void Kit_GetSubtitleDecoderSDLTexture(const Kit_Decoder *dec, SDL_Texture *texture, double sync_ts) {
     assert(dec != NULL);
     assert(texture != NULL);
 
     const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
-    Kit_GetSubtitleRendererData(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
+    Kit_GetSubtitleRendererSDLTexture(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
 }
 
-int Kit_GetSubtitleDecoderInfo(const Kit_Decoder *dec, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetSubtitleDecoderSDLTextureInfo(const Kit_Decoder *dec, SDL_Rect *sources, SDL_Rect *targets, int limit) {
     const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     return Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
+}
+
+int Kit_GetSubtitleDecoderRawFrames(const Kit_Decoder *dec, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets, double sync_ts) {
+    Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
+    return Kit_GetSubtitleRendererRawFrames(subtitle_dec->renderer, items, sources, targets, sync_ts);
 }

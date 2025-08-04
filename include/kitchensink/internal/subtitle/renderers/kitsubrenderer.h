@@ -5,13 +5,15 @@
 
 #include "kitchensink/internal/kitdecoder.h"
 #include "kitchensink/internal/subtitle/kitatlas.h"
-#include "kitchensink/kitsource.h"
 
 typedef struct Kit_SubtitleRenderer Kit_SubtitleRenderer;
 
 typedef void (*renderer_render_cb)(Kit_SubtitleRenderer *ren, void *src, double pts, double start, double end);
 typedef int (*renderer_get_data_cb)(
     Kit_SubtitleRenderer *ren, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
+);
+typedef int (*renderer_get_raw_frames_cb)(
+    Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts
 );
 typedef void (*renderer_set_size_cb)(Kit_SubtitleRenderer *ren, int w, int h);
 typedef void (*renderer_flush_cb)(Kit_SubtitleRenderer *ren);
@@ -27,12 +29,14 @@ struct Kit_SubtitleRenderer {
     renderer_flush_cb flush_cb;       ///< Flush subtitle renderer buffers
     renderer_signal_cb signal_cb;     ///< Shutdown signal handler function callback
     renderer_close_cb close_cb;       ///< Subtitle renderer close function callback
+    renderer_get_raw_frames_cb get_raw_frames_cb; ///< Get raw frames function callback
 };
 
 KIT_LOCAL Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     Kit_Decoder *decoder,
     renderer_render_cb render_cb,
     renderer_get_data_cb get_data_cb,
+    renderer_get_raw_frames_cb get_raw_frames_cb,
     renderer_set_size_cb set_size_cb,
     renderer_flush_cb flush_cb,
     renderer_signal_cb signal_cb,
@@ -41,8 +45,11 @@ KIT_LOCAL Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
 );
 KIT_LOCAL void
 Kit_RunSubtitleRenderer(Kit_SubtitleRenderer *renderer, void *src, double pts, double start, double end);
-KIT_LOCAL int Kit_GetSubtitleRendererData(
+KIT_LOCAL int Kit_GetSubtitleRendererSDLTexture(
     Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
+);
+KIT_LOCAL int Kit_GetSubtitleRendererRawFrames(
+    Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts
 );
 KIT_LOCAL void Kit_SetSubtitleRendererSize(Kit_SubtitleRenderer *renderer, int w, int h);
 KIT_LOCAL void Kit_FlushSubtitleRendererBuffers(Kit_SubtitleRenderer *renderer);

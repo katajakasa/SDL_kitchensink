@@ -50,6 +50,7 @@ KIT_LOCAL Kit_Decoder *Kit_CreateDecoder(
     AVStream *stream,
     Kit_Timer *sync_timer,
     int thread_count,
+    unsigned int hw_device_types,
     dec_input_cb dec_input,
     dec_decode_cb dec_decode,
     dec_flush_cb dec_flush,

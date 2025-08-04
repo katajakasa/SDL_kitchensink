@@ -181,7 +181,12 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
     free(audio_dec);
 }
 
-Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer, int stream_index) {
+Kit_Decoder *Kit_CreateAudioDecoder(
+    const Kit_Source *src,
+    const Kit_AudioFormatRequest *format_request,
+    Kit_Timer *sync_timer,
+    const int stream_index
+) {
     assert(src != NULL);
 
     const Kit_LibraryState *state = Kit_GetLibraryState();
@@ -213,6 +218,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
             stream,
             sync_timer,
             state->thread_count,
+            KIT_HWDEVICE_TYPE_ALL,
             dec_input_audio_cb,
             dec_decode_audio_cb,
             dec_flush_audio_cb,
@@ -249,11 +255,11 @@ Kit_Decoder *Kit_CreateAudioDecoder(const Kit_Source *src, Kit_Timer *sync_timer
     }
 
     memset(&output, 0, sizeof(Kit_AudioOutputFormat));
-    output.sample_rate = decoder->codec_ctx->sample_rate;
-    output.channels = Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
-    output.bytes = Kit_FindBytes(decoder->codec_ctx->sample_fmt);
-    output.is_signed = Kit_FindSignedness(decoder->codec_ctx->sample_fmt);
-    output.format = Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
+    output.sample_rate = (format_request->sample_rate > -1) ? format_request->sample_rate : decoder->codec_ctx->sample_rate;
+    output.channels = (format_request->channels > -1) ? format_request->channels : Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
+    output.bytes = (format_request->bytes > -1) ? format_request->bytes : Kit_FindBytes(decoder->codec_ctx->sample_fmt);
+    output.is_signed = (format_request->is_signed > -1) ? format_request->is_signed : Kit_FindSignedness(decoder->codec_ctx->sample_fmt);
+    output.format = (format_request->format != 0) ? format_request->format : Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
 
     Kit_FindAVChannelLayout(output.channels, &out_layout);
     if(swr_alloc_set_opts2(
@@ -327,7 +333,7 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
         goto no_data;
 
-    // Initialize timer if this is the primary sync source and it's not yet initialized.
+    // Initialize timer if it's the primary sync source, and it's not yet initialized.
     Kit_InitTimerBase(decoder->sync_timer);
     if(!Kit_IsTimerInitialized(decoder->sync_timer)) {
         // If this was not the sync source and timer is not set, wait for another stream to set it.

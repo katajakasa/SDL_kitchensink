@@ -56,6 +56,12 @@ typedef struct Kit_PlayerInfo {
  * and it must not be used by any other player. Source must stay valid during the whole
  * playback (as in, don't close it while stuff is playing).
  *
+ * It is possible to request for audio and video format conversions to be done automatically by
+ * supplying requests via video_format_request and audio_format_request arguments. Conversions
+ * are done on software, so they WILL add some cpu load! If you don't care what the output format is,
+ * then just leave these to NULL, or feed the request objects but reset them to defaults with
+ * Kit_ResetVideoFormatRequest() and Kit_ResetAudioFormatRequest().
+ *'
  * Screen width and height are used for subtitle positioning, scaling and rendering resolution.
  * Ideally this should be precisely the size of your screen surface (in pixels).
  * Higher resolution leads to higher resolution text rendering. This MUST be set precisely
@@ -74,11 +80,16 @@ typedef struct Kit_PlayerInfo {
  *
  * For example:
  * ```
+ * Kit_VideoFormatRequest v_req;
+ * Kit_ResetVideoFormatRequest(&v_req);
+ * v_req.hw_device_types = KIT_HWDEVICE_TYPE_VAAPI | KIT_HWDEVICE_TYPE_VDPAU;
+ *
  * Kit_Player *player = Kit_CreatePlayer(
  *     src,
  *     Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
  *     Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
  *     Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
+ *     &v_req, NULL,
  *     1280, 720);
  * if(player == NULL) {
  *     fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
@@ -90,6 +101,8 @@ typedef struct Kit_PlayerInfo {
  * @param video_stream_index Video stream index or -1 if not wanted
  * @param audio_stream_index Audio stream index or -1 if not wanted
  * @param subtitle_stream_index Subtitle stream index or -1 if not wanted
+ * @param video_format_request Video format request object or NULL.
+ * @param audio_format_request Audio format request object or NULL.
  * @param screen_w Screen width in pixels
  * @param screen_h Screen height in pixels
  * @return Ínitialized Kit_Player or NULL
@@ -99,6 +112,8 @@ KIT_API Kit_Player *Kit_CreatePlayer(
     int video_stream_index,
     int audio_stream_index,
     int subtitle_stream_index,
+    const Kit_VideoFormatRequest *video_format_request,
+    const Kit_AudioFormatRequest *audio_format_request,
     int screen_w,
     int screen_h
 );
@@ -234,7 +249,58 @@ KIT_API void Kit_GetPlayerSubtitleBufferState(
  * @param area Rendered video surface area or NULL.
  * @return 0 on success, 1 on error
  */
-KIT_API int Kit_GetPlayerVideoSDLTexture(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
+KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
+
+/**
+ * @brief Locks the player video output for reading.
+ *
+ * This is used with Kit_UnlockPlayerVideoRawFrame() to fetch raw video frames from the player.
+ *
+ * When this function is called, the video decoder checks if there are frames available and if frame read
+ * happens in sync. If both conditions succeed, then data, line_size and area pointers are filled and the function
+ * returns 0. If either of the conditions fail, this function will return 1. Note that if this function succeeds,
+ * then Kit_UnlockPlayerVideoRawFrame() must be called to clean up!
+ *
+ * Note that data and line_size pointer values depend on what sort of video data you are fetching.
+ * Data contains an array of pointers of the actual pixel data, while line_size contains the widths
+ * of the picture rows in bytes. If the output is RGB data, then only data[0] and line_size[0] are set.
+ * If the output is YUV, then each component is split into the three first indexes (data[0] to data[2],
+ * line_size[0] to line_size[2]). The line_size and data pointers match the ffmpeg AVFrame fields exactly,
+ * so you can refer to ffmpeg documentation here.
+ *
+ * Area argument can be given to acquire the current video frame content area. Note that this may change
+ * if you have video that changes frame size on the fly. If you don't care, feed it NULL.
+ *
+ * This function will do nothing if player playback has not been started.
+ *
+ * For example:
+ * ```
+ * unsigned char **data;
+ * int *line_size;
+ * SDL_Rect rect;
+ * if(Kit_LockPlayerVideoRaw(player, &data, &line_size, &rect) == 0) {
+ *     // Do something with the data here.
+ *     Kit_UnlockPlayerVideoRaw(player);
+ * }
+ * ```
+ *
+ * @param player Player instance
+ * @param data Video data pointers or NULL
+ * @param line_size Video data line size pointers or NULL.
+ * @param area Rendered video surface area or NULL
+ * @return 0 on success, 1 on error
+ */
+KIT_API int Kit_LockPlayerVideoRawFrame(const Kit_Player *player, unsigned char ***data, int **line_size, SDL_Rect *area);
+
+/**
+ * @brief Unlocks the player video output.
+ *
+ * This is used with Kit_LockPlayerVideoRawFrame() to fetch raw video frames from the player. This function must be
+ * called after you are done with the data pointers.
+ *
+ * @param player Player instance
+ */
+KIT_API void Kit_UnlockPlayerVideoRawFrame(const Kit_Player *player);
 
 /**
  * @brief Fetches subtitle data from the player
@@ -273,7 +339,41 @@ KIT_API int Kit_GetPlayerVideoSDLTexture(Kit_Player *player, SDL_Texture *textur
  * @return Number of sources or <0 on error
  */
 KIT_API int
-Kit_GetPlayerSubtitleSDLTexture(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
+Kit_GetPlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit);
+
+/**
+ * @brief Fetches raw subtitle frames from the player
+ *
+ * When called, this function will set the pointers for the items and targets lists of frame data and target rectangles.
+ * The pointers will be valid until the next time this function is called OR until the player is closed.
+ *
+ * Each source rectangle represents the size of the source data, and each target rectangle will have the width
+ * and height of the final subtitle block, and the x and y coordinates of where it should be rendered.
+ * Note that you may need to scale from source size to target size when rendering!
+ *
+ * This function will do nothing if player playback has not been started.
+ *
+ * Output frames will always be in RGBA8888 format!
+ *
+ * For example:
+ * ```
+ * unsigned char **subtitle_data;
+ * SDL_Rect *subtitle_rects;
+ * int subtitle_frames = Kit_GetPlayerSubtitleRawFrames(player, &subtitle_data, &subtitle_rects);
+ * for (int i = 0; i < subtitle_frames; i++) {
+ *     unsigned char *data = subtitle_data[i];
+ *     SDL_Rect *dst_rect = &subtitle_rects[i];
+ *     // Do something with the data
+ * }
+ * ```
+ *
+ * @param player Player instance
+ * @param items Subtitle frame RGBA8888 item pointers
+ * @param sources List of source rectangles to render
+ * @param targets List of target rectangles to render
+ * @return Number of sources or <0 on error
+ */
+KIT_API int Kit_GetPlayerSubtitleRawFrames(const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets);
 
 /**
  * @brief Fetches audio data from the player
@@ -297,7 +397,7 @@ Kit_GetPlayerSubtitleSDLTexture(Kit_Player *player, SDL_Texture *texture, SDL_Re
  * @return Amount of data that was read, <0 on error.
  */
 KIT_API int
-Kit_GetPlayerAudioData(Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length);
+Kit_GetPlayerAudioData(const Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length);
 
 /**
  * @brief Fetches information about the currently selected streams

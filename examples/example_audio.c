@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Create the player. No video, pick best audio stream, no subtitles, no screen
-    player = Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, 0, 0);
+    player = Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, NULL, 0, 0);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;

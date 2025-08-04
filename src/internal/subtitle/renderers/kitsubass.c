@@ -13,29 +13,29 @@ typedef struct Kit_ASSSubtitleRenderer {
     ASS_Renderer *renderer;
     ASS_Track *track;
     SDL_mutex *decoder_lock;
+    unsigned char **cached_items;
+    SDL_Rect *cached_dst_rects;
+    SDL_Rect *cached_src_rects;
+    unsigned int cached_items_size;
 } Kit_ASSSubtitleRenderer;
 
-static void Kit_ProcessAssImage(const SDL_Surface *surface, const ASS_Image *img) {
+static void Kit_ProcessAssImage(unsigned char *dst, const ASS_Image *img, int pitch) {
     const unsigned char r = ((img->color) >> 24) & 0xFF;
     const unsigned char g = ((img->color) >> 16) & 0xFF;
     const unsigned char b = ((img->color) >> 8) & 0xFF;
     const unsigned char a = 0xFF - ((img->color) & 0xFF);
     const unsigned char *src = img->bitmap;
-    unsigned char *dst = surface->pixels;
-    unsigned int x;
-    unsigned int y;
-    unsigned int rx;
 
-    for(y = 0; y < img->h; y++) {
-        for(x = 0; x < img->w; x++) {
-            rx = x * 4;
+    for(unsigned int y = 0; y < img->h; y++) {
+        for(unsigned int x = 0; x < img->w; x++) {
+            const unsigned int rx = x * 4;
             dst[rx + 0] = r;
             dst[rx + 1] = g;
             dst[rx + 2] = b;
             dst[rx + 3] = (a * src[x]) >> 8;
         }
         src += img->stride;
-        dst += surface->pitch;
+        dst += pitch;
     }
 }
 
@@ -48,8 +48,8 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *renderer, void *src, double 
 
     // Read incoming subtitle packets to libASS
     SDL_LockMutex(ass_renderer->decoder_lock);
-    long long start_ms = (start + pts) * 1000;
-    long long end_ms = end * 1000;
+    const long long start_ms = (start + pts) * 1000;
+    const long long end_ms = end * 1000;
     for(int r = 0; r < sub->num_rects; r++) {
         if(sub->rects[r]->ass == NULL)
             continue;
@@ -67,31 +67,45 @@ static void ren_close_ass_cb(Kit_SubtitleRenderer *renderer) {
     ass_free_track(ass_renderer->track);
     ass_renderer_done(ass_renderer->renderer);
     SDL_DestroyMutex(ass_renderer->decoder_lock);
+    for(unsigned int i = 0; i < ass_renderer->cached_items_size; i++) {
+        free(ass_renderer->cached_items[i]);
+    }
+    free(ass_renderer->cached_items);
+    free(ass_renderer->cached_dst_rects);
+    free(ass_renderer->cached_src_rects);
     free(ass_renderer);
+}
+
+static ASS_Image *Kit_BeginReadFrames(const Kit_SubtitleRenderer *renderer, const double current_pts) {
+    const Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
+    int change = 0;
+    const long long now = current_pts * 1000;
+
+    // Tell ASS to render some images
+    SDL_LockMutex(ass_renderer->decoder_lock);
+    ASS_Image *src = ass_render_frame(ass_renderer->renderer, ass_renderer->track, now, &change);
+    SDL_UnlockMutex(ass_renderer->decoder_lock);
+    if(change == 0) {
+        return NULL;
+    }
+    return src;
 }
 
 static int ren_get_ass_data_cb(
     Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
 ) {
-    const Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
-    SDL_Surface *dst = NULL;
-    int dst_w = 0;
-    int dst_h = 0;
-    const ASS_Image *src = NULL;
-    int change = 0;
-    long long now = current_pts * 1000;
-
-    // Tell ASS to render some images
-    SDL_LockMutex(ass_renderer->decoder_lock);
-    src = ass_render_frame(ass_renderer->renderer, ass_renderer->track, now, &change);
-    SDL_UnlockMutex(ass_renderer->decoder_lock);
-    if(change == 0) {
+    const ASS_Image *src = Kit_BeginReadFrames(renderer, current_pts);
+    if(src == NULL) {
         return 0;
     }
 
-    // There was some change, process images and add them to atlas
+    // There was some change, clear old atlas and check it's the same size as texture.
     Kit_ClearAtlasContent(atlas);
     Kit_CheckAtlasTextureSize(atlas, texture);
+
+    // Process images and add them to atlas
+    SDL_Surface *dst = NULL;
+    int dst_w = 0, dst_h = 0;
     for(; src; src = src->next) {
         if(src->w == 0 || src->h == 0)
             continue;
@@ -104,7 +118,7 @@ static int ren_get_ass_data_cb(
             dst = SDL_CreateRGBSurfaceWithFormat(0, dst_w, dst_h, 32, SDL_PIXELFORMAT_RGBA32);
         }
 
-        Kit_ProcessAssImage(dst, src);
+        Kit_ProcessAssImage(dst->pixels, src, dst->pitch);
         SDL_Rect target;
         target.x = src->dst_x;
         target.y = src->dst_y;
@@ -115,6 +129,62 @@ static int ren_get_ass_data_cb(
 
     SDL_FreeSurface(dst);
     return 0;
+}
+
+static unsigned int Kit_GetASSFramesNum(const ASS_Image *src) {
+    unsigned int count = 0;
+    for(; src; src = src->next) {
+        if(src->w == 0 || src->h == 0)
+            continue;
+        count++;
+    }
+    return count;
+}
+
+static int ren_get_ass_raw_frames_cb(
+    Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts
+) {
+    Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
+    const ASS_Image *src = Kit_BeginReadFrames(renderer, current_pts);
+
+    // If no new image is produced, just bail out with cached data.
+    if(src == NULL) {
+        goto get_cached;
+    }
+
+    // Something happened, so free up the old subtitle data first.
+    for(unsigned int i = 0; i < ass_renderer->cached_items_size; i++) {
+        free(ass_renderer->cached_items[i]);
+    }
+
+    // Figure out if we have any rects to render after we prune the zero-sized ones
+    ass_renderer->cached_items_size = Kit_GetASSFramesNum(src);
+    if(ass_renderer->cached_items_size == 0) {
+        goto get_cached;
+    }
+
+    // Generate new RGBA images from libass surfaces and cache them.
+    unsigned int index = 0;
+    ass_renderer->cached_items = realloc(ass_renderer->cached_items, ass_renderer->cached_items_size * sizeof(unsigned char *));
+    ass_renderer->cached_dst_rects = realloc(ass_renderer->cached_dst_rects, ass_renderer->cached_items_size * sizeof(SDL_Rect));
+    ass_renderer->cached_src_rects = realloc(ass_renderer->cached_src_rects, ass_renderer->cached_items_size * sizeof(SDL_Rect));
+    for(; src; src = src->next) {
+        if(src->w == 0 || src->h == 0)
+            continue;
+
+        unsigned char *buf = malloc(src->w * src->h * 4);
+        Kit_ProcessAssImage(buf, src, src->w * 4);
+        ass_renderer->cached_items[index] = buf;
+        ass_renderer->cached_src_rects[index] = (SDL_Rect){0, 0, src->w, src->h};
+        ass_renderer->cached_dst_rects[index] = (SDL_Rect){src->dst_x, src->dst_y, src->w, src->h};
+        index++;
+    }
+
+get_cached:
+    *frames = ass_renderer->cached_items;
+    *targets = ass_renderer->cached_dst_rects;
+    *sources = ass_renderer->cached_src_rects;
+    return ass_renderer->cached_items_size;
 }
 
 static void ren_set_ass_size_cb(Kit_SubtitleRenderer *renderer, int w, int h) {
@@ -152,6 +222,7 @@ Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
             dec,
             ren_render_ass_cb,
             ren_get_ass_data_cb,
+            ren_get_ass_raw_frames_cb,
             ren_set_ass_size_cb,
             NULL,
             NULL,
@@ -198,6 +269,10 @@ Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
         );
     }
 
+    ass_renderer->cached_items = NULL;
+    ass_renderer->cached_dst_rects = NULL;
+    ass_renderer->cached_src_rects = NULL;
+    ass_renderer->cached_items_size = 0;
     ass_renderer->renderer = render_handler;
     ass_renderer->track = render_track;
     ass_renderer->decoder_lock = decoder_lock;

@@ -27,7 +27,7 @@ KIT_LOCAL void Kit_SetSubtitlePacketData(
     SDL_Surface *surface
 );
 KIT_LOCAL void Kit_MoveSubtitlePacketRefs(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src);
-KIT_LOCAL void Kit_DelSubtitlePacketRefs(Kit_SubtitlePacket *packet);
+KIT_LOCAL void Kit_DelSubtitlePacketRefs(Kit_SubtitlePacket *packet, bool free_surface);
 
 // Not implemented
 KIT_LOCAL void Kit_CreateSubtitlePacketRef(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src);

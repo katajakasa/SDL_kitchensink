@@ -141,7 +141,7 @@ configure_file(
 )
 
 if (BUILD_EXAMPLES)
-    list(APPEND EXAMPLE_TARGETS audio complex simple custom rwops)
+    list(APPEND EXAMPLE_TARGETS audio complex simple custom rwops rawdump)
 
     # If we are building static, just link all libraries (ffmpeg, sdl, etc.)
     # If building shared, link shared kitchensink + SDL2 (ffmpeg gets pulled by kitchensink)

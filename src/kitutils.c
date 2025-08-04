@@ -151,8 +151,6 @@ const char *Kit_GetHardwareDecoderTypeString(unsigned int type) {
             return "MEDIACODEC";
         case KIT_HWDEVICE_TYPE_VULKAN:
             return "VULKAN";
-        case KIT_HWDEVICE_TYPE_UNKNOWN:
-            return "UNKNOWN";
         default:
             return NULL;
     }

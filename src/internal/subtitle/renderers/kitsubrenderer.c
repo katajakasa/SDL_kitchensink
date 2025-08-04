@@ -8,6 +8,7 @@ Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     Kit_Decoder *decoder,
     renderer_render_cb render_cb,
     renderer_get_data_cb get_data_cb,
+    renderer_get_raw_frames_cb get_raw_frames_cb,
     renderer_set_size_cb set_size_cb,
     renderer_flush_cb flush_cb,
     renderer_signal_cb signal_cb,
@@ -21,6 +22,7 @@ Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     }
     renderer->decoder = decoder;
     renderer->render_cb = render_cb;
+    renderer->get_raw_frames_cb = get_raw_frames_cb;
     renderer->close_cb = close_cb;
     renderer->get_data_cb = get_data_cb;
     renderer->set_size_cb = set_size_cb;
@@ -47,13 +49,21 @@ void Kit_SignalSubtitleRenderer(Kit_SubtitleRenderer *renderer) {
         renderer->signal_cb(renderer);
 }
 
-int Kit_GetSubtitleRendererData(
+int Kit_GetSubtitleRendererSDLTexture(
     Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
 ) {
     if(renderer == NULL)
         return 0;
     if(renderer->get_data_cb != NULL)
         return renderer->get_data_cb(renderer, atlas, texture, current_pts);
+    return 0;
+}
+
+int Kit_GetSubtitleRendererRawFrames(Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts) {
+    if(renderer == NULL)
+        return 0;
+    if(renderer->get_raw_frames_cb != NULL)
+        return renderer->get_raw_frames_cb(renderer, frames, sources, targets, current_pts);
     return 0;
 }
 
