@@ -9,7 +9,7 @@ Documentation is available at http://katajakasa.github.io/SDL_kitchensink/
 Features:
 
 * Decoding video, audio and subtitles via FFmpeg
-* Dumping video and subtitle data on SDL_textures
+* Dumping video and subtitle data on SDL_Textures or software surfaces
 * Dumping audio data in the usual mono/stereo interleaved formats
 * Automatic audio and video conversion to SDL2 friendly formats
 * Synchronizing video & audio to clock
@@ -19,14 +19,14 @@ Features:
 
 Note! Master branch is for the development of v2.x.x series.
 
-* v1 can be found in the rel-kitchensink-1 branch. Only smaller bugfixes will be accepted / added.
+* v1 can be found in the rel-kitchensink-v1 branch. Only smaller bugfixes will be accepted / added.
 * v0 is no longer in development, and no fixes of any kind will be made or accepted.
 
-| Version | Supported          |
-|---------|--------------------|
-| 2.0.x   | :white_check_mark: |
-| 1.0.x   | :white_check_mark: |
-| 0.0.x   | :x:                |
+| Version | Supported          | Bugfixes           | New features       |
+|---------|--------------------|--------------------|--------------------|
+| 2.x.x   | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| 1.x.x   | :white_check_mark: | :white_check_mark: | :x:                |
+| 0.x.x   | :x:                | :x:                | :x:                |
 
 ## 1. Installation
 
