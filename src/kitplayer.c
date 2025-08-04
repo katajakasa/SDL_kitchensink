@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <SDL_timer.h>
 
 #include "kitchensink/internal/audio/kitaudio.h"
 #include "kitchensink/internal/kitdecoderthread.h"
@@ -474,6 +475,63 @@ void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     Kit_GetVideoDecoderOutputFormat(video_decoder, &info->video_format);
     Kit_GetAudioDecoderOutputFormat(audio_decoder, &info->audio_format);
     Kit_GetSubtitleDecoderOutputFormat(subtitle_decoder, &info->subtitle_format);
+}
+
+int Kit_HasBufferFillRate(
+    const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output
+) {
+    if(video_output != -1 || video_input != -1) {
+        unsigned int fl, fc, pl, pc;
+        Kit_GetPlayerVideoBufferState(player, &fl, &fc, &pl, &pc);
+        if(video_output > -1) {
+            const float value = fl / (float)fc;
+            const float limit = Kit_clamp(video_output, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+        if(video_input > -1) {
+            const float value = pl / (float)pc;
+            const float limit = Kit_clamp(video_input, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+    }
+    if(audio_output != -1 || audio_input != -1) {
+        unsigned int sl, sc, pl, pc;
+        Kit_GetPlayerAudioBufferState(player, &sl, &sc, &pl, &pc);
+        if(audio_output > -1) {
+            const float value = sl / (float)sc;
+            const float limit = Kit_clamp(audio_output, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+        if(audio_input > -1) {
+            const float value = pl / (float)pc;
+            const float limit = Kit_clamp(audio_input, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+int Kit_WaitBufferFillRate(
+    const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output, double timeout
+) {
+    const double start = Kit_GetSystemTime();
+    double now = start;
+    while(now - start < timeout) {
+        if(Kit_HasBufferFillRate(player, audio_input, audio_output, video_input, video_output)) {
+            return 0;
+        }
+        SDL_Delay(1);
+        now = Kit_GetSystemTime();
+    }
+    return 1;
 }
 
 void Kit_GetPlayerVideoBufferState(

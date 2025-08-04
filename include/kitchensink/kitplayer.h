@@ -173,6 +173,45 @@ KIT_API int Kit_GetPlayerAudioStream(const Kit_Player *player);
 KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
 
 /**
+ * @brief Checks if buffers have a given fill rate
+ *
+ * Values are percentages between 0% and 100%. If value is -1, then that buffer will not be taken into account.
+ *
+ * Note that this function returns 1 if fill rate IS reached, and 0 if not.
+ *
+ * @param player Player instance
+ * @param audio_input Audio input packet buffer fill rate (0-100) or -1
+ * @param audio_output Audio output sample buffer fill rate (0-100) or -1
+ * @param video_input Video input packet buffer fill rate (0-100) or -1
+ * @param video_output Video output frame buffer fill rate (0-100) or -1
+ * @return 0 for false, 1 for true.
+ */
+KIT_API int
+Kit_HasBufferFillRate(const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output);
+
+/**
+ * @brief Waits for buffers to have a given fill rate
+ *
+ * Values are percentages between 0% and 100%. If value is -1, then that buffer will not be taken into account.
+ *
+ * Timeout argument is used to limit the wait time (in seconds).
+ *
+ * If the function encountered the timeout, return value is 1. Otherwise 0 (for success).
+ *
+ * @param player Player instance
+ * @param audio_input Audio input packet buffer fill rate (0-100) or -1
+ * @param audio_output Audio output sample buffer fill rate (0-100) or -1
+ * @param video_input Video input packet buffer fill rate (0-100) or -1
+ * @param video_output Video output frame buffer fill rate (0-100) or -1
+ * @param timeout Operation timeout, in seconds.
+ * @return 1 if failure, 0 if success.
+ */
+KIT_API int Kit_WaitBufferFillRate(
+    const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output, double timeout
+);
+
+/** @brief Gets the player video buffering state
+ *
  * Fetch buffering state for video stream (if a stream is selected). IT is safe to pass NULL as an argument.
  * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
  *
@@ -190,7 +229,8 @@ KIT_API void Kit_GetPlayerVideoBufferState(
     unsigned int *packets_capacity
 );
 
-/**
+/** @brief Gets the player audio buffering state
+ *
  * Fetch buffering state for audio stream (if a stream is selected). IT is safe to pass NULL as an argument.
  * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
  *
@@ -208,7 +248,8 @@ KIT_API void Kit_GetPlayerAudioBufferState(
     unsigned int *packets_capacity
 );
 
-/**
+/** @brief Gets the player subtitle buffering state
+ *
  * Fetch buffering state for subtitle stream (if a stream is selected). IT is safe to pass NULL as an argument.
  * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
  *

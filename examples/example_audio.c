@@ -9,10 +9,9 @@
  * It is for example use only!
  */
 
-#define AUDIO_BUFFER_SIZE (1024 * 256)
-#define AUDIO_BUFFER_PACKETS 16
+#define AUDIO_BUFFER_SIZE (1024 * 64)
+#define AUDIO_BUFFER_PACKETS 24
 #define AUDIO_BUFFER_FRAMES 32
-#define AUDIO_PREBUFFER_FRAMES 8
 
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
@@ -53,6 +52,10 @@ int main(int argc, char *argv[]) {
     // Set input and output buffering to reduce latency
     Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, AUDIO_BUFFER_PACKETS);
     Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, AUDIO_BUFFER_FRAMES);
+
+    // Loosen up sync thresholds -- this should help with stuttering in network streams.
+    Kit_SetHint(KIT_HINT_AUDIO_EARLY_THRESHOLD, 30);
+    Kit_SetHint(KIT_HINT_AUDIO_LATE_THRESHOLD, 100);
 
     // Open up the sourcefile.
     src = Kit_CreateSourceFromUrl(filename);
@@ -116,8 +119,7 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
-    unsigned int buffer_now = 0, buffer_prev = 0;
-    bool initial_buffering_done = false;
+    bool is_buffering = false;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -134,28 +136,30 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // When application starts, wait for audio to be buffered. This prevents stutter in network streams.
-        if(!initial_buffering_done) {
-            Kit_GetPlayerAudioBufferState(player, &buffer_now, NULL, NULL, NULL);
-            if (buffer_now != buffer_prev) {
-                fprintf(stderr, "Buffering, %d / %d ...\n", buffer_now, AUDIO_PREBUFFER_FRAMES);
-                buffer_prev = buffer_now;
+        // If audio buffers fall below given threshold, pause playback and start buffering.
+        if (!is_buffering) {
+            if(!Kit_HasBufferFillRate(player, -1, 10, -1, -1)) {
+                Kit_PlayerPause(player);
+                is_buffering = true;
             }
-            if (buffer_now < AUDIO_PREBUFFER_FRAMES) {
-                SDL_Delay(100);
-                continue;
+        } else {
+            if(Kit_WaitBufferFillRate(player, 50, 50, -1, -1, 1.0) == 1) {
+                fprintf(stderr, "Buffering ...\n");
+            } else {
+                is_buffering = false;
+                Kit_PlayerPlay(player);
             }
-            initial_buffering_done = true;
         }
 
-        // Refresh audio
-        int queued = SDL_GetQueuedAudioSize(audio_dev);
-        if(queued < AUDIO_BUFFER_SIZE) {
+        // Fetch as many audio samples as the decoder is willing to give.
+        int queued;
+        do {
+            queued = SDL_GetQueuedAudioSize(audio_dev);
             ret = Kit_GetPlayerAudioData(player, UINT_MAX, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
             if(ret > 0) {
                 SDL_QueueAudio(audio_dev, audio_buf, ret);
             }
-        }
+        } while(ret > 0 && queued < AUDIO_BUFFER_SIZE);
 
         SDL_Delay(1);
     }
