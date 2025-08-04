@@ -76,26 +76,23 @@ static void ren_close_ass_cb(Kit_SubtitleRenderer *renderer) {
     free(ass_renderer);
 }
 
-static ASS_Image *Kit_BeginReadFrames(const Kit_SubtitleRenderer *renderer, const double current_pts) {
+static ASS_Image *Kit_BeginReadFrames(const Kit_SubtitleRenderer *renderer, int *change, const double current_pts) {
     const Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
-    int change = 0;
     const long long now = current_pts * 1000;
 
     // Tell ASS to render some images
     SDL_LockMutex(ass_renderer->decoder_lock);
-    ASS_Image *src = ass_render_frame(ass_renderer->renderer, ass_renderer->track, now, &change);
+    ASS_Image *src = ass_render_frame(ass_renderer->renderer, ass_renderer->track, now, change);
     SDL_UnlockMutex(ass_renderer->decoder_lock);
-    if(change == 0) {
-        return NULL;
-    }
     return src;
 }
 
 static int ren_get_ass_data_cb(
     Kit_SubtitleRenderer *renderer, Kit_TextureAtlas *atlas, SDL_Texture *texture, double current_pts
 ) {
-    const ASS_Image *src = Kit_BeginReadFrames(renderer, current_pts);
-    if(src == NULL) {
+    int change = 0;
+    const ASS_Image *src = Kit_BeginReadFrames(renderer, &change, current_pts);
+    if(change == 0) {
         return 0;
     }
 
@@ -145,10 +142,9 @@ static int ren_get_ass_raw_frames_cb(
     Kit_SubtitleRenderer *renderer, unsigned char ***frames, SDL_Rect **sources, SDL_Rect **targets, double current_pts
 ) {
     Kit_ASSSubtitleRenderer *ass_renderer = renderer->userdata;
-    const ASS_Image *src = Kit_BeginReadFrames(renderer, current_pts);
-
-    // If no new image is produced, just bail out with cached data.
-    if(src == NULL) {
+    int change = 0;
+    const ASS_Image *src = Kit_BeginReadFrames(renderer, &change, current_pts);
+    if(change == 0) {
         goto get_cached;
     }
 
