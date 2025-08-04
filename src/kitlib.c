@@ -59,6 +59,9 @@ int Kit_Init(unsigned int flags) {
         }
     }
 
+    // Disable ffmpeg logging.
+    av_log_set_level(AV_LOG_QUIET);
+
     state->init_flags = flags;
     return 0;
 
