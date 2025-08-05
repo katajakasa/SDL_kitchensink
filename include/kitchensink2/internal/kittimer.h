@@ -1,7 +1,7 @@
 #ifndef KITTIMER_H
 #define KITTIMER_H
 
-#include "kitchensink/kitlib.h"
+#include "kitchensink2/kitlib.h"
 #include <stdbool.h>
 
 typedef struct Kit_Timer Kit_Timer;

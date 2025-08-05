@@ -1,7 +1,7 @@
 #include <SDL_video.h>
 #include <libavcodec/avcodec.h>
 
-#include "kitchensink/internal/video/kitvideoutils.h"
+#include "kitchensink2/internal/video/kitvideoutils.h"
 
 static enum AVPixelFormat supported_list[] = {
     AV_PIX_FMT_YUV420P,

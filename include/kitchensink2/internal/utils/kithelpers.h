@@ -1,7 +1,7 @@
 #ifndef KITHELPERS_H
 #define KITHELPERS_H
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 #include <libavformat/avformat.h>
 #include <stdbool.h>
 

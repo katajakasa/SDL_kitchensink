@@ -6,9 +6,9 @@
 #include "libavcodec/avcodec.h"
 #include <libavformat/avformat.h>
 
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/kitchensink.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/kitchensink.h"
 
 static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {
 }

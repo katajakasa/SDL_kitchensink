@@ -3,11 +3,11 @@
 
 #include <SDL_surface.h>
 
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/subtitle/kitatlas.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubass.h"
-#include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/subtitle/renderers/kitsubass.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/kiterror.h"
 
 typedef struct Kit_ASSSubtitleRenderer {
     ASS_Renderer *renderer;

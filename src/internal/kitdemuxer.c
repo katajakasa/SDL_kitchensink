@@ -3,10 +3,10 @@
 #include <SDL_timer.h>
 #include <libavformat/avformat.h>
 
-#include "kitchensink/internal/kitdemuxer.h"
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/kitpacketbuffer.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/kitdemuxer.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/kiterror.h"
 
 static void Kit_SendEOFPacket(Kit_Demuxer *demuxer) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {

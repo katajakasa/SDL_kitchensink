@@ -9,10 +9,10 @@
  * @date 2018-06-27
  */
 
-#include "kitchensink/kitcodec.h"
-#include "kitchensink/kitconfig.h"
-#include "kitchensink/kitformat.h"
-#include "kitchensink/kitsource.h"
+#include "kitchensink2/kitcodec.h"
+#include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitformat.h"
+#include "kitchensink2/kitsource.h"
 
 #include <SDL_render.h>
 

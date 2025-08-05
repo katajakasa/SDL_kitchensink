@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 
 #define KIT_MAX_HW_DEVICES 32
 

@@ -3,10 +3,10 @@
 
 #include <SDL_render.h>
 
-#include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/kittimer.h"
-#include "kitchensink/kitconfig.h"
-#include "kitchensink/kitsource.h"
+#include "kitchensink2/internal/kitdecoder.h"
+#include "kitchensink2/internal/kittimer.h"
+#include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitsource.h"
 
 KIT_LOCAL Kit_Decoder *Kit_CreateVideoDecoder(
     const Kit_Source *src, const Kit_VideoFormatRequest *format_request, Kit_Timer *sync_timer, int stream_index

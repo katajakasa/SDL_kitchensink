@@ -9,7 +9,7 @@
  * @date 2018-06-27
  */
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 #include <SDL_rwops.h>
 #include <inttypes.h>
 

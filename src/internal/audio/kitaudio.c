@@ -6,12 +6,12 @@
 #include <libavutil/audio_fifo.h>
 #include <libswresample/swresample.h>
 
-#include "kitchensink/internal/audio/kitaudio.h"
-#include "kitchensink/internal/audio/kitaudioutils.h"
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/utils/kitlog.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/audio/kitaudio.h"
+#include "kitchensink2/internal/audio/kitaudioutils.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/utils/kitlog.h"
+#include "kitchensink2/kiterror.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5.0
 

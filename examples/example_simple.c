@@ -1,5 +1,5 @@
 #include <SDL.h>
-#include <kitchensink/kitchensink.h>
+#include <kitchensink2/kitchensink.h>
 #include <stdbool.h>
 #include <stdio.h>
 

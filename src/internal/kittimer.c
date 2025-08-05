@@ -1,5 +1,5 @@
-#include "kitchensink/internal/kittimer.h"
-#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/kittimer.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
 #include <stdlib.h>
 
 typedef struct Kit_TimerValue {

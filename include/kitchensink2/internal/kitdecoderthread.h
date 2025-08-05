@@ -1,9 +1,9 @@
 #ifndef KITDECODERTHREAD_H
 #define KITDECODERTHREAD_H
 
-#include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/kitpacketbuffer.h"
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/internal/kitdecoder.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/kitconfig.h"
 #include <SDL_thread.h>
 #include <stdbool.h>
 

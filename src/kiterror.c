@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "kitchensink/kitchensink.h"
+#include "kitchensink2/kitchensink.h"
 
 #define KIT_ERRBUFSIZE 1024
 

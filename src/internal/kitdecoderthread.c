@@ -1,10 +1,10 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-#include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/kitdecoderthread.h"
-#include "kitchensink/internal/utils/kitlog.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/kitdecoder.h"
+#include "kitchensink2/internal/kitdecoderthread.h"
+#include "kitchensink2/internal/utils/kitlog.h"
+#include "kitchensink2/kiterror.h"
 
 static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *eof_received) {
     Kit_DecoderInputResult ret;

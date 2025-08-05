@@ -1,6 +1,6 @@
 #ifdef USE_DYNAMIC_LIBASS
 
-#include "kitchensink/internal/libass.h"
+#include "kitchensink2/internal/libass.h"
 #include <SDL_loadso.h>
 
 ASS_Library *(*ass_library_init)(void);

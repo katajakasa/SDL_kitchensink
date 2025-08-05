@@ -1,15 +1,15 @@
 #include <SDL_timer.h>
 #include <assert.h>
 
-#include "kitchensink/internal/audio/kitaudio.h"
-#include "kitchensink/internal/kitdecoderthread.h"
-#include "kitchensink/internal/kitdemuxerthread.h"
-#include "kitchensink/internal/kittimer.h"
-#include "kitchensink/internal/subtitle/kitsubtitle.h"
-#include "kitchensink/internal/utils/kithelpers.h"
-#include "kitchensink/internal/video/kitvideo.h"
-#include "kitchensink/kiterror.h"
-#include "kitchensink/kitplayer.h"
+#include "kitchensink2/internal/audio/kitaudio.h"
+#include "kitchensink2/internal/kitdecoderthread.h"
+#include "kitchensink2/internal/kitdemuxerthread.h"
+#include "kitchensink2/internal/kittimer.h"
+#include "kitchensink2/internal/subtitle/kitsubtitle.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/video/kitvideo.h"
+#include "kitchensink2/kiterror.h"
+#include "kitchensink2/kitplayer.h"
 
 struct Kit_Player {
     Kit_PlayerState state;             ///< Playback state

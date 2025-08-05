@@ -3,15 +3,15 @@
 #include <SDL.h>
 #include <libavformat/avformat.h>
 
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/subtitle/kitatlas.h"
-#include "kitchensink/internal/subtitle/kitsubtitle.h"
-#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubass.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubimage.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
-#include "kitchensink/kiterror.h"
-#include "kitchensink/kitlib.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/subtitle/kitsubtitle.h"
+#include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink2/internal/subtitle/renderers/kitsubass.h"
+#include "kitchensink2/internal/subtitle/renderers/kitsubimage.h"
+#include "kitchensink2/internal/subtitle/renderers/kitsubrenderer.h"
+#include "kitchensink2/kiterror.h"
+#include "kitchensink2/kitlib.h"
 
 typedef struct Kit_SubtitleDecoder {
     Kit_SubtitleRenderer *renderer;

@@ -1,7 +1,7 @@
 #ifndef KITAUDIOUTILS_H
 #define KITAUDIOUTILS_H
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 #include <libavcodec/avcodec.h>
 
 KIT_LOCAL enum AVSampleFormat Kit_FindAVSampleFormat(int format);

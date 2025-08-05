@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
-#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
-#include "kitchensink/internal/subtitle/renderers/kitsubrenderer.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink2/internal/subtitle/renderers/kitsubrenderer.h"
+#include "kitchensink2/kiterror.h"
 
 Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     Kit_Decoder *decoder,

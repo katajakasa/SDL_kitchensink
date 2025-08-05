@@ -1,8 +1,8 @@
 #ifndef KITLIBSTATE_H
 #define KITLIBSTATE_H
 
-#include "kitchensink/internal/libass.h"
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/internal/libass.h"
+#include "kitchensink2/kitconfig.h"
 
 typedef struct Kit_LibraryState {
     unsigned int init_flags;

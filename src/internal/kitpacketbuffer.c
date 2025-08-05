@@ -1,9 +1,9 @@
 #include <SDL_mutex.h>
 #include <assert.h>
 
-#include "kitchensink/internal/kitpacketbuffer.h"
-#include "kitchensink/internal/utils/kitlog.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/internal/utils/kitlog.h"
+#include "kitchensink2/kiterror.h"
 
 struct Kit_PacketBuffer {
     void **packets;

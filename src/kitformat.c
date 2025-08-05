@@ -1,4 +1,4 @@
-#include "kitchensink/kitformat.h"
+#include "kitchensink2/kitformat.h"
 
 #include <SDL_pixels.h>
 

@@ -1,11 +1,11 @@
 #ifndef KITDEMUXERTHREAD_H
 #define KITDEMUXERTHREAD_H
 
-#include "kitchensink/internal/kitbufferindex.h"
-#include "kitchensink/internal/kitdemuxer.h"
-#include "kitchensink/internal/kitpacketbuffer.h"
-#include "kitchensink/kitconfig.h"
-#include "kitchensink/kitsource.h"
+#include "kitchensink2/internal/kitbufferindex.h"
+#include "kitchensink2/internal/kitdemuxer.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitsource.h"
 #include <SDL_thread.h>
 #include <stdbool.h>
 

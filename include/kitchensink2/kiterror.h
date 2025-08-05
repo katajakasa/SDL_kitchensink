@@ -9,7 +9,7 @@
  * @date 2018-06-25
  */
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -3,8 +3,8 @@
 
 #include <SDL_render.h>
 
-#include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/kitdecoder.h"
+#include "kitchensink2/internal/subtitle/kitatlas.h"
 
 typedef struct Kit_SubtitleRenderer Kit_SubtitleRenderer;
 

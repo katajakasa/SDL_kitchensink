@@ -6,11 +6,11 @@
 #include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 
-#include "kitchensink/internal/kitdecoder.h"
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/utils/kitlog.h"
-#include "kitchensink/internal/video/kitvideoutils.h"
-#include "kitchensink/kiterror.h"
+#include "kitchensink2/internal/kitdecoder.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/utils/kitlog.h"
+#include "kitchensink2/internal/video/kitvideoutils.h"
+#include "kitchensink2/kiterror.h"
 
 /**
  * Check if hardware context supports an output format that we can feed to swscale

@@ -1,7 +1,7 @@
 #ifndef KITVIDEOUTILS_H
 #define KITVIDEOUTILS_H
 
-#include "kitchensink/kitformat.h"
+#include "kitchensink2/kitformat.h"
 
 enum AVPixelFormat Kit_FindBestAVPixelFormat(enum AVPixelFormat fmt);
 unsigned int Kit_FindSDLPixelFormat(enum AVPixelFormat fmt);

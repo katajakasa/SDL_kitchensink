@@ -1,7 +1,7 @@
 #include <assert.h>
 
-#include "kitchensink/internal/subtitle/kitatlas.h"
-#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
 
 Kit_TextureAtlas *Kit_CreateAtlas() {
     Kit_TextureAtlas *atlas = calloc(1, sizeof(Kit_TextureAtlas));

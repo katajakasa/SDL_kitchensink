@@ -1,4 +1,4 @@
-#include "kitchensink/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
 
 Kit_SubtitlePacket *Kit_CreateSubtitlePacket() {
     return calloc(1, sizeof(Kit_SubtitlePacket));

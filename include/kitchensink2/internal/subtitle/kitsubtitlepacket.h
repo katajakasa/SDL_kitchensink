@@ -4,7 +4,7 @@
 #include <SDL_surface.h>
 #include <stdbool.h>
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 
 typedef struct Kit_SubtitlePacket {
     double pts_start;

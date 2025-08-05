@@ -5,9 +5,9 @@
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 
-#include "kitchensink/internal/utils/kitlog.h"
-#include "kitchensink/kiterror.h"
-#include "kitchensink/kitsource.h"
+#include "kitchensink2/internal/utils/kitlog.h"
+#include "kitchensink2/kiterror.h"
+#include "kitchensink2/kitsource.h"
 
 #define AVIO_BUF_SIZE 32768
 

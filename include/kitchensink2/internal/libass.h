@@ -10,7 +10,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 
 typedef struct ass_library ASS_Library;
 typedef struct ass_renderer ASS_Renderer;

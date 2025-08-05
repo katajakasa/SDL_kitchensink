@@ -1,7 +1,7 @@
 #ifndef KITFRAMESTREAM_H
 #define KITFRAMESTREAM_H
 
-#include "kitchensink/kitconfig.h"
+#include "kitchensink2/kitconfig.h"
 #include <stdbool.h>
 
 typedef void *(*buf_obj_alloc)();

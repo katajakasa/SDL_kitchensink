@@ -1,7 +1,7 @@
 #include <libavutil/avstring.h>
 #include <libavutil/time.h>
 
-#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
 
 static const char *const font_mime[] = {
     "application/x-font-ttf",

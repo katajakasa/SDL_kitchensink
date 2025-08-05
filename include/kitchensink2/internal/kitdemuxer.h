@@ -1,10 +1,10 @@
 #ifndef KITDEMUXER_H
 #define KITDEMUXER_H
 
-#include "kitchensink/internal/kitbufferindex.h"
-#include "kitchensink/internal/kitpacketbuffer.h"
-#include "kitchensink/kitconfig.h"
-#include "kitchensink/kitsource.h"
+#include "kitchensink2/internal/kitbufferindex.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitsource.h"
 #include <libavcodec/avcodec.h>
 #include <stdbool.h>
 
