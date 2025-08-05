@@ -81,7 +81,7 @@ else ()
 endif ()
 
 FILE(GLOB_RECURSE SOURCES "src/*.c")
-FILE(GLOB INSTALL_HEADERS "include/kitchensink/*.h")
+FILE(GLOB INSTALL_HEADERS "include/kitchensink2/*.h")
 
 include_directories(${INCLUDES})
 
