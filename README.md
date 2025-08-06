@@ -42,7 +42,7 @@ have kitchensink, you will need to compile it yourself. Please see the "Compilin
 
 Build requirements:
 
-* CMake (>=3.7)
+* CMake (>=3.10)
 * GCC (C99 support required)
 
 Library requirements:
