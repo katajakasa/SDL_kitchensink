@@ -1,16 +1,16 @@
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdbool.h>
 #include <assert.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
 
-#include "kitchensink/kitchensink.h"
+#include "kitchensink2/kitchensink.h"
 
 #define KIT_ERRBUFSIZE 1024
 
 static char _error_available = false;
 static char _error_message[KIT_ERRBUFSIZE] = "\0";
 
-const char* Kit_GetError() {
+const char *Kit_GetError() {
     if(_error_available) {
         _error_available = false;
         return _error_message;
@@ -18,7 +18,7 @@ const char* Kit_GetError() {
     return NULL;
 }
 
-void Kit_SetError(const char* fmt, ...) {
+void Kit_SetError(const char *fmt, ...) {
     assert(fmt != NULL);
     va_list args;
     va_start(args, fmt);

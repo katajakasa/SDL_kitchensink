@@ -1,512 +1,646 @@
+#include <SDL_timer.h>
 #include <assert.h>
 
-#include <SDL.h>
+#include "kitchensink2/internal/audio/kitaudio.h"
+#include "kitchensink2/internal/kitdecoderthread.h"
+#include "kitchensink2/internal/kitdemuxerthread.h"
+#include "kitchensink2/internal/kittimer.h"
+#include "kitchensink2/internal/subtitle/kitsubtitle.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/video/kitvideo.h"
+#include "kitchensink2/kiterror.h"
+#include "kitchensink2/kitplayer.h"
 
-#include "kitchensink/kitplayer.h"
-#include "kitchensink/kiterror.h"
-#include "kitchensink/internal/kitlibstate.h"
-#include "kitchensink/internal/video/kitvideo.h"
-#include "kitchensink/internal/audio/kitaudio.h"
-#include "kitchensink/internal/subtitle/kitsubtitle.h"
-#include "kitchensink/internal/utils/kithelpers.h"
-
-enum DecoderIndex {
-    KIT_VIDEO_DEC = 0,
-    KIT_AUDIO_DEC,
-    KIT_SUBTITLE_DEC,
-    KIT_DEC_COUNT
+struct Kit_Player {
+    Kit_PlayerState state;             ///< Playback state
+    Kit_Decoder *decoders[3];          ///< Decoder contexts
+    Kit_Demuxer *demuxer;              ///< Demuxer context
+    Kit_DecoderThread *dec_threads[3]; ///< Decoder threads
+    Kit_DemuxerThread *demux_thread;   ///< Demuxer thread
+    Kit_Timer *sync_timer;             ///< Sync timer for the decoders
+    Kit_VideoFormatRequest video_req;  ///< Original video format request
+    Kit_AudioFormatRequest audio_req;  ///< Original audio format request
+    const Kit_Source *src;             ///< Reference to Audio/Video source
+    int screen_w;                      ///< Width of the screen surface (for positioning subtitles)
+    int screen_h;                      ///< Height of the screen surface (for positioning subtitles)
 };
 
-// Return 0 if stream is good but nothing else to do for now
-// Return -1 if there may still work to be done
-// Return 1 if there was an error or stream end
-static int _DemuxStream(const Kit_Player *player) {
-    assert(player != NULL);
-    AVFormatContext *format_ctx = player->src->format_ctx;
-    const Kit_Decoder *dec = NULL;
+static bool Kit_InitializeAudioDecoder(
+    const Kit_Source *src,
+    const Kit_Timer *main_timer,
+    const Kit_DemuxerThread *demux_thread,
+    const Kit_AudioFormatRequest *format_request,
+    bool is_primary,
+    int stream_index,
+    Kit_Decoder **decoder,
+    Kit_DecoderThread **thread
+) {
+    Kit_Timer *timer;
+    Kit_PacketBuffer *packet_buffer;
 
-    // If any buffer is full, just stop here for now.
-    // Since we don't know what kind of data is going to come out of av_read_frame, we really
-    // want to make sure we are prepared for everything :)
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        dec = player->decoders[i];
-        if(dec == NULL)
-            continue;
-        if(!Kit_CanWriteDecoderInput(dec))
-            return 0;
-    }
+    if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_AUDIO_INDEX)) == NULL)
+        goto exit_0;
+    if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
+        goto exit_0;
+    if((*decoder = Kit_CreateAudioDecoder(src, format_request, timer, stream_index)) == NULL)
+        goto exit_0;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_1;
 
-    // Attempt to read frame. Just return here if it fails.
-    AVPacket *packet = av_packet_alloc();
-    if(av_read_frame(format_ctx, packet) < 0) {
-        av_packet_free(&packet);
-        return 1;
-    }
-
-    // Check if this is a packet we need to handle and pass it on
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        dec = player->decoders[i];
-        if(dec == NULL)
-            continue;
-        if(dec->stream_index == packet->stream_index) {
-            Kit_WriteDecoderInput(player->decoders[i], packet);
-            return -1;
-        }
-    }
-
-    // We only get here if packet was not written to a decoder. IF that is the case,
-    // disregard and free the packet.
-    av_packet_free(&packet);
-    return -1;
-}
-
-static bool _IsOutputEmpty(const Kit_Player *player) {
-    const Kit_Decoder *dec = NULL;
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        dec = player->decoders[i];
-        if(dec == NULL)
-            continue;
-        if(Kit_PeekDecoderOutput(dec))
-            return false;
-    }
     return true;
+
+exit_1:
+    Kit_CloseDecoder(decoder);
+exit_0:
+    return false;
 }
 
-static int _RunDecoder(const Kit_Player *player) {
-    int got;
-    bool has_room = true;
-    const Kit_Decoder *dec = NULL;
+static bool Kit_InitializeVideoDecoder(
+    const Kit_Source *src,
+    const Kit_Timer *main_timer,
+    const Kit_DemuxerThread *demux_thread,
+    const Kit_VideoFormatRequest *format_request,
+    bool is_primary,
+    int stream_index,
+    Kit_Decoder **decoder,
+    Kit_DecoderThread **thread
+) {
+    Kit_Timer *timer;
+    Kit_PacketBuffer *packet_buffer;
 
-    do {
-        while((got = _DemuxStream(player)) == -1);
-        if(got == 1 && _IsOutputEmpty(player)) {
-            return 1;
-        }
+    if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_VIDEO_INDEX)) == NULL)
+        goto exit_0;
+    if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
+        goto exit_0;
+    if((*decoder = Kit_CreateVideoDecoder(src, format_request, timer, stream_index)) == NULL)
+        goto exit_0;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_1;
 
-        for(int i = 0; i < KIT_DEC_COUNT; i++) {
-            while(Kit_RunDecoder(player->decoders[i]) == 1);
-        }
+    return true;
 
-        // If there is no room in any decoder input, just stop here since it likely means that
-        // at least some decoder output is full.
-        for(int i = 0; i < KIT_DEC_COUNT; i++) {
-            dec = player->decoders[i];
-            if(dec == NULL)
-                continue;
-            if(!Kit_CanWriteDecoderInput(dec) || got == 1) {
-                has_room = false;
-                break;
-            }
-        }
-    } while(has_room);
-
-    return 0;
+exit_1:
+    Kit_CloseDecoder(decoder);
+exit_0:
+    return false;
 }
 
-static void _TryWork(Kit_Player *player) {
-    /**
-     * \brief Run the decoders and demuxer as long as there is work. Returns when playback stops.
-     */
-    while(player->state == KIT_PLAYING || player->state == KIT_PAUSED) {
-        // Grab the decoder lock, and run demuxer & decoders for a bit.
-        if(SDL_LockMutex(player->dec_lock) == 0) {
-            if(_RunDecoder(player) == 1) {
-                player->state = KIT_STOPPED;
-            }
-            SDL_UnlockMutex(player->dec_lock);
-        }
+static bool Kit_InitializeSubtitleDecoder(
+    const Kit_Source *src,
+    const Kit_Timer *main_timer,
+    const Kit_DemuxerThread *demux_thread,
+    const Kit_Decoder *video_decoder,
+    int stream_index,
+    int screen_w,
+    int screen_h,
+    Kit_Decoder **decoder,
+    Kit_DecoderThread **thread
+) {
+    Kit_Timer *timer;
+    Kit_PacketBuffer *packet_buffer;
+    Kit_VideoOutputFormat output;
 
-        // Delay to make sure this thread does not hog all cpu
-        SDL_Delay(2);
-    }
+    Kit_GetVideoDecoderOutputFormat(video_decoder, &output);
+    if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_SUBTITLE_INDEX)) == NULL)
+        goto exit_0;
+    if((timer = Kit_CreateSecondaryTimer(main_timer, false)) == NULL)
+        goto exit_0;
+    if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)
+       ) == NULL)
+        goto exit_0;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_1;
+
+    return true;
+
+exit_1:
+    Kit_CloseDecoder(decoder);
+exit_0:
+    return false;
 }
 
-static int _DecoderThread(void *ptr) {
-    /**
-     * \brief Decoder thread main, which runs as long as the player exists.
-     */
-    Kit_Player *player = ptr;
-
-    while(true) {
-        if(player->state == KIT_CLOSED) {
-            break;
-        }
-        
-        // This will block as long as there is something to demux/decode
-        // Returns when playback stops.
-        _TryWork(player);
-
-        // Just idle while waiting for work.
-        SDL_Delay(25);
-    }
-
-    return 0;
-}
-
-Kit_Player* Kit_CreatePlayer(const Kit_Source *src,
-                             int video_stream_index,
-                             int audio_stream_index,
-                             int subtitle_stream_index,
-                             int screen_w,
-                             int screen_h) {
+Kit_Player *Kit_CreatePlayer(
+    const Kit_Source *src,
+    const int video_stream_index,
+    const int audio_stream_index,
+    const int subtitle_stream_index,
+    const Kit_VideoFormatRequest *video_format_request,
+    const Kit_AudioFormatRequest *audio_format_request,
+    const int screen_w,
+    const int screen_h
+) {
     assert(src != NULL);
     assert(screen_w >= 0);
     assert(screen_h >= 0);
-    
+
+    Kit_Player *player = NULL;
+    Kit_Decoder *video_decoder = NULL;
+    Kit_Decoder *audio_decoder = NULL;
+    Kit_Decoder *subtitle_decoder = NULL;
+    Kit_Demuxer *demuxer = NULL;
+    Kit_DecoderThread *video_thread = NULL;
+    Kit_DecoderThread *audio_thread = NULL;
+    Kit_DecoderThread *subtitle_thread = NULL;
+    Kit_DemuxerThread *demux_thread = NULL;
+    Kit_Timer *timer = NULL;
+    Kit_VideoFormatRequest tmp_video_format_request;
+    Kit_AudioFormatRequest tmp_audio_format_request;
+    const bool video_primary = video_stream_index > -1;
+    const bool audio_primary = !video_primary && audio_stream_index > -1;
+
+    if(video_format_request == NULL) {
+        Kit_ResetVideoFormatRequest(&tmp_video_format_request);
+    } else {
+        tmp_video_format_request = *video_format_request;
+    }
+    if(audio_format_request == NULL) {
+        Kit_ResetAudioFormatRequest(&tmp_audio_format_request);
+    } else {
+        tmp_audio_format_request = *audio_format_request;
+    }
     if(video_stream_index < 0 && subtitle_stream_index >= 0) {
         Kit_SetError("Subtitle stream selected without video stream");
-        goto EXIT_0;
+        goto exit_0;
     }
-
-    Kit_Player *player = calloc(1, sizeof(Kit_Player));
-    if(player == NULL) {
+    if((player = calloc(1, sizeof(Kit_Player))) == NULL) {
         Kit_SetError("Unable to allocate player");
-        goto EXIT_0;
+        goto exit_0;
     }
-
-    // Initialize audio decoder
-    Kit_Decoder *audio_dec = Kit_CreateAudioDecoder(src, audio_stream_index);
-    if (audio_dec) {
-        player->decoders[KIT_AUDIO_DEC] = audio_dec;
-        if (subtitle_stream_index < 0 && video_stream_index < 0) {
-            // If audio stream is the only stream, don't bother syncing.
-            audio_dec->sync_enabled = false;
+    if((timer = Kit_CreateTimer()) == NULL)
+        goto exit_1;
+    if((demuxer = Kit_CreateDemuxer(src, video_stream_index, audio_stream_index, subtitle_stream_index)) == NULL)
+        goto exit_2;
+    if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL)
+        goto exit_3;
+    if(audio_stream_index > -1) {
+        if(!Kit_InitializeAudioDecoder(
+               src,
+               timer,
+               demux_thread,
+               &tmp_audio_format_request,
+               audio_primary,
+               audio_stream_index,
+               &audio_decoder,
+               &audio_thread
+           )) {
+            goto exit_4;
         }
-    } else if (audio_stream_index >= 0) {
-        goto EXIT_1;
+    }
+    if(video_stream_index > -1) {
+        if(!Kit_InitializeVideoDecoder(
+               src,
+               timer,
+               demux_thread,
+               &tmp_video_format_request,
+               video_primary,
+               video_stream_index,
+               &video_decoder,
+               &video_thread
+           )) {
+            goto exit_5;
+        }
+    }
+    if(subtitle_stream_index > -1) {
+        if(!Kit_InitializeSubtitleDecoder(
+               src,
+               timer,
+               demux_thread,
+               video_decoder,
+               subtitle_stream_index,
+               screen_w,
+               screen_h,
+               &subtitle_decoder,
+               &subtitle_thread
+           )) {
+            goto exit_6;
+        }
     }
 
-    // Initialize video decoder
-    player->decoders[KIT_VIDEO_DEC] = Kit_CreateVideoDecoder(src, video_stream_index);
-    if(player->decoders[KIT_VIDEO_DEC] == NULL && video_stream_index >= 0) {
-        goto EXIT_2;
-    }
-
-    // Initialize subtitle decoder.
-    Kit_OutputFormat output;
-    Kit_GetDecoderOutputFormat(player->decoders[KIT_VIDEO_DEC], &output);
-    player->decoders[KIT_SUBTITLE_DEC] = Kit_CreateSubtitleDecoder(
-        src, subtitle_stream_index, output.width, output.height, screen_w, screen_h);
-    if(player->decoders[KIT_SUBTITLE_DEC] == NULL && subtitle_stream_index >= 0) {
-        goto EXIT_2;
-    }
-
-    // Decoder thread lock
-    player->dec_lock = SDL_CreateMutex();
-    if(player->dec_lock == NULL) {
-        Kit_SetError("Unable to create a decoder thread lock mutex: %s", SDL_GetError());
-        goto EXIT_2;
-    }
-
-    // Decoder thread
-    player->dec_thread = SDL_CreateThread(_DecoderThread, "Kit Decoder Thread", player);
-    if(player->dec_thread == NULL) {
-        Kit_SetError("Unable to create a decoder thread: %s", SDL_GetError());
-        goto EXIT_3;
-    }
-
+    player->decoders[KIT_AUDIO_INDEX] = audio_decoder;
+    player->decoders[KIT_VIDEO_INDEX] = video_decoder;
+    player->decoders[KIT_SUBTITLE_INDEX] = subtitle_decoder;
+    player->dec_threads[KIT_AUDIO_INDEX] = audio_thread;
+    player->dec_threads[KIT_VIDEO_INDEX] = video_thread;
+    player->dec_threads[KIT_SUBTITLE_INDEX] = subtitle_thread;
+    player->demuxer = demuxer;
+    player->demux_thread = demux_thread;
     player->src = src;
+    player->sync_timer = timer;
+    player->screen_w = screen_w;
+    player->screen_h = screen_h;
+    player->video_req = tmp_video_format_request;
+    player->audio_req = tmp_audio_format_request;
     return player;
 
-EXIT_3:
-    SDL_DestroyMutex(player->dec_lock);
-EXIT_2:
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_CloseDecoder(player->decoders[i]);
-    }
-EXIT_1:
+exit_6:
+    Kit_CloseDecoderThread(&video_thread);
+    Kit_CloseDecoder(&video_decoder);
+exit_5:
+    Kit_CloseDecoderThread(&audio_thread);
+    Kit_CloseDecoder(&audio_decoder);
+exit_4:
+    Kit_CloseDemuxerThread(&demux_thread);
+exit_3:
+    Kit_CloseDemuxer(&demuxer);
+exit_2:
+    Kit_CloseTimer(&timer);
+exit_1:
     free(player);
-EXIT_0:
+exit_0:
     return NULL;
 }
 
+static bool Kit_IsRunning(const Kit_Player *player) {
+    if(Kit_IsDemuxerThreadAlive(player->demux_thread))
+        return true;
+    if(player->dec_threads[KIT_VIDEO_INDEX])
+        if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_VIDEO_INDEX]))
+            return true;
+    if(player->dec_threads[KIT_AUDIO_INDEX])
+        if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_AUDIO_INDEX]))
+            return true;
+    return Kit_GetPlayerPosition(player) < Kit_GetPlayerDuration(player);
+}
+
+static void Kit_HaltDecoder(Kit_Player *player, int index) {
+    Kit_Decoder *decoder = player->decoders[index];
+    Kit_DecoderThread *thread = player->dec_threads[index];
+    Kit_StopDecoderThread(thread);
+    Kit_ClearDecoderBuffers(decoder);
+    Kit_SignalDecoder(decoder);
+    Kit_CloseDecoderThread(&thread);
+    Kit_CloseDecoder(&decoder);
+}
+
+static void Kit_StartThreadFor(const Kit_Player *player, Kit_BufferIndex index) {
+    switch(index) {
+        case KIT_VIDEO_INDEX:
+            Kit_StartDecoderThread(player->dec_threads[KIT_VIDEO_INDEX], "Video decoder thread");
+            return;
+        case KIT_AUDIO_INDEX:
+            Kit_StartDecoderThread(player->dec_threads[KIT_AUDIO_INDEX], "Audio decoder thread");
+            return;
+        case KIT_SUBTITLE_INDEX:
+            Kit_StartDecoderThread(player->dec_threads[KIT_SUBTITLE_INDEX], "Subtitle decoder thread");
+            return;
+        default:
+            return;
+    }
+}
+
+static void Kit_StartThreads(const Kit_Player *player) {
+    Kit_StartDemuxerThread(player->demux_thread);
+    Kit_StartThreadFor(player, KIT_VIDEO_INDEX);
+    Kit_StartThreadFor(player, KIT_AUDIO_INDEX);
+    Kit_StartThreadFor(player, KIT_SUBTITLE_INDEX);
+}
+
+static void Kit_StopThreads(const Kit_Player *player) {
+    Kit_StopDemuxerThread(player->demux_thread);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_StopDecoderThread(player->dec_threads[i]);
+    }
+}
+
+static void Kit_WaitThreads(const Kit_Player *player) {
+    Kit_WaitDemuxerThread(player->demux_thread);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_WaitDecoderThread(player->dec_threads[i]);
+    }
+}
+
+static void Kit_SignalAllBuffers(const Kit_Player *player) {
+    Kit_SignalDemuxer(player->demuxer);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_SignalDecoder(player->decoders[i]);
+    }
+}
+
+static void Kit_CloseThreads(Kit_Player *player) {
+    Kit_CloseDemuxerThread(&player->demux_thread);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_CloseDecoderThread(&player->dec_threads[i]);
+    }
+}
+
+static void Kit_FlushAllBuffers(const Kit_Player *player) {
+    Kit_ClearDemuxerBuffers(player->demuxer);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_ClearDecoderBuffers(player->decoders[i]);
+    }
+}
+
+static void Kit_VerifyState(Kit_Player *player) {
+    if(player->state == KIT_PAUSED || player->state == KIT_PLAYING) {
+        if(!Kit_IsRunning(player)) {
+            Kit_StopThreads(player);
+            Kit_WaitThreads(player);
+            player->state = KIT_STOPPED;
+        }
+    }
+}
+
 void Kit_ClosePlayer(Kit_Player *player) {
-    if(player == NULL) return;
+    if(player == NULL)
+        return;
 
-    // Kill the decoder thread and mutex
-    if(SDL_LockMutex(player->dec_lock) == 0) {
-        player->state = KIT_CLOSED;
-        SDL_UnlockMutex(player->dec_lock);
+    player->state = KIT_CLOSED;
+
+    Kit_StopThreads(player);
+    Kit_FlushAllBuffers(player);
+    Kit_SignalAllBuffers(player);
+    Kit_CloseThreads(player);
+    Kit_CloseDemuxer(&player->demuxer);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_CloseDecoder(&player->decoders[i]);
     }
-    SDL_WaitThread(player->dec_thread, NULL);
-    SDL_DestroyMutex(player->dec_lock);
-
-    // Shutdown decoders
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_CloseDecoder(player->decoders[i]);
-    }
-
-    // Free the player structure itself
+    Kit_CloseTimer(&player->sync_timer);
+    memset(player, 0, sizeof(Kit_Player));
     free(player);
 }
 
 void Kit_SetPlayerScreenSize(Kit_Player *player, int w, int h) {
     assert(player != NULL);
-    const Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_DEC];
+    const Kit_Decoder *dec = player->decoders[KIT_SUBTITLE_INDEX];
     if(dec == NULL)
         return;
+    player->screen_w = w;
+    player->screen_h = h;
     Kit_SetSubtitleDecoderSize(dec, w, h);
 }
 
 int Kit_GetPlayerVideoStream(const Kit_Player *player) {
-    assert(player != NULL);
-    return Kit_GetDecoderStreamIndex(player->decoders[KIT_VIDEO_DEC]);
+    if(player == NULL || !player->decoders[KIT_VIDEO_INDEX])
+        return -1;
+    return Kit_GetDecoderStreamIndex(player->decoders[KIT_VIDEO_INDEX]);
 }
 
 int Kit_GetPlayerAudioStream(const Kit_Player *player) {
-    assert(player != NULL);
-    return Kit_GetDecoderStreamIndex(player->decoders[KIT_AUDIO_DEC]);
+    if(player == NULL || !player->decoders[KIT_AUDIO_INDEX])
+        return -1;
+    return Kit_GetDecoderStreamIndex(player->decoders[KIT_AUDIO_INDEX]);
 }
 
 int Kit_GetPlayerSubtitleStream(const Kit_Player *player) {
-    assert(player != NULL);
-    return Kit_GetDecoderStreamIndex(player->decoders[KIT_SUBTITLE_DEC]);
+    if(player == NULL || !player->decoders[KIT_SUBTITLE_INDEX])
+        return -1;
+    return Kit_GetDecoderStreamIndex(player->decoders[KIT_SUBTITLE_INDEX]);
 }
 
-int Kit_GetPlayerVideoDataArea(Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
+int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
     assert(player != NULL);
-
-    Kit_Decoder *dec = player->decoders[KIT_VIDEO_DEC];
-    if(dec == NULL) {
+    if(player->decoders[KIT_VIDEO_INDEX] == NULL)
         return 0;
-    }
-
-    // If paused or stopped, do nothing
-    if(player->state == KIT_PAUSED) {
+    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
         return 0;
-    }
-    if(player->state == KIT_STOPPED) {
-        return 0;
-    }
-
-    return Kit_GetVideoDecoderData(dec, texture, area);
+    return Kit_GetVideoDecoderSDLTexture(player->decoders[KIT_VIDEO_INDEX], texture, area);
 }
 
-int Kit_GetPlayerVideoData(Kit_Player *player, SDL_Texture *texture) {
+int Kit_LockPlayerVideoRawFrame(const Kit_Player *player, unsigned char ***data, int **line_size, SDL_Rect *area) {
     assert(player != NULL);
-    SDL_Rect area;
-    return Kit_GetPlayerVideoDataArea(player, texture, &area);
+    if(player->decoders[KIT_VIDEO_INDEX] == NULL)
+        return 0;
+    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
+        return 0;
+    return Kit_LockVideoDecoderRaw(player->decoders[KIT_VIDEO_INDEX], data, line_size, area);
 }
 
-int Kit_GetPlayerAudioData(Kit_Player *player, unsigned char *buffer, int length) {
+void Kit_UnlockPlayerVideoRawFrame(const Kit_Player *player) {
+    assert(player != NULL);
+    if(player->decoders[KIT_VIDEO_INDEX] == NULL)
+        return;
+    Kit_UnlockVideoDecoderRaw(player->decoders[KIT_VIDEO_INDEX]);
+}
+
+int Kit_GetPlayerAudioData(
+    const Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length
+) {
     assert(player != NULL);
     assert(buffer != NULL);
-
-    Kit_Decoder *dec = player->decoders[KIT_AUDIO_DEC];
-    if(dec == NULL) {
+    if(player->decoders[KIT_AUDIO_INDEX] == NULL)
         return 0;
-    }
-
-    // If asked for nothing, don't return anything either :P
-    if(length == 0) {
+    if(length == 0)
         return 0;
-    }
-
-    // If paused or stopped, do nothing
-    if(player->state == KIT_PAUSED) {
+    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
         return 0;
-    }
-    if(player->state == KIT_STOPPED) {
-        return 0;
-    }
-
-    return Kit_GetAudioDecoderData(dec, buffer, length);
+    return Kit_GetAudioDecoderData(player->decoders[KIT_AUDIO_INDEX], backend_buffer_size, buffer, length);
 }
 
-int Kit_GetPlayerSubtitleData(Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetPlayerSubtitleSDLTexture(
+    const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit
+) {
     assert(player != NULL);
     assert(texture != NULL);
     assert(sources != NULL);
     assert(targets != NULL);
     assert(limit >= 0);
 
-    const Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_DEC];
-    const Kit_Decoder *video_dec = player->decoders[KIT_VIDEO_DEC];
-    if(sub_dec == NULL || video_dec == NULL) {
+    const Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_INDEX];
+    if(sub_dec == NULL)
         return 0;
-    }
-
-    // If paused, just return the current items
-    if(player->state == KIT_PAUSED) {
-        return Kit_GetSubtitleDecoderInfo(sub_dec, texture, sources, targets, limit);
-    }
-
-    // If stopped, do nothing.
-    if(player->state == KIT_STOPPED) {
+    if(player->state == KIT_PAUSED) // If paused, just return the current items
+        return Kit_GetSubtitleDecoderSDLTextureInfo(sub_dec, sources, targets, limit);
+    if(player->state == KIT_STOPPED) // If stopped, do nothing.
         return 0;
-    }
+    Kit_GetSubtitleDecoderSDLTexture(sub_dec, texture, Kit_GetTimerElapsed(player->sync_timer));
+    return Kit_GetSubtitleDecoderSDLTextureInfo(sub_dec, sources, targets, limit);
+}
 
-    // Refresh texture, then refresh rects and return number of items in the texture.
-    Kit_GetSubtitleDecoderTexture(sub_dec, texture, video_dec->clock_pos);
-    return Kit_GetSubtitleDecoderInfo(sub_dec, texture, sources, targets, limit);
+int Kit_GetPlayerSubtitleRawFrames(
+    const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets
+) {
+    assert(player != NULL);
+    if(player->decoders[KIT_SUBTITLE_INDEX] == NULL)
+        return 0;
+    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
+        return 0;
+    return Kit_GetSubtitleDecoderRawFrames(
+        player->decoders[KIT_SUBTITLE_INDEX], items, sources, targets, Kit_GetTimerElapsed(player->sync_timer)
+    );
 }
 
 void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info) {
     assert(player != NULL);
     assert(info != NULL);
-    const Kit_Decoder *dec = NULL;
-    Kit_PlayerStreamInfo *streams[] = {&info->video, &info->audio, &info->subtitle};
-
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        dec = player->decoders[i];
-        Kit_GetDecoderCodecInfo(dec, &streams[i]->codec);
-        Kit_GetDecoderOutputFormat(dec, &streams[i]->output);
-    }
+    const Kit_Decoder *video_decoder = player->decoders[KIT_VIDEO_INDEX];
+    const Kit_Decoder *audio_decoder = player->decoders[KIT_AUDIO_INDEX];
+    const Kit_Decoder *subtitle_decoder = player->decoders[KIT_SUBTITLE_INDEX];
+    Kit_GetDecoderCodecInfo(video_decoder, &info->video_codec);
+    Kit_GetDecoderCodecInfo(audio_decoder, &info->audio_codec);
+    Kit_GetDecoderCodecInfo(subtitle_decoder, &info->subtitle_codec);
+    Kit_GetVideoDecoderOutputFormat(video_decoder, &info->video_format);
+    Kit_GetAudioDecoderOutputFormat(audio_decoder, &info->audio_format);
+    Kit_GetSubtitleDecoderOutputFormat(subtitle_decoder, &info->subtitle_format);
 }
 
-static void _SetClockSync(const Kit_Player *player) {
-    double sync = _GetSystemTime();
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_SetDecoderClockSync(player->decoders[i], sync);
+int Kit_HasBufferFillRate(
+    const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output
+) {
+    if(video_output != -1 || video_input != -1) {
+        unsigned int fl, fc, pl, pc;
+        Kit_GetPlayerVideoBufferState(player, &fl, &fc, &pl, &pc);
+        if(video_output > -1) {
+            const float value = fl / (float)fc;
+            const float limit = Kit_clamp(video_output, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+        if(video_input > -1) {
+            const float value = pl / (float)pc;
+            const float limit = Kit_clamp(video_input, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
     }
+    if(audio_output != -1 || audio_input != -1) {
+        unsigned int sl, sc, pl, pc;
+        Kit_GetPlayerAudioBufferState(player, &sl, &sc, &pl, &pc);
+        if(audio_output > -1) {
+            const float value = sl / (float)sc;
+            const float limit = Kit_clamp(audio_output, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+        if(audio_input > -1) {
+            const float value = pl / (float)pc;
+            const float limit = Kit_clamp(audio_input, 0, 100) / 100.0f;
+            if(value < limit) {
+                return 0;
+            }
+        }
+    }
+    return 1;
 }
 
-static void _ChangeClockSync(const Kit_Player *player, double delta) {
-    for(int i = 0; i < KIT_DEC_COUNT; i++) {
-        Kit_ChangeDecoderClockSync(player->decoders[i], delta);
+int Kit_WaitBufferFillRate(
+    const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output, double timeout
+) {
+    const double start = Kit_GetSystemTime();
+    double now = start;
+    while(now - start < timeout) {
+        if(Kit_HasBufferFillRate(player, audio_input, audio_output, video_input, video_output)) {
+            return 0;
+        }
+        SDL_Delay(1);
+        now = Kit_GetSystemTime();
     }
+    return 1;
 }
 
-Kit_PlayerState Kit_GetPlayerState(const Kit_Player *player) {
+void Kit_GetPlayerVideoBufferState(
+    const Kit_Player *player,
+    unsigned int *frames_length,
+    unsigned int *frames_capacity,
+    unsigned int *packets_length,
+    unsigned int *packets_capacity
+) {
     assert(player != NULL);
+    Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_VIDEO_INDEX, packets_length, packets_capacity);
+}
+
+void Kit_GetPlayerAudioBufferState(
+    const Kit_Player *player,
+    unsigned int *samples_length,
+    unsigned int *samples_capacity,
+    unsigned int *packets_length,
+    unsigned int *packets_capacity
+) {
+    assert(player != NULL);
+    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_AUDIO_INDEX, packets_length, packets_capacity);
+}
+
+void Kit_GetPlayerSubtitleBufferState(
+    const Kit_Player *player,
+    unsigned int *items_length,
+    unsigned int *items_capacity,
+    unsigned int *packets_length,
+    unsigned int *packets_capacity
+) {
+    assert(player != NULL);
+    Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_SUBTITLE_INDEX, packets_length, packets_capacity);
+}
+
+Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
+    assert(player != NULL);
+    Kit_VerifyState(player);
     return player->state;
 }
 
 void Kit_PlayerPlay(Kit_Player *player) {
     assert(player != NULL);
-    double tmp;
-    if(SDL_LockMutex(player->dec_lock) == 0) {
-        switch(player->state) {
-            case KIT_PLAYING:
-            case KIT_CLOSED:
-                break;
-            case KIT_PAUSED:
-                tmp = _GetSystemTime() - player->pause_started;
-                _ChangeClockSync(player, tmp);
-                player->state = KIT_PLAYING;
-                break;
-            case KIT_STOPPED:
-                _RunDecoder(player); // Fill some buffers before starting playback
-                _SetClockSync(player);
-                player->state = KIT_PLAYING;
-                break;
-        }
-        SDL_UnlockMutex(player->dec_lock);
+    switch(player->state) {
+        case KIT_PLAYING:
+        case KIT_CLOSED:
+            break;
+        case KIT_PAUSED:
+            Kit_ResetTimerBase(player->sync_timer);
+            player->state = KIT_PLAYING;
+            break;
+        case KIT_STOPPED:
+            Kit_StartThreads(player);
+            Kit_ResetTimerBase(player->sync_timer);
+            player->state = KIT_PLAYING;
+            break;
     }
 }
 
 void Kit_PlayerStop(Kit_Player *player) {
     assert(player != NULL);
-    if(SDL_LockMutex(player->dec_lock) == 0) {
-        switch(player->state) {
-            case KIT_STOPPED:
-            case KIT_CLOSED:
-                break;
-            case KIT_PLAYING:
-            case KIT_PAUSED:
-                player->state = KIT_STOPPED;
-                for(int i = 0; i < KIT_DEC_COUNT; i++) {
-                    Kit_ClearDecoderBuffers(player->decoders[i]);
-                }
-                break;
-        }
-        SDL_UnlockMutex(player->dec_lock);
+    switch(player->state) {
+        case KIT_STOPPED:
+        case KIT_CLOSED:
+            break;
+        case KIT_PLAYING:
+        case KIT_PAUSED:
+            player->state = KIT_STOPPED;
+            Kit_StopThreads(player);
+            break;
     }
 }
 
 void Kit_PlayerPause(Kit_Player *player) {
     assert(player != NULL);
     player->state = KIT_PAUSED;
-    player->pause_started = _GetSystemTime();
 }
 
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
-    double position;
-    double duration;
-    int64_t seek_target;
-    int flags = AVSEEK_FLAG_ANY;
-
-    if(SDL_LockMutex(player->dec_lock) == 0) {
-        duration = Kit_GetPlayerDuration(player);
-        position = Kit_GetPlayerPosition(player);
-        if(seek_set <= 0) {
-            seek_set = 0;
-        }
-        if(seek_set >= duration) {
-            seek_set = duration;
-        }
-
-        // Set source to timestamp
-        AVFormatContext *format_ctx = player->src->format_ctx;
-        seek_target = seek_set * AV_TIME_BASE;
-        if(seek_set < position) {
-            flags |= AVSEEK_FLAG_BACKWARD;
-        }
-
-        // First, tell ffmpeg to seek stream. If not capable, stop here.
-        // Failure here probably means that stream is unseekable someway, eg. streamed media
-        if(avformat_seek_file(format_ctx, -1, seek_target, seek_target, INT64_MAX, flags) < 0) {
-            Kit_SetError("Unable to seek source");
-            SDL_UnlockMutex(player->dec_lock);
-            return 1;
-        }
-
-        // Clean old buffers and try to fill them with new data
-        for(int i = 0; i < KIT_DEC_COUNT; i++) {
-            Kit_ClearDecoderBuffers(player->decoders[i]);
-        }
-        _RunDecoder(player);
-
-        // Try to get a precise seek position from the next audio/video frame
-        // (depending on which one is used to sync)
-        double precise_pts = -1.0F;
-        if(player->decoders[KIT_VIDEO_DEC] != NULL) {
-            precise_pts = Kit_GetVideoDecoderPTS(player->decoders[KIT_VIDEO_DEC]);
-        }
-        else if(player->decoders[KIT_AUDIO_DEC] != NULL) {
-            precise_pts = Kit_GetAudioDecoderPTS(player->decoders[KIT_AUDIO_DEC]);
-        }
-
-        // If we got a legit looking value, set it as seek value. Otherwise use
-        // the seek value we requested.
-        if(precise_pts >= 0) {
-            _ChangeClockSync(player, position - precise_pts);
-        } else {
-            _ChangeClockSync(player, position - seek_set);
-        }
-
-        // That's it. Unlock and continue.
-        SDL_UnlockMutex(player->dec_lock);
+    if(player->state == KIT_STOPPED || player->state == KIT_CLOSED) {
+        Kit_SetError("Player is closed");
+        return 1;
     }
-
+    const double duration = Kit_GetPlayerDuration(player);
+    if(seek_set <= 0)
+        seek_set = 0;
+    if(seek_set >= duration)
+        seek_set = duration;
+    Kit_SeekDemuxerThread(player->demux_thread, seek_set * AV_TIME_BASE);
     return 0;
 }
 
 double Kit_GetPlayerDuration(const Kit_Player *player) {
     assert(player != NULL);
-
-    const AVFormatContext *fmt_ctx = player->src->format_ctx;
-    return (fmt_ctx->duration / AV_TIME_BASE);
+    return Kit_GetSourceDuration(player->src);
 }
 
 double Kit_GetPlayerPosition(const Kit_Player *player) {
     assert(player != NULL);
-
-    if(player->decoders[KIT_VIDEO_DEC]) {
-        return ((Kit_Decoder*)player->decoders[KIT_VIDEO_DEC])->clock_pos;
-    }
-    if(player->decoders[KIT_AUDIO_DEC]) {
-        return ((Kit_Decoder*)player->decoders[KIT_AUDIO_DEC])->clock_pos;
-    }
-    return 0;
+    double pos = Kit_GetTimerElapsed(player->sync_timer);
+    double dur = Kit_GetPlayerDuration(player);
+    return pos >= dur ? dur : pos;
 }
 
 #define IS_RATIONAL_DEFINED(rational) (rational.num > 0 && rational.den > 0)
 
 int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den) {
     assert(player != NULL);
-    const Kit_Decoder *decoder = player->decoders[KIT_VIDEO_DEC];
+    const Kit_Decoder *decoder = player->decoders[KIT_VIDEO_INDEX];
     if(!decoder) {
         Kit_SetError("Unable to find aspect ratio; no video stream selected");
         return 1;
@@ -529,8 +663,7 @@ int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den) {
     }
 
     // Then, try the stream (demuxer) data
-    const AVFormatContext *fmt_ctx = player->src->format_ctx;
-    const AVStream *stream = fmt_ctx->streams[decoder->stream_index];
+    const AVStream *stream = decoder->stream;
     if(IS_RATIONAL_DEFINED(stream->sample_aspect_ratio)) {
         *num = stream->sample_aspect_ratio.num;
         *den = stream->sample_aspect_ratio.den;
@@ -540,4 +673,146 @@ int Kit_GetPlayerAspectRatio(const Kit_Player *player, int *num, int *den) {
     // No data found anywhere, give up.
     Kit_SetError("Unable to find aspect ratio; no data from demuxer or codec");
     return 1;
+}
+
+static void Kit_IsStreamPrimary(const Kit_Player *player, bool *video_primary, bool *audio_primary) {
+    const Kit_Decoder *video_decoder = player->decoders[KIT_VIDEO_INDEX];
+    const Kit_Decoder *audio_decoder = player->decoders[KIT_AUDIO_INDEX];
+    *video_primary = video_decoder && video_decoder->stream->index > -1;
+    *audio_primary = audio_decoder && !*video_primary && audio_decoder->stream->index > -1;
+}
+
+int Kit_ClosePlayerStream(Kit_Player *player, const Kit_StreamType type) {
+    assert(player != NULL);
+
+    Kit_BufferIndex buffer_index;
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            buffer_index = KIT_AUDIO_INDEX;
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            buffer_index = KIT_VIDEO_INDEX;
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            buffer_index = KIT_SUBTITLE_INDEX;
+            break;
+        default:
+            Kit_SetError("Unknown stream type");
+            return 1;
+    }
+
+    // Stop and clear the old decoder and output buffers
+    Kit_HaltDecoder(player, buffer_index);
+    // Clear the demuxer packets
+    Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, -1);
+    player->decoders[buffer_index] = NULL;
+    player->dec_threads[buffer_index] = NULL;
+    return 0;
+}
+
+int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index) {
+    assert(player != NULL);
+    Kit_Decoder *new_decoder = NULL;
+    Kit_DecoderThread *new_thread = NULL;
+    Kit_BufferIndex buffer_index;
+    bool video_primary, audio_primary;
+
+    // If index is -1, it means we are closing the stream.
+    if(index < 0) {
+        return Kit_ClosePlayerStream(player, type);
+    }
+
+    // Figure out which stream is currently the primary one. This stream is allowed to modify the sync clock.
+    Kit_IsStreamPrimary(player, &video_primary, &audio_primary);
+
+    // First, attempt to start up a new decoder instance. If this fails, we don't want to disturb the
+    // currently running decoder.
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            buffer_index = KIT_AUDIO_INDEX;
+            if(!Kit_InitializeAudioDecoder(
+                   player->src,
+                   player->sync_timer,
+                   player->demux_thread,
+                   &player->audio_req,
+                   audio_primary,
+                   index,
+                   &new_decoder,
+                   &new_thread
+               ))
+                goto error_1;
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            buffer_index = KIT_VIDEO_INDEX;
+            if(!Kit_InitializeVideoDecoder(
+                   player->src,
+                   player->sync_timer,
+                   player->demux_thread,
+                   &player->video_req,
+                   video_primary,
+                   index,
+                   &new_decoder,
+                   &new_thread
+               ))
+                goto error_1;
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            buffer_index = KIT_SUBTITLE_INDEX;
+            if(!Kit_InitializeSubtitleDecoder(
+                   player->src,
+                   player->sync_timer,
+                   player->demux_thread,
+                   player->decoders[KIT_VIDEO_INDEX],
+                   index,
+                   player->screen_w,
+                   player->screen_h,
+                   &new_decoder,
+                   &new_thread
+               ))
+                goto error_1;
+            break;
+        default:
+            Kit_SetError("Unknown stream type");
+            return 1;
+    }
+
+    // If we have a good new decoder, stop the old thread and decoder.
+    Kit_HaltDecoder(player, buffer_index);
+
+    // Switch demuxer to track the new stream index. This will also clear the packet buffer, so that the decoder
+    // will no longer get packets from the old stream.
+    Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, index);
+
+    // Set the new decoder and thread, and spin up the thread if we were already playing.
+    player->decoders[buffer_index] = new_decoder;
+    player->dec_threads[buffer_index] = new_thread;
+    if(player->state == KIT_PLAYING || player->state == KIT_PAUSED)
+        Kit_StartThreadFor(player, buffer_index);
+
+    // Et voila!
+    return 0;
+
+error_1:
+    Kit_SetError("Failed to initialize decoder");
+    Kit_CloseDecoder(&new_decoder);
+    Kit_CloseDecoderThread(&new_thread);
+    return 1;
+}
+
+int Kit_GetPlayerStream(const Kit_Player *player, const Kit_StreamType type) {
+    Kit_Decoder *dec = NULL;
+    switch(type) {
+        case KIT_STREAMTYPE_AUDIO:
+            dec = player->decoders[KIT_AUDIO_INDEX];
+            break;
+        case KIT_STREAMTYPE_VIDEO:
+            dec = player->decoders[KIT_VIDEO_INDEX];
+            break;
+        case KIT_STREAMTYPE_SUBTITLE:
+            dec = player->decoders[KIT_SUBTITLE_INDEX];
+            break;
+        default:
+            dec = NULL;
+    }
+    return (dec != NULL) ? dec->stream->index : -1;
 }

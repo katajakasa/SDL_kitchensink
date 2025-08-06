@@ -1,15 +1,9 @@
 #include <assert.h>
 
-#include "kitchensink/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
 
-static int Kit_min(int a, int b) {
-    if(a < b)
-        return a;
-    return b;
-}
-
-
-Kit_TextureAtlas* Kit_CreateAtlas() {
+Kit_TextureAtlas *Kit_CreateAtlas() {
     Kit_TextureAtlas *atlas = calloc(1, sizeof(Kit_TextureAtlas));
     if(atlas == NULL) {
         goto EXIT_0;
@@ -75,7 +69,7 @@ int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surf
     int best_shelf_idx = -1;
     int best_shelf_h = atlas->h;
     int best_shelf_y = 0;
-    
+
     // Try to find a good, existing shelf to put this item in.
     int shelf_idx;
     for(shelf_idx = 0; shelf_idx < atlas->max_shelves; shelf_idx++) {
@@ -97,11 +91,7 @@ int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surf
 
     // If existing shelf found, put the item there. Otherwise, create a new shelf.
     if(best_shelf_idx != -1) {
-        Kit_SetItemAllocation(
-            item,
-            surface,
-            atlas->shelves[best_shelf_idx].width,
-            best_shelf_y);
+        Kit_SetItemAllocation(item, surface, atlas->shelves[best_shelf_idx].width, best_shelf_y);
         atlas->shelves[best_shelf_idx].width += surface->w;
         atlas->shelves[best_shelf_idx].count += 1;
         return 0;
@@ -109,11 +99,7 @@ int Kit_FindFreeAtlasSlot(const Kit_TextureAtlas *atlas, const SDL_Surface *surf
         atlas->shelves[shelf_idx].width = surface->w;
         atlas->shelves[shelf_idx].height = surface->h;
         atlas->shelves[shelf_idx].count = 1;
-        Kit_SetItemAllocation(
-            item,
-            surface,
-            0,
-            total_reserved_h);
+        Kit_SetItemAllocation(item, surface, 0, total_reserved_h);
         return 0;
     }
 
@@ -149,7 +135,9 @@ int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect
     return max_count;
 }
 
-int Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_Rect *target) {
+int Kit_AddAtlasItem(
+    Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_Rect *target
+) {
     assert(atlas != NULL);
     assert(surface != NULL);
     assert(target != NULL);

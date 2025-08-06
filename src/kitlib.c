@@ -3,16 +3,15 @@
 #include <SDL_loadso.h>
 #endif
 
-#include <libavformat/avformat.h>
 #include "libavcodec/avcodec.h"
+#include <libavformat/avformat.h>
 
-#include "kitchensink/kitchensink.h"
-#include "kitchensink/internal/kitlibstate.h"
+#include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/kitchensink.h"
 
-static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {}
-
-static int Kit_max(int a, int b) { return a > b ? a : b; }
-static int Kit_min(int a, int b) { return a < b ? a : b; }
+static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {
+}
 
 int Kit_InitASS(Kit_LibraryState *state) {
 #ifdef USE_DYNAMIC_LIBASS
@@ -42,36 +41,32 @@ int Kit_Init(unsigned int flags) {
 
     if(state->init_flags != 0) {
         Kit_SetError("SDL_kitchensink is already initialized");
-        goto EXIT_0;
+        goto exit_0;
     }
-
-#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
-    av_register_all();
-#endif
-
     if(flags & KIT_INIT_NETWORK) {
         avformat_network_init();
     }
     if(flags & KIT_INIT_ASS) {
         if(Kit_InitASS(state) != 0) {
             Kit_SetError("Failed to initialize libass");
-            goto EXIT_1;
+            goto exit_1;
         }
     }
+
+    // Disable ffmpeg logging.
+    av_log_set_level(AV_LOG_QUIET);
 
     state->init_flags = flags;
     return 0;
 
-EXIT_1:
+exit_1:
     avformat_network_deinit();
-
-EXIT_0:
+exit_0:
     return 1;
 }
 
 void Kit_Quit() {
     Kit_LibraryState *state = Kit_GetLibraryState();
-
     if(state->init_flags & KIT_INIT_NETWORK) {
         avformat_network_deinit();
     }
@@ -85,34 +80,40 @@ void Kit_SetHint(Kit_HintType type, int value) {
     Kit_LibraryState *state = Kit_GetLibraryState();
     switch(type) {
         case KIT_HINT_THREAD_COUNT:
-            state->thread_count =  Kit_max(value, 0);
+            state->thread_count = Kit_max(value, 0);
             break;
         case KIT_HINT_FONT_HINTING:
-            state->font_hinting = Kit_max(Kit_min(value, KIT_FONT_HINTING_COUNT), 0);
-            break;
-        case KIT_HINT_VIDEO_BUFFER_FRAMES:
-            state->video_buf_frames = Kit_max(value, 1);
-            break;
-        case KIT_HINT_AUDIO_BUFFER_FRAMES:
-            state->audio_buf_frames = Kit_max(value, 1);
-            break;
-        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
-            state->subtitle_buf_frames = Kit_max(value, 1);
+            state->font_hinting = Kit_max(Kit_min(value, KIT_FONT_HINTING_COUNT - 1), 0);
             break;
         case KIT_HINT_VIDEO_BUFFER_PACKETS:
-            state->video_buf_packets = Kit_max(value, 1);
+            state->video_packet_buffer_size = Kit_max(value, 1);
             break;
         case KIT_HINT_AUDIO_BUFFER_PACKETS:
-            state->audio_buf_packets = Kit_max(value, 1);
+            state->audio_packet_buffer_size = Kit_max(value, 1);
             break;
         case KIT_HINT_SUBTITLE_BUFFER_PACKETS:
-            state->subtitle_buf_packets = Kit_max(value, 1);
+            state->subtitle_packet_buffer_size = Kit_max(value, 1);
             break;
-        case KIT_HINT_ANALYZE_DURATION:
-            state->analyze_duration = value;
+        case KIT_HINT_VIDEO_BUFFER_FRAMES:
+            state->video_frame_buffer_size = Kit_max(value, 1);
             break;
-        case KIT_HINT_PROBE_SIZE:
-            state->probe_size = value;
+        case KIT_HINT_AUDIO_BUFFER_FRAMES:
+            state->audio_frame_buffer_size = Kit_max(value, 1);
+            break;
+        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
+            state->subtitle_frame_buffer_size = Kit_max(value, 1);
+            break;
+        case KIT_HINT_AUDIO_EARLY_THRESHOLD:
+            state->audio_early_threshold = Kit_max(value, 0);
+            break;
+        case KIT_HINT_AUDIO_LATE_THRESHOLD:
+            state->audio_late_threshold = Kit_max(value, 0);
+            break;
+        case KIT_HINT_VIDEO_EARLY_THRESHOLD:
+            state->video_early_threshold = Kit_max(value, 0);
+            break;
+        case KIT_HINT_VIDEO_LATE_THRESHOLD:
+            state->video_late_threshold = Kit_max(value, 0);
             break;
     }
 }
@@ -124,22 +125,26 @@ int Kit_GetHint(Kit_HintType type) {
             return state->thread_count;
         case KIT_HINT_FONT_HINTING:
             return state->font_hinting;
-        case KIT_HINT_VIDEO_BUFFER_FRAMES:
-            return state->video_buf_frames;
-        case KIT_HINT_AUDIO_BUFFER_FRAMES:
-            return state->audio_buf_frames;
-        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
-            return state->subtitle_buf_frames;
         case KIT_HINT_VIDEO_BUFFER_PACKETS:
-            return state->video_buf_packets;
+            return state->video_packet_buffer_size;
         case KIT_HINT_AUDIO_BUFFER_PACKETS:
-            return state->audio_buf_packets;
+            return state->audio_packet_buffer_size;
         case KIT_HINT_SUBTITLE_BUFFER_PACKETS:
-            return state->subtitle_buf_packets;
-        case KIT_HINT_ANALYZE_DURATION:
-            return state->analyze_duration;
-        case KIT_HINT_PROBE_SIZE:
-            return state->probe_size;
+            return state->subtitle_packet_buffer_size;
+        case KIT_HINT_VIDEO_BUFFER_FRAMES:
+            return state->video_frame_buffer_size;
+        case KIT_HINT_AUDIO_BUFFER_FRAMES:
+            return state->audio_frame_buffer_size;
+        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
+            return state->subtitle_frame_buffer_size;
+        case KIT_HINT_AUDIO_EARLY_THRESHOLD:
+            return state->audio_early_threshold;
+        case KIT_HINT_AUDIO_LATE_THRESHOLD:
+            return state->audio_late_threshold;
+        case KIT_HINT_VIDEO_EARLY_THRESHOLD:
+            return state->video_early_threshold;
+        case KIT_HINT_VIDEO_LATE_THRESHOLD:
+            return state->video_late_threshold;
         default:
             return 0;
     }

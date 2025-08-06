@@ -1,9 +1,9 @@
-#include <libavutil/time.h>
 #include <libavutil/avstring.h>
+#include <libavutil/time.h>
 
-#include "kitchensink/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
 
-static const char * const font_mime[] = {
+static const char *const font_mime[] = {
     "application/x-font-ttf",
     "application/x-font-truetype",
     "application/x-truetype-font",
@@ -13,11 +13,13 @@ static const char * const font_mime[] = {
     NULL
 };
 
-double _GetSystemTime() {
+double Kit_GetSystemTime() {
     return (double)av_gettime() / 1000000.0;
 }
 
-bool attachment_is_font(const AVStream *stream) {
+bool Kit_StreamIsFontAttachment(const AVStream *stream) {
+    if(stream->codecpar->codec_type != AVMEDIA_TYPE_ATTACHMENT)
+        return false;
     const AVDictionaryEntry *tag = av_dict_get(stream->metadata, "mimetype", NULL, AV_DICT_MATCH_CASE);
     if(tag) {
         for(int n = 0; font_mime[n]; n++) {
@@ -27,4 +29,16 @@ bool attachment_is_font(const AVStream *stream) {
         }
     }
     return false;
+}
+
+int Kit_max(int a, int b) {
+    return a > b ? a : b;
+}
+
+int Kit_min(int a, int b) {
+    return a < b ? a : b;
+}
+
+int Kit_clamp(int v, int min, int max) {
+    return Kit_max(Kit_min(v, max), min);
 }

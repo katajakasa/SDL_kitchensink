@@ -1,31 +1,25 @@
-#include <kitchensink/kitchensink.h>
 #include <SDL.h>
-#include <stdio.h>
+#include <limits.h>
+#include <kitchensink2/kitchensink.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /*
-* Note! This example does not do proper error handling etc.
-* It is for example use only!
-*/
+ * Note! This example does not do proper error handling etc.
+ * It is for example use only!
+ */
 
-#define AUDIOBUFFER_SIZE (32768)
-
-const char *stream_types[] = {
-    "KIT_STREAMTYPE_UNKNOWN",
-    "KIT_STREAMTYPE_VIDEO",
-    "KIT_STREAMTYPE_AUDIO",
-    "KIT_STREAMTYPE_DATA",
-    "KIT_STREAMTYPE_SUBTITLE",
-    "KIT_STREAMTYPE_ATTACHMENT"
-};
+#define AUDIO_BUFFER_SIZE (1024 * 64)
+#define AUDIO_BUFFER_PACKETS 24
+#define AUDIO_BUFFER_FRAMES 32
 
 int main(int argc, char *argv[]) {
     int err = 0, ret = 0;
-    const char* filename = NULL;
+    const char *filename = NULL;
 
     // Events
     bool run = true;
-    
+
     // Kitchensink
     Kit_Source *src = NULL;
     Kit_Player *player = NULL;
@@ -33,7 +27,7 @@ int main(int argc, char *argv[]) {
     // Audio playback
     SDL_AudioSpec wanted_spec, audio_spec;
     SDL_AudioDeviceID audio_dev;
-    char audiobuf[AUDIOBUFFER_SIZE];
+    char audio_buf[AUDIO_BUFFER_SIZE];
 
     // Get filename to open
     if(argc != 2) {
@@ -55,13 +49,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Set ffmpeg arguments for file data probing.
-    Kit_SetHint(KIT_HINT_ANALYZE_DURATION, 100 * 1000); // 100 milliseconds (value is in microseconds)
-    Kit_SetHint(KIT_HINT_PROBE_SIZE, 128 * 1024); // 128 kilobytes (value is in bytes)
-
     // Set input and output buffering to reduce latency
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, 32); // 32 demuxed packets waiting to be decoded
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, 3); // 3 decoded frames (max)
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, AUDIO_BUFFER_PACKETS);
+    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, AUDIO_BUFFER_FRAMES);
+
+    // Loosen up sync thresholds -- this should help with stuttering in network streams.
+    Kit_SetHint(KIT_HINT_AUDIO_EARLY_THRESHOLD, 30);
+    Kit_SetHint(KIT_HINT_AUDIO_LATE_THRESHOLD, 100);
 
     // Open up the sourcefile.
     src = Kit_CreateSourceFromUrl(filename);
@@ -71,32 +65,27 @@ int main(int argc, char *argv[]) {
     }
 
     // Print stream information
-    Kit_SourceStreamInfo sinfo;
+    Kit_SourceStreamInfo source_info;
     fprintf(stderr, "Source streams:\n");
     for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
-        err = Kit_GetSourceStreamInfo(src, &sinfo, i);
+        err = Kit_GetSourceStreamInfo(src, &source_info, i);
         if(err) {
             fprintf(stderr, "Unable to fetch stream #%d information: %s.\n", i, Kit_GetError());
             return 1;
         }
-        fprintf(stderr, " * Stream #%d: %s\n", i, stream_types[sinfo.type]);
+        fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(source_info.type));
     }
 
     // Create the player. No video, pick best audio stream, no subtitles, no screen
-    player = Kit_CreatePlayer(
-        src,
-        -1,
-        Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
-        -1,
-        0, 0);
+    player = Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, NULL, 0, 0);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
     }
 
     // Print some information
-    Kit_PlayerInfo pinfo;
-    Kit_GetPlayerInfo(player, &pinfo);
+    Kit_PlayerInfo player_info;
+    Kit_GetPlayerInfo(player, &player_info);
 
     // Make sure there is audio in the file to play first.
     if(Kit_GetPlayerAudioStream(player) == -1) {
@@ -105,19 +94,22 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Media information:\n");
-    fprintf(stderr, " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
-        pinfo.audio.codec.name,
-        pinfo.audio.codec.description,
-        pinfo.audio.output.samplerate,
-        pinfo.audio.output.channels,
-        pinfo.audio.output.bytes,
-        pinfo.audio.output.is_signed ? "signed" : "unsigned");
+    fprintf(
+        stderr,
+        " * Audio: %s (%s), %dHz, %dch, %db, %s\n",
+        player_info.audio_codec.name,
+        player_info.audio_codec.description,
+        player_info.audio_format.sample_rate,
+        player_info.audio_format.channels,
+        player_info.audio_format.bytes,
+        player_info.audio_format.is_signed ? "signed" : "unsigned"
+    );
 
     // Init audio
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio.output.samplerate;
-    wanted_spec.format = pinfo.audio.output.format;
-    wanted_spec.channels = pinfo.audio.output.channels;
+    wanted_spec.freq = player_info.audio_format.sample_rate;
+    wanted_spec.format = player_info.audio_format.format;
+    wanted_spec.channels = player_info.audio_format.channels;
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
@@ -127,6 +119,7 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
+    bool is_buffering = false;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -143,14 +136,30 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Refresh audio
-        int queued = SDL_GetQueuedAudioSize(audio_dev);
-        if(queued < AUDIOBUFFER_SIZE) {
-            ret = Kit_GetPlayerAudioData(player, (unsigned char*)audiobuf, AUDIOBUFFER_SIZE - queued);
-            if(ret > 0) {
-                SDL_QueueAudio(audio_dev, audiobuf, ret);
+        // If audio buffers fall below given threshold, pause playback and start buffering.
+        if (!is_buffering) {
+            if(!Kit_HasBufferFillRate(player, -1, 10, -1, -1)) {
+                Kit_PlayerPause(player);
+                is_buffering = true;
+            }
+        } else {
+            if(Kit_WaitBufferFillRate(player, 50, 50, -1, -1, 1.0) == 1) {
+                fprintf(stderr, "Buffering ...\n");
+            } else {
+                is_buffering = false;
+                Kit_PlayerPlay(player);
             }
         }
+
+        // Fetch as many audio samples as the decoder is willing to give.
+        int queued;
+        do {
+            queued = SDL_GetQueuedAudioSize(audio_dev);
+            ret = Kit_GetPlayerAudioData(player, UINT_MAX, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
+            if(ret > 0) {
+                SDL_QueueAudio(audio_dev, audio_buf, ret);
+            }
+        } while(ret > 0 && queued < AUDIO_BUFFER_SIZE);
 
         SDL_Delay(1);
     }
