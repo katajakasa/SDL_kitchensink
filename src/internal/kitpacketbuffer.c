@@ -2,7 +2,6 @@
 #include <assert.h>
 
 #include "kitchensink2/internal/kitpacketbuffer.h"
-#include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 
 struct Kit_PacketBuffer {
@@ -152,7 +151,7 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
     }
 }
 
-void Kit_SignalPacketBuffer(Kit_PacketBuffer *buffer) {
+void Kit_SignalPacketBuffer(const Kit_PacketBuffer *buffer) {
     if(buffer == NULL)
         return;
     SDL_CondBroadcast(buffer->can_write);
@@ -187,8 +186,6 @@ bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
         goto error_1;
     buffer->move_cb(buffer->packets[buffer->head], src);
     advance_write(buffer);
-    // LOG("WRITE -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
-    // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     SDL_UnlockMutex(buffer->mutex);
     SDL_CondSignal(buffer->can_read);
     return true;
@@ -213,8 +210,6 @@ bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
         goto error_1;
     buffer->move_cb(dst, buffer->packets[buffer->tail]);
     advance_read(buffer);
-    // LOG("READ -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
-    // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     SDL_UnlockMutex(buffer->mutex);
     SDL_CondSignal(buffer->can_write);
     return true;
@@ -225,7 +220,7 @@ error_0:
     return false;
 }
 
-bool Kit_BeginPacketBufferRead(Kit_PacketBuffer *buffer, void *dst, int timeout) {
+bool Kit_BeginPacketBufferRead(const Kit_PacketBuffer *buffer, void *dst, int timeout) {
     assert(buffer);
     if(SDL_LockMutex(buffer->mutex) < 0)
         goto error_0;
@@ -238,8 +233,6 @@ bool Kit_BeginPacketBufferRead(Kit_PacketBuffer *buffer, void *dst, int timeout)
     if(Kit_IsPacketBufferEmpty(buffer))
         goto error_1;
     buffer->ref_cb(dst, buffer->packets[buffer->tail]);
-    // LOG("BEGIN -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
-    // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     return true;
 
 error_1:
@@ -253,14 +246,10 @@ void Kit_FinishPacketBufferRead(Kit_PacketBuffer *buffer) {
     buffer->unref_cb(buffer->packets[buffer->tail]);
     advance_read(buffer);
     SDL_UnlockMutex(buffer->mutex);
-    // LOG("FINISH -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
-    // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     SDL_CondSignal(buffer->can_write);
 }
 
-void Kit_CancelPacketBufferRead(Kit_PacketBuffer *buffer) {
+void Kit_CancelPacketBufferRead(const Kit_PacketBuffer *buffer) {
     assert(buffer);
-    // LOG("CANCEL -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
-    // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     SDL_UnlockMutex(buffer->mutex);
 }
