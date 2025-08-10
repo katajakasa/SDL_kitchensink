@@ -75,14 +75,16 @@ static bool dec_decode_subtitle_cb(const Kit_Decoder *dec, double *pts) {
     return false;
 }
 
-static void dec_get_subtitle_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
+static void dec_get_subtitle_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity, size_t *bytes) {
     assert(ref);
     assert(ref->userdata);
-    Kit_SubtitleDecoder *subtitle_decoder = ref->userdata;
+    const Kit_SubtitleDecoder *subtitle_decoder = ref->userdata;
     if(length != NULL)
         *length = subtitle_decoder->atlas->cur_items;
     if(capacity != NULL)
         *capacity = subtitle_decoder->atlas->max_items;
+    if(bytes != NULL)
+        *bytes = 0;
 }
 
 static void dec_close_subtitle_cb(Kit_Decoder *ref) {

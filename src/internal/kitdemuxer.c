@@ -38,6 +38,14 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     return true;
 }
 
+static size_t get_av_packet_size(const AVPacket *packet) {
+    size_t n = packet->size;
+    if(packet->side_data) {
+        n += packet->side_data->size;
+    }
+    return n;
+}
+
 Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio_index, int subtitle_index) {
     Kit_LibraryState *state = Kit_GetLibraryState();
     Kit_Demuxer *demuxer = NULL;
@@ -60,7 +68,8 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
             (buf_obj_unref)av_packet_unref,
             (buf_obj_free)av_packet_free,
             (buf_obj_move)av_packet_move_ref,
-            (buf_obj_ref)av_packet_ref
+            (buf_obj_ref)av_packet_ref,
+            (buf_obj_size)get_av_packet_size
         );
         if(video_buf == NULL) {
             Kit_SetError("Unable to allocate video packet buffer");
@@ -74,7 +83,8 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
             (buf_obj_unref)av_packet_unref,
             (buf_obj_free)av_packet_free,
             (buf_obj_move)av_packet_move_ref,
-            (buf_obj_ref)av_packet_ref
+            (buf_obj_ref)av_packet_ref,
+            (buf_obj_size)get_av_packet_size
         );
         if(audio_buf == NULL) {
             Kit_SetError("Unable to allocate audio packet buffer");
@@ -88,7 +98,8 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
             (buf_obj_unref)av_packet_unref,
             (buf_obj_free)av_packet_free,
             (buf_obj_move)av_packet_move_ref,
-            (buf_obj_ref)av_packet_ref
+            (buf_obj_ref)av_packet_ref,
+            (buf_obj_size)get_av_packet_size
         );
         if(subtitle_buf == NULL) {
             Kit_SetError("Unable to allocate subtitle packet buffer");
@@ -176,13 +187,15 @@ bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target) {
 }
 
 void Kit_GetDemuxerBufferState(
-    const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index, unsigned int *length, unsigned int *capacity
+    const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index, unsigned int *length, unsigned int *capacity, size_t *bytes
 ) {
-    Kit_PacketBuffer *buffer;
-    if(!demuxer || !(buffer = demuxer->buffers[buffer_index]))
-        return;
+    if(!demuxer) return;
+    Kit_PacketBuffer *buffer = demuxer->buffers[buffer_index];
+    if(!buffer) return;
     if(length != NULL)
         *length = Kit_GetPacketBufferLength(buffer);
     if(capacity != NULL)
         *capacity = Kit_GetPacketBufferCapacity(buffer);
+    if(bytes != NULL)
+        *bytes = Kit_GetPacketBufferBytes(buffer);
 }
