@@ -12,11 +12,13 @@ struct Kit_PacketBuffer {
     size_t head;
     size_t tail;
     size_t capacity;
+    size_t bytes;
     bool full;
     buf_obj_unref unref_cb;
     buf_obj_free free_cb;
     buf_obj_move move_cb;
     buf_obj_ref ref_cb;
+    buf_obj_size size_cb;
 };
 
 Kit_PacketBuffer *Kit_CreatePacketBuffer(
@@ -25,7 +27,8 @@ Kit_PacketBuffer *Kit_CreatePacketBuffer(
     buf_obj_unref unref_cb,
     buf_obj_free free_cb,
     buf_obj_move move_cb,
-    buf_obj_ref ref_cb
+    buf_obj_ref ref_cb,
+    buf_obj_size size_cb
 ) {
     assert(capacity > 0);
     Kit_PacketBuffer *buffer = NULL;
@@ -68,11 +71,13 @@ Kit_PacketBuffer *Kit_CreatePacketBuffer(
     buffer->capacity = capacity;
     buffer->head = 0;
     buffer->tail = 0;
+    buffer->bytes = 0;
     buffer->full = false;
     buffer->unref_cb = unref_cb;
     buffer->free_cb = free_cb;
     buffer->move_cb = move_cb;
     buffer->ref_cb = ref_cb;
+    buffer->size_cb = size_cb;
     return buffer;
 
 error_4:
@@ -136,6 +141,11 @@ size_t Kit_GetPacketBufferLength(const Kit_PacketBuffer *buffer) {
                                           : buffer->capacity + buffer->head - buffer->tail;
 }
 
+size_t Kit_GetPacketBufferBytes(const Kit_PacketBuffer *buffer) {
+    assert(buffer);
+    return buffer->bytes;
+}
+
 void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
     if(buffer == NULL)
         return;
@@ -145,6 +155,7 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
         }
         buffer->head = 0;
         buffer->tail = 0;
+        buffer->bytes = 0;
         buffer->full = false;
         SDL_UnlockMutex(buffer->mutex);
         SDL_CondSignal(buffer->can_write);
@@ -184,6 +195,9 @@ bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
         SDL_CondWait(buffer->can_write, buffer->mutex);
     if(Kit_IsPacketBufferFull(buffer))
         goto error_1;
+    if(buffer->size_cb) {
+        buffer->bytes += buffer->size_cb(src);
+    }
     buffer->move_cb(buffer->packets[buffer->head], src);
     advance_write(buffer);
     SDL_UnlockMutex(buffer->mutex);
@@ -208,6 +222,9 @@ bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     }
     if(Kit_IsPacketBufferEmpty(buffer))
         goto error_1;
+    if(buffer->size_cb) {
+        buffer->bytes -= buffer->size_cb(buffer->packets[buffer->tail]);
+    }
     buffer->move_cb(dst, buffer->packets[buffer->tail]);
     advance_read(buffer);
     SDL_UnlockMutex(buffer->mutex);
@@ -243,6 +260,9 @@ error_0:
 
 void Kit_FinishPacketBufferRead(Kit_PacketBuffer *buffer) {
     assert(buffer);
+    if(buffer->size_cb) {
+        buffer->bytes -= buffer->size_cb(buffer->packets[buffer->tail]);
+    }
     buffer->unref_cb(buffer->packets[buffer->tail]);
     advance_read(buffer);
     SDL_UnlockMutex(buffer->mutex);

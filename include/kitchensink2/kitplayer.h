@@ -218,15 +218,19 @@ KIT_API int Kit_WaitBufferFillRate(
  * @param player Player instance
  * @param frames_length Current size of the output buffer in frames
  * @param frames_size Current maximum size of the output buffer in frames
+ * @param frames_bytes Current size of the output buffer in bytes
  * @param packets_length Current size of the input buffer in raw packets
  * @param packets_capacity Current maximum size of the input buffer in raw packets
+ * @param packets_bytes Current size of the input buffer in bytes
  */
 KIT_API void Kit_GetPlayerVideoBufferState(
     const Kit_Player *player,
     unsigned int *frames_length,
     unsigned int *frames_size,
+    size_t *frames_bytes,
     unsigned int *packets_length,
-    unsigned int *packets_capacity
+    unsigned int *packets_capacity,
+    size_t *packets_bytes
 );
 
 /** @brief Gets the player audio buffering state
@@ -237,15 +241,19 @@ KIT_API void Kit_GetPlayerVideoBufferState(
  * @param player Player instance
  * @param samples_length Current size of the output buffer in samples
  * @param samples_size Current maximum size of the output buffer in samples
+ * @param samples_bytes Current size of the output buffer in bytes
  * @param packets_length Current size of the input buffer in raw packets
  * @param packets_capacity Current maximum size of the input buffer in raw packets
+ * @param packets_bytes Current size of the input buffer in bytes
  */
 KIT_API void Kit_GetPlayerAudioBufferState(
     const Kit_Player *player,
     unsigned int *samples_length,
     unsigned int *samples_size,
+    size_t *samples_bytes,
     unsigned int *packets_length,
-    unsigned int *packets_capacity
+    unsigned int *packets_capacity,
+    size_t *packets_bytes
 );
 
 /** @brief Gets the player subtitle buffering state
@@ -256,15 +264,19 @@ KIT_API void Kit_GetPlayerAudioBufferState(
  * @param player Player instance
  * @param items_length Current size of the output buffer in subtitle elements
  * @param items_size Current maximum size of the output buffer in subtitle elements
+ * @param items_bytes Current size of the output buffer in bytes
  * @param packets_length Current size of the input buffer in raw packets
  * @param packets_capacity Current maximum size of the input buffer in raw packets
+ * @param packets_bytes Current size of the input buffer in bytes
  */
 KIT_API void Kit_GetPlayerSubtitleBufferState(
     const Kit_Player *player,
     unsigned int *items_length,
     unsigned int *items_size,
+    size_t *items_bytes,
     unsigned int *packets_length,
-    unsigned int *packets_capacity
+    unsigned int *packets_capacity,
+    size_t *packets_bytes
 );
 
 /**

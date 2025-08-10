@@ -28,7 +28,7 @@ typedef bool (*dec_decode_cb)(const Kit_Decoder *decoder, double *pts);
 typedef void (*dec_flush_cb)(Kit_Decoder *decoder);
 typedef void (*dec_signal_cb)(Kit_Decoder *decoder);
 typedef void (*dec_close_cb)(Kit_Decoder *decoder);
-typedef void (*dec_get_buffers_cb)(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity);
+typedef void (*dec_get_buffers_cb)(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity, size_t *bytes);
 
 struct Kit_Decoder {
     Kit_Timer *sync_timer;       ///< Playback synchronization timer
@@ -68,6 +68,6 @@ KIT_LOCAL bool Kit_RunDecoder(const Kit_Decoder *decoder, double *pts);
 KIT_LOCAL Kit_DecoderInputResult Kit_AddDecoderPacket(const Kit_Decoder *decoder, const AVPacket *packet);
 KIT_LOCAL void Kit_ClearDecoderBuffers(Kit_Decoder *decoder);
 KIT_LOCAL void Kit_SignalDecoder(Kit_Decoder *decoder);
-KIT_LOCAL int Kit_GetDecoderBufferState(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity);
+KIT_LOCAL int Kit_GetDecoderBufferState(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity, size_t *bytes);
 
 #endif // KITDECODER_H

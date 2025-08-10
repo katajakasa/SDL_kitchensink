@@ -117,7 +117,7 @@ static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     return false;
 }
 
-static void dec_get_video_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
+static void dec_get_video_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity, size_t *bytes) {
     assert(ref);
     assert(ref->userdata);
     Kit_VideoDecoder *video_decoder = ref->userdata;
@@ -125,6 +125,8 @@ static void dec_get_video_buffers_cb(const Kit_Decoder *ref, unsigned int *lengt
         *length = Kit_GetPacketBufferLength(video_decoder->buffer);
     if(capacity != NULL)
         *capacity = Kit_GetPacketBufferCapacity(video_decoder->buffer);
+    if(bytes != NULL)
+        *bytes = Kit_GetPacketBufferBytes(video_decoder->buffer);
 }
 
 static void dec_close_video_cb(Kit_Decoder *ref) {
@@ -139,6 +141,17 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
     av_frame_free(&video_decoder->out_frame);
     sws_freeContext(video_decoder->sws);
     free(video_decoder);
+}
+
+static size_t get_av_video_frame_size(const AVFrame *frame) {
+    size_t n = 0;
+    for(int i = 0; i < AV_NUM_DATA_POINTERS; i++) {
+        n += frame->buf[i]->size;
+    }
+    for(int i = 0; i < frame->nb_side_data; i++) {
+        n += frame->side_data[i]->size;
+    }
+    return n;
 }
 
 Kit_Decoder *Kit_CreateVideoDecoder(
@@ -209,7 +222,8 @@ Kit_Decoder *Kit_CreateVideoDecoder(
             (buf_obj_unref)av_frame_unref,
             (buf_obj_free)av_frame_free,
             (buf_obj_move)av_frame_move_ref,
-            (buf_obj_ref)av_frame_ref
+            (buf_obj_ref)av_frame_ref,
+            (buf_obj_size)get_av_video_frame_size
         )) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
         goto exit_6;

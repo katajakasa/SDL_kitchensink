@@ -252,9 +252,9 @@ int Kit_GetDecoderCodecInfo(const Kit_Decoder *decoder, Kit_Codec *codec) {
     return 0;
 }
 
-int Kit_GetDecoderBufferState(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity) {
+int Kit_GetDecoderBufferState(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity, size_t *bytes) {
     if(decoder && decoder->dec_get_buffers) {
-        decoder->dec_get_buffers(decoder, length, capacity);
+        decoder->dec_get_buffers(decoder, length, capacity, bytes);
         return 0;
     }
     return 1;

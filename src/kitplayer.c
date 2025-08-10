@@ -490,7 +490,7 @@ int Kit_HasBufferFillRate(
 ) {
     if(video_output != -1 || video_input != -1) {
         unsigned int fl, fc, pl, pc;
-        Kit_GetPlayerVideoBufferState(player, &fl, &fc, &pl, &pc);
+        Kit_GetPlayerVideoBufferState(player, &fl, &fc, NULL, &pl, &pc, NULL);
         if(video_output > -1) {
             const float value = fl / (float)fc;
             const float limit = Kit_clamp(video_output, 0, 100) / 100.0f;
@@ -508,7 +508,7 @@ int Kit_HasBufferFillRate(
     }
     if(audio_output != -1 || audio_input != -1) {
         unsigned int sl, sc, pl, pc;
-        Kit_GetPlayerAudioBufferState(player, &sl, &sc, &pl, &pc);
+        Kit_GetPlayerAudioBufferState(player, &sl, &sc, NULL, &pl, &pc, NULL);
         if(audio_output > -1) {
             const float value = sl / (float)sc;
             const float limit = Kit_clamp(audio_output, 0, 100) / 100.0f;
@@ -546,36 +546,42 @@ void Kit_GetPlayerVideoBufferState(
     const Kit_Player *player,
     unsigned int *frames_length,
     unsigned int *frames_capacity,
+    size_t *frames_bytes,
     unsigned int *packets_length,
-    unsigned int *packets_capacity
+    unsigned int *packets_capacity,
+    size_t *packets_bytes
 ) {
     assert(player != NULL);
-    Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity);
-    Kit_GetDemuxerBufferState(player->demuxer, KIT_VIDEO_INDEX, packets_length, packets_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity, packets_bytes);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_VIDEO_INDEX, packets_length, packets_capacity, frames_bytes);
 }
 
 void Kit_GetPlayerAudioBufferState(
     const Kit_Player *player,
     unsigned int *samples_length,
     unsigned int *samples_capacity,
+    size_t *samples_bytes,
     unsigned int *packets_length,
-    unsigned int *packets_capacity
+    unsigned int *packets_capacity,
+    size_t *packets_bytes
 ) {
     assert(player != NULL);
-    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity);
-    Kit_GetDemuxerBufferState(player->demuxer, KIT_AUDIO_INDEX, packets_length, packets_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity, packets_bytes);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_AUDIO_INDEX, packets_length, packets_capacity, samples_bytes);
 }
 
 void Kit_GetPlayerSubtitleBufferState(
     const Kit_Player *player,
     unsigned int *items_length,
     unsigned int *items_capacity,
+    size_t *items_bytes,
     unsigned int *packets_length,
-    unsigned int *packets_capacity
+    unsigned int *packets_capacity,
+    size_t *packets_bytes
 ) {
     assert(player != NULL);
-    Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity);
-    Kit_GetDemuxerBufferState(player->demuxer, KIT_SUBTITLE_INDEX, packets_length, packets_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity, packets_bytes);
+    Kit_GetDemuxerBufferState(player->demuxer, KIT_SUBTITLE_INDEX, packets_length, packets_capacity, items_bytes);
 }
 
 Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {

@@ -122,14 +122,16 @@ static void dec_signal_audio_cb(Kit_Decoder *decoder) {
     Kit_SignalPacketBuffer(audio_decoder->buffer);
 }
 
-static void dec_get_audio_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
+static void dec_get_audio_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity, size_t *bytes) {
     assert(ref);
     assert(ref->userdata);
-    Kit_AudioDecoder *audio_decoder = ref->userdata;
+    const Kit_AudioDecoder *audio_decoder = ref->userdata;
     if(length != NULL)
         *length = Kit_GetPacketBufferLength(audio_decoder->buffer);
     if(capacity != NULL)
         *capacity = Kit_GetPacketBufferCapacity(audio_decoder->buffer);
+    if(bytes != NULL)
+        *bytes = 0;
 }
 
 static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
@@ -177,6 +179,17 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
     swr_free(&audio_dec->swr);
     Kit_FreePacketBuffer(&audio_dec->buffer);
     free(audio_dec);
+}
+
+static size_t get_av_audio_frame_size(const AVFrame *frame) {
+    size_t n = 0;
+    for(int i = 0; i < AV_NUM_DATA_POINTERS; i++) {
+        n += frame->buf[i]->size;
+    }
+    for(int i = 0; i < frame->nb_side_data; i++) {
+        n += frame->side_data[i]->size;
+    }
+    return n;
 }
 
 Kit_Decoder *Kit_CreateAudioDecoder(
@@ -243,7 +256,8 @@ Kit_Decoder *Kit_CreateAudioDecoder(
             (buf_obj_unref)av_frame_unref,
             (buf_obj_free)av_frame_free,
             (buf_obj_move)av_frame_move_ref,
-            (buf_obj_ref)av_frame_ref
+            (buf_obj_ref)av_frame_ref,
+            (buf_obj_size)get_av_audio_frame_size
         )) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
         goto exit_current;
