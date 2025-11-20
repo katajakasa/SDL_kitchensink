@@ -20,10 +20,13 @@ void Kit_FindAVChannelLayout(int channels, AVChannelLayout *layout) {
     switch(channels) {
         case 1:
             *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
+            break;
         case 2:
             *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+            break;
         default:
             *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+            break;
     }
 }
 
