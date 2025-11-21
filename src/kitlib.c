@@ -68,7 +68,9 @@ int Kit_Init(unsigned int flags) {
     return 0;
 
 exit_1:
-    avformat_network_deinit();
+    if(flags & KIT_INIT_NETWORK) {
+        avformat_network_deinit();
+    }
 exit_0:
     return 1;
 }

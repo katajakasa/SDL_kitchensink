@@ -123,26 +123,34 @@ static bool Kit_ProcessPacketToCache(Kit_ImageSubtitleRenderer *image_renderer, 
 
         unsigned char **new_items =
             realloc(image_renderer->cached_items, new_size * sizeof(unsigned char *));
-        SDL_Surface **new_surfaces =
-            realloc(image_renderer->cached_surfaces, new_size * sizeof(SDL_Surface *));
-        SDL_Rect *new_dst_rects =
-            realloc(image_renderer->cached_dst_rects, new_size * sizeof(SDL_Rect));
-        SDL_Rect *new_src_rects =
-            realloc(image_renderer->cached_src_rects, new_size * sizeof(SDL_Rect));
-
-        if(new_items == NULL || new_surfaces == NULL || new_dst_rects == NULL || new_src_rects == NULL) {
-            // Realloc failed, free only newly allocated memory and skip this packet
-            if(new_items != image_renderer->cached_items) free(new_items);
-            if(new_surfaces != image_renderer->cached_surfaces) free(new_surfaces);
-            if(new_dst_rects != image_renderer->cached_dst_rects) free(new_dst_rects);
-            if(new_src_rects != image_renderer->cached_src_rects) free(new_src_rects);
+        if(new_items == NULL) {
             Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
             return false;
         }
-
         image_renderer->cached_items = new_items;
+
+        SDL_Surface **new_surfaces =
+            realloc(image_renderer->cached_surfaces, new_size * sizeof(SDL_Surface *));
+        if(new_surfaces == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
         image_renderer->cached_surfaces = new_surfaces;
+
+        SDL_Rect *new_dst_rects =
+            realloc(image_renderer->cached_dst_rects, new_size * sizeof(SDL_Rect));
+        if(new_dst_rects == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
         image_renderer->cached_dst_rects = new_dst_rects;
+
+        SDL_Rect *new_src_rects =
+            realloc(image_renderer->cached_src_rects, new_size * sizeof(SDL_Rect));
+        if(new_src_rects == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
         image_renderer->cached_src_rects = new_src_rects;
 
         const unsigned int index = image_renderer->cached_items_size;
