@@ -35,7 +35,7 @@ static bool Kit_InitializeAudioDecoder(
     Kit_Decoder **decoder,
     Kit_DecoderThread **thread
 ) {
-    Kit_Timer *timer;
+    Kit_Timer *timer = NULL;
     Kit_PacketBuffer *packet_buffer;
 
     if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_AUDIO_INDEX)) == NULL)
@@ -43,14 +43,17 @@ static bool Kit_InitializeAudioDecoder(
     if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
         goto exit_0;
     if((*decoder = Kit_CreateAudioDecoder(src, format_request, timer, stream_index)) == NULL)
-        goto exit_0;
-    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_2;
 
     return true;
 
-exit_1:
+exit_2:
     Kit_CloseDecoder(decoder);
+    return false;
+exit_1:
+    Kit_CloseTimer(&timer);
 exit_0:
     return false;
 }
@@ -65,7 +68,7 @@ static bool Kit_InitializeVideoDecoder(
     Kit_Decoder **decoder,
     Kit_DecoderThread **thread
 ) {
-    Kit_Timer *timer;
+    Kit_Timer *timer = NULL;
     Kit_PacketBuffer *packet_buffer;
 
     if((packet_buffer = Kit_GetDemuxerThreadPacketBuffer(demux_thread, KIT_VIDEO_INDEX)) == NULL)
@@ -73,14 +76,17 @@ static bool Kit_InitializeVideoDecoder(
     if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
         goto exit_0;
     if((*decoder = Kit_CreateVideoDecoder(src, format_request, timer, stream_index)) == NULL)
-        goto exit_0;
-    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_2;
 
     return true;
 
-exit_1:
+exit_2:
     Kit_CloseDecoder(decoder);
+    return false;
+exit_1:
+    Kit_CloseTimer(&timer);
 exit_0:
     return false;
 }
@@ -96,7 +102,7 @@ static bool Kit_InitializeSubtitleDecoder(
     Kit_Decoder **decoder,
     Kit_DecoderThread **thread
 ) {
-    Kit_Timer *timer;
+    Kit_Timer *timer = NULL;
     Kit_PacketBuffer *packet_buffer;
     Kit_VideoOutputFormat output;
 
@@ -107,14 +113,17 @@ static bool Kit_InitializeSubtitleDecoder(
         goto exit_0;
     if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)
        ) == NULL)
-        goto exit_0;
-    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
+    if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
+        goto exit_2;
 
     return true;
 
-exit_1:
+exit_2:
     Kit_CloseDecoder(decoder);
+    return false;
+exit_1:
+    Kit_CloseTimer(&timer);
 exit_0:
     return false;
 }
