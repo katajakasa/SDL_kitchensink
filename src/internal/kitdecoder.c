@@ -78,8 +78,10 @@ static AVBufferRef *Kit_FindHardwareDecoder(
 
     for(int index = 0; (config = avcodec_get_hw_config(codec, index)) != NULL; index++) {
         Kit_HardwareDeviceType kit_type = Kit_FindHWDeviceType(config->device_type);
+        if(!(hw_device_types & kit_type))
+            continue;
         AVBufferRef *hw_device_ctx = Kit_TestHWDevice(config, w, h);
-        if(hw_device_types & kit_type && hw_device_ctx != NULL) {
+        if(hw_device_ctx != NULL) {
             *type = config->device_type;
             *hw_fmt = config->pix_fmt;
             return hw_device_ctx;
