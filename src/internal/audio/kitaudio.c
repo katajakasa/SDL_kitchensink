@@ -99,7 +99,10 @@ static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
         prepare_out_frame(audio_decoder);
         audio_decoder->out_frame->nb_samples = fifo_samples;
         audio_decoder->out_frame->best_effort_timestamp = audio_decoder->fifo_start_pts;
-        av_frame_get_buffer(audio_decoder->out_frame, 0);
+        if(av_frame_get_buffer(audio_decoder->out_frame, 0) < 0) {
+            av_frame_unref(audio_decoder->out_frame);
+            return;
+        }
 
         // Read all available data from the FIFO
         av_audio_fifo_read(audio_decoder->fifo, (void **)audio_decoder->out_frame->data, fifo_samples);
