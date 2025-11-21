@@ -76,6 +76,7 @@ Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
         Kit_SetError("Unable to allocate avio context");
         goto EXIT_2;
     }
+    // avio_alloc_context takes ownership of avio_buf, so don't free it separately after this point
 
     // Set the format as AVIO format
     format_ctx->pb = avio_ctx;
@@ -97,11 +98,18 @@ Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     return src;
 
 EXIT_4:
+    // avformat_close_input frees format_ctx and its pb (avio_ctx), but not avio_buf
     avformat_close_input(&format_ctx);
+    av_freep(&avio_ctx->buffer);
+    av_freep(&avio_ctx);
+    goto EXIT_0;
 EXIT_3:
+    // avio_ctx owns avio_buf, so free avio_ctx which will not free the buffer automatically
+    av_freep(&avio_ctx->buffer);
     av_freep(&avio_ctx);
 EXIT_2:
     avformat_free_context(format_ctx);
+    goto EXIT_0;
 EXIT_1:
     av_freep(&avio_buf);
 EXIT_0:
