@@ -183,7 +183,6 @@ Kit_Decoder *Kit_CreateDecoder(
     av_dict_free(&codec_opts);
 
     decoder->stream = stream;
-    decoder->stream = stream;
     decoder->sync_timer = sync_timer;
     decoder->codec_ctx = codec_ctx;
     decoder->hw_fmt = hw_fmt;
