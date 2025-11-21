@@ -23,6 +23,14 @@ int Kit_InitASS(Kit_LibraryState *state) {
     load_libass(state->ass_so_handle);
 #endif
     state->libass_handle = ass_library_init();
+    if(state->libass_handle == NULL) {
+        Kit_SetError("Unable to initialize libass library");
+#ifdef USE_DYNAMIC_LIBASS
+        SDL_UnloadObject(state->ass_so_handle);
+        state->ass_so_handle = NULL;
+#endif
+        return 1;
+    }
     ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     return 0;
 }
