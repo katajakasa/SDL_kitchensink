@@ -283,6 +283,8 @@ exit_3:
     ass_renderer_done(render_handler);
 exit_2:
     Kit_CloseSubtitleRenderer(renderer);
+    // Note: Kit_CloseSubtitleRenderer calls ren_close_ass_cb which frees ass_renderer
+    return NULL;
 exit_1:
     free(ass_renderer);
 exit_0:
