@@ -1,9 +1,11 @@
+#include <SDL_atomic.h>
+
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include <stdlib.h>
 
 typedef struct Kit_TimerValue {
-    int count;
+    SDL_atomic_t count;
     bool initialized;
     double value;
 } Kit_TimerValue;
@@ -24,7 +26,7 @@ Kit_Timer *Kit_CreateTimer() {
         goto exit_1;
     }
 
-    value->count = 1;
+    SDL_AtomicSet(&value->count, 1);
     value->value = 0;
     value->initialized = false;
     timer->ref = value;
@@ -43,7 +45,7 @@ Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
         return NULL;
     }
     timer->ref = src->ref;
-    timer->ref->count++;
+    SDL_AtomicAdd(&timer->ref->count, 1);
     timer->writeable = writeable;
     return timer;
 }
@@ -98,7 +100,7 @@ void Kit_CloseTimer(Kit_Timer **ref) {
     if(!ref || !*ref)
         return;
     Kit_Timer *timer = *ref;
-    if(--timer->ref->count == 0) {
+    if(SDL_AtomicAdd(&timer->ref->count, -1) == 1) {
         free(timer->ref);
     }
     free(timer);
