@@ -135,7 +135,7 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
     // Find and set up stream.
     if(stream_index < 0 || stream_index >= format_ctx->nb_streams) {
         Kit_SetError("Invalid subtitle stream index %d", stream_index);
-        return NULL;
+        goto exit_0;
     }
     stream = format_ctx->streams[stream_index];
 
@@ -202,10 +202,12 @@ exit_3:
     Kit_FreeAtlas(atlas);
 exit_2:
     Kit_CloseDecoder(&decoder);
-    return NULL; // Above frees the subtitle_decoder also.
+    return NULL; // Above frees the subtitle_decoder and sync_timer also.
 exit_1:
     free(subtitle_decoder);
 exit_0:
+    // This function owns sync_timer, so it must be freed even if decoder creation fails.
+    Kit_CloseTimer(&sync_timer);
     return NULL;
 }
 

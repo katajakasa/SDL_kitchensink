@@ -201,7 +201,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     // Find and set up stream.
     if(stream_index < 0 || stream_index >= format_ctx->nb_streams) {
         Kit_SetError("Invalid audio stream index %d", stream_index);
-        return NULL;
+        goto exit_none;
     }
     stream = format_ctx->streams[stream_index];
 
@@ -308,10 +308,12 @@ exit_in_frame:
     av_frame_free(&in_frame);
 exit_decoder:
     Kit_CloseDecoder(&decoder);
-    return NULL; // Above frees the audio_decoder also.
+    return NULL; // Above frees the audio_decoder and sync_timer also.
 exit_audio_dec:
     free(audio_decoder);
 exit_none:
+    // This function owns sync_timer, so it must be freed even if decoder creation fails.
+    Kit_CloseTimer(&sync_timer);
     return NULL;
 }
 
