@@ -500,14 +500,14 @@ int Kit_HasBufferFillRate(
     if(video_output != -1 || video_input != -1) {
         unsigned int fl, fc, pl, pc;
         Kit_GetPlayerVideoBufferState(player, &fl, &fc, &pl, &pc);
-        if(video_output > -1) {
+        if(video_output > -1 && fc > 0) {
             const float value = fl / (float)fc;
             const float limit = Kit_clamp(video_output, 0, 100) / 100.0f;
             if(value < limit) {
                 return 0;
             }
         }
-        if(video_input > -1) {
+        if(video_input > -1 && pc > 0) {
             const float value = pl / (float)pc;
             const float limit = Kit_clamp(video_input, 0, 100) / 100.0f;
             if(value < limit) {
@@ -518,14 +518,14 @@ int Kit_HasBufferFillRate(
     if(audio_output != -1 || audio_input != -1) {
         unsigned int sl, sc, pl, pc;
         Kit_GetPlayerAudioBufferState(player, &sl, &sc, &pl, &pc);
-        if(audio_output > -1) {
+        if(audio_output > -1 && sc > 0) {
             const float value = sl / (float)sc;
             const float limit = Kit_clamp(audio_output, 0, 100) / 100.0f;
             if(value < limit) {
                 return 0;
             }
         }
-        if(audio_input > -1) {
+        if(audio_input > -1 && pc > 0) {
             const float value = pl / (float)pc;
             const float limit = Kit_clamp(audio_input, 0, 100) / 100.0f;
             if(value < limit) {
