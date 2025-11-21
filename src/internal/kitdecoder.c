@@ -152,9 +152,9 @@ Kit_Decoder *Kit_CreateDecoder(
 
     // Attempt to set up threading, if supported.
     codec_ctx->thread_count = thread_count;
-    if(codec->capabilities | AV_CODEC_CAP_FRAME_THREADS) {
+    if(codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
         codec_ctx->thread_type = FF_THREAD_FRAME;
-    } else if(codec->capabilities | AV_CODEC_CAP_SLICE_THREADS) {
+    } else if(codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
         codec_ctx->thread_type = FF_THREAD_SLICE;
     } else {
         codec_ctx->thread_count = 1; // Disable threading
