@@ -20,7 +20,12 @@ int Kit_InitASS(Kit_LibraryState *state) {
         Kit_SetError("Unable to load ASS library");
         return 1;
     }
-    load_libass(state->ass_so_handle);
+    if(load_libass(state->ass_so_handle) != 0) {
+        Kit_SetError("Unable to load ASS library functions");
+        SDL_UnloadObject(state->ass_so_handle);
+        state->ass_so_handle = NULL;
+        return 1;
+    }
 #endif
     state->libass_handle = ass_library_init();
     if(state->libass_handle == NULL) {
