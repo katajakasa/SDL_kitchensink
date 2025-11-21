@@ -68,7 +68,10 @@ static void prepare_out_frame(const Kit_AudioDecoder *audio_decoder) {
  */
 static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
     prepare_out_frame(audio_decoder);
-    swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame);
+    if(swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame) < 0) {
+        av_frame_unref(audio_decoder->out_frame);
+        return;
+    }
     av_audio_fifo_write(
         audio_decoder->fifo, (void **)audio_decoder->out_frame->data, audio_decoder->out_frame->nb_samples
     );
