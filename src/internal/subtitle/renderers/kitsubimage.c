@@ -272,6 +272,8 @@ exit_3:
     Kit_FreePacketBuffer(&buffer);
 exit_2:
     Kit_CloseSubtitleRenderer(renderer);
+    // Note: Kit_CloseSubtitleRenderer calls ren_close_img_cb which frees image_renderer
+    return NULL;
 exit_1:
     free(image_renderer);
 exit_0:
