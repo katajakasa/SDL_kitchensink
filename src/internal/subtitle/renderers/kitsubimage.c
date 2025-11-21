@@ -184,8 +184,8 @@ static int ren_get_img_raw_frames_cb(
 
 static void ren_set_img_size_cb(Kit_SubtitleRenderer *ren, int w, int h) {
     Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
-    img_ren->scale_x = (float)w / (float)img_ren->video_w;
-    img_ren->scale_y = (float)h / (float)img_ren->video_h;
+    img_ren->scale_x = (img_ren->video_w > 0) ? (float)w / (float)img_ren->video_w : 1.0f;
+    img_ren->scale_y = (img_ren->video_h > 0) ? (float)h / (float)img_ren->video_h : 1.0f;
 }
 
 static void ren_flush_cb(Kit_SubtitleRenderer *ren) {
@@ -274,8 +274,8 @@ Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int 
     image_renderer->out_packet = out_packet;
     image_renderer->video_w = video_w;
     image_renderer->video_h = video_h;
-    image_renderer->scale_x = (float)screen_w / (float)video_w;
-    image_renderer->scale_y = (float)screen_h / (float)video_h;
+    image_renderer->scale_x = (video_w > 0) ? (float)screen_w / (float)video_w : 1.0f;
+    image_renderer->scale_y = (video_h > 0) ? (float)screen_h / (float)video_h : 1.0f;
     image_renderer->cached_items = NULL;
     image_renderer->cached_surfaces = NULL;
     image_renderer->cached_dst_rects = NULL;
