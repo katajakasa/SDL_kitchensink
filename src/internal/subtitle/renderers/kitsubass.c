@@ -161,23 +161,38 @@ static int ren_get_ass_raw_frames_cb(
 
     // Generate new RGBA images from libass surfaces and cache them.
     unsigned int index = 0;
-    ass_renderer->cached_items =
+    unsigned char **new_items =
         realloc(ass_renderer->cached_items, ass_renderer->cached_items_size * sizeof(unsigned char *));
-    ass_renderer->cached_dst_rects =
+    SDL_Rect *new_dst_rects =
         realloc(ass_renderer->cached_dst_rects, ass_renderer->cached_items_size * sizeof(SDL_Rect));
-    ass_renderer->cached_src_rects =
+    SDL_Rect *new_src_rects =
         realloc(ass_renderer->cached_src_rects, ass_renderer->cached_items_size * sizeof(SDL_Rect));
+    if(new_items == NULL || new_dst_rects == NULL || new_src_rects == NULL) {
+        // Realloc failed, keep old pointers and return cached data
+        free(new_items != ass_renderer->cached_items ? new_items : NULL);
+        free(new_dst_rects != ass_renderer->cached_dst_rects ? new_dst_rects : NULL);
+        free(new_src_rects != ass_renderer->cached_src_rects ? new_src_rects : NULL);
+        ass_renderer->cached_items_size = 0;
+        goto get_cached;
+    }
+    ass_renderer->cached_items = new_items;
+    ass_renderer->cached_dst_rects = new_dst_rects;
+    ass_renderer->cached_src_rects = new_src_rects;
     for(; src; src = src->next) {
         if(src->w == 0 || src->h == 0)
             continue;
 
         unsigned char *buf = malloc(src->w * src->h * 4);
+        if(buf == NULL) {
+            continue;  // Skip this frame if allocation fails
+        }
         Kit_ProcessAssImage(buf, src, src->w * 4);
         ass_renderer->cached_items[index] = buf;
         ass_renderer->cached_src_rects[index] = (SDL_Rect){0, 0, src->w, src->h};
         ass_renderer->cached_dst_rects[index] = (SDL_Rect){src->dst_x, src->dst_y, src->w, src->h};
         index++;
     }
+    ass_renderer->cached_items_size = index;
 
 get_cached:
     *frames = ass_renderer->cached_items;
@@ -283,6 +298,8 @@ exit_3:
     ass_renderer_done(render_handler);
 exit_2:
     Kit_CloseSubtitleRenderer(renderer);
+    // Note: Kit_CloseSubtitleRenderer calls ren_close_ass_cb which frees ass_renderer
+    return NULL;
 exit_1:
     free(ass_renderer);
 exit_0:

@@ -41,6 +41,16 @@ int load_libass(void *handle) {
     ass_process_codec_private = SDL_LoadFunction(handle, "ass_process_codec_private");
     ass_process_chunk = SDL_LoadFunction(handle, "ass_process_chunk");
     ass_set_storage_size = SDL_LoadFunction(handle, "ass_set_storage_size");
+
+    // Check that all required functions were loaded
+    if(ass_library_init == NULL || ass_library_done == NULL || ass_set_message_cb == NULL ||
+       ass_renderer_init == NULL || ass_renderer_done == NULL || ass_set_frame_size == NULL ||
+       ass_set_hinting == NULL || ass_set_fonts == NULL || ass_render_frame == NULL ||
+       ass_new_track == NULL || ass_free_track == NULL || ass_process_data == NULL ||
+       ass_add_font == NULL || ass_process_codec_private == NULL || ass_process_chunk == NULL ||
+       ass_set_storage_size == NULL) {
+        return 1;
+    }
     return 0;
 }
 

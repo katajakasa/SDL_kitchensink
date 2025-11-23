@@ -34,14 +34,15 @@ Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer) {
     return demuxer_thread;
 
 exit_0:
-    return false;
+    return NULL;
 }
 
 void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_target) {
-    if(SDL_AtomicGet(&demuxer_thread->seek))
-        return;
+    // Use compare-and-swap to atomically check and set the seek flag.
+    // This prevents race conditions when multiple threads try to seek simultaneously.
+    // Write seek_target first, then set the flag. SDL_AtomicCAS provides memory barrier.
     demuxer_thread->seek_target = seek_target;
-    SDL_AtomicSet(&demuxer_thread->seek, 1);
+    SDL_AtomicCAS(&demuxer_thread->seek, 0, 1);
 }
 
 void Kit_StartDemuxerThread(Kit_DemuxerThread *demuxer_thread) {

@@ -119,17 +119,42 @@ static bool Kit_ProcessPacketToCache(Kit_ImageSubtitleRenderer *image_renderer, 
         Kit_ClearSubCache(image_renderer);
     }
     if(image_renderer->out_packet->surface != NULL) {
-        const unsigned int index = image_renderer->cached_items_size;
-        image_renderer->cached_items_size++;
+        const unsigned int new_size = image_renderer->cached_items_size + 1;
 
-        image_renderer->cached_items =
-            realloc(image_renderer->cached_items, image_renderer->cached_items_size * sizeof(unsigned char *));
-        image_renderer->cached_surfaces =
-            realloc(image_renderer->cached_surfaces, image_renderer->cached_items_size * sizeof(SDL_Surface *));
-        image_renderer->cached_dst_rects =
-            realloc(image_renderer->cached_dst_rects, image_renderer->cached_items_size * sizeof(SDL_Rect));
-        image_renderer->cached_src_rects =
-            realloc(image_renderer->cached_src_rects, image_renderer->cached_items_size * sizeof(SDL_Rect));
+        unsigned char **new_items =
+            realloc(image_renderer->cached_items, new_size * sizeof(unsigned char *));
+        if(new_items == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
+        image_renderer->cached_items = new_items;
+
+        SDL_Surface **new_surfaces =
+            realloc(image_renderer->cached_surfaces, new_size * sizeof(SDL_Surface *));
+        if(new_surfaces == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
+        image_renderer->cached_surfaces = new_surfaces;
+
+        SDL_Rect *new_dst_rects =
+            realloc(image_renderer->cached_dst_rects, new_size * sizeof(SDL_Rect));
+        if(new_dst_rects == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
+        image_renderer->cached_dst_rects = new_dst_rects;
+
+        SDL_Rect *new_src_rects =
+            realloc(image_renderer->cached_src_rects, new_size * sizeof(SDL_Rect));
+        if(new_src_rects == NULL) {
+            Kit_DelSubtitlePacketRefs(image_renderer->out_packet, true);
+            return false;
+        }
+        image_renderer->cached_src_rects = new_src_rects;
+
+        const unsigned int index = image_renderer->cached_items_size;
+        image_renderer->cached_items_size = new_size;
 
         image_renderer->cached_surfaces[index] = image_renderer->out_packet->surface;
         image_renderer->cached_items[index] = image_renderer->out_packet->surface->pixels;
@@ -167,8 +192,8 @@ static int ren_get_img_raw_frames_cb(
 
 static void ren_set_img_size_cb(Kit_SubtitleRenderer *ren, int w, int h) {
     Kit_ImageSubtitleRenderer *img_ren = ren->userdata;
-    img_ren->scale_x = (float)w / (float)img_ren->video_w;
-    img_ren->scale_y = (float)h / (float)img_ren->video_h;
+    img_ren->scale_x = (img_ren->video_w > 0) ? (float)w / (float)img_ren->video_w : 1.0f;
+    img_ren->scale_y = (img_ren->video_h > 0) ? (float)h / (float)img_ren->video_h : 1.0f;
 }
 
 static void ren_flush_cb(Kit_SubtitleRenderer *ren) {
@@ -257,8 +282,8 @@ Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int 
     image_renderer->out_packet = out_packet;
     image_renderer->video_w = video_w;
     image_renderer->video_h = video_h;
-    image_renderer->scale_x = (float)screen_w / (float)video_w;
-    image_renderer->scale_y = (float)screen_h / (float)video_h;
+    image_renderer->scale_x = (video_w > 0) ? (float)screen_w / (float)video_w : 1.0f;
+    image_renderer->scale_y = (video_h > 0) ? (float)screen_h / (float)video_h : 1.0f;
     image_renderer->cached_items = NULL;
     image_renderer->cached_surfaces = NULL;
     image_renderer->cached_dst_rects = NULL;
@@ -272,6 +297,8 @@ exit_3:
     Kit_FreePacketBuffer(&buffer);
 exit_2:
     Kit_CloseSubtitleRenderer(renderer);
+    // Note: Kit_CloseSubtitleRenderer calls ren_close_img_cb which frees image_renderer
+    return NULL;
 exit_1:
     free(image_renderer);
 exit_0:
