@@ -170,7 +170,10 @@ Kit_Decoder *Kit_CreateDecoder(
         if(hw_device_ctx != NULL) {
             codec_ctx->get_format = Kit_GetHardwarePixelFormat;
             codec_ctx->hw_device_ctx = hw_device_ctx;
-            codec_ctx->extra_hw_frames = 4;
+            // Surfaces stay referenced while queued in the output frame buffer and while mapped by the
+            // consumer, on top of the decoder's own working set — without this headroom the decoder
+            // stalls (or deadlocks) on surface pool exhaustion.
+            codec_ctx->extra_hw_frames = Kit_GetLibraryState()->video_frame_buffer_size + 3;
         }
     }
 

@@ -16,6 +16,7 @@ Features:
 * Stream seeking
 * Bitmap, text and SSA/ASS subtitle support
 * Video hardware decoding (optionally)
+* Zero-copy NV12 output for hardware-decoded video when no explicit output format is requested, for 8-bit 4:2:0 content
 
 Note! Master branch is for the development of v2.x.x series.
 

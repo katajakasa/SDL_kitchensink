@@ -75,6 +75,14 @@ typedef struct Kit_PlayerInfo {
  * of hardware decoder context is attempted. If acquiring a hardware decoder fails, we fall back to standard
  * software decoding.
  *
+ * When hardware decoding engages, no explicit video_format_request output format is forced, the source
+ * content is 8-bit 4:2:0, and the library was built against SDL 2.0.16 or newer, decoded frames are passed
+ * through without a CPU-side conversion step, and Kit_PlayerInfo.video_format.format will report
+ * SDL_PIXELFORMAT_NV12. If any of those conditions aren't met (e.g. 10-bit or non-4:2:0 content, or an older
+ * SDL at compile time), the legacy conversion path is used instead and a different format (e.g. YV12) may be
+ * reported. Applications must always create their texture from this reported format (as the bundled examples
+ * do) rather than assuming a fixed pixel format.
+ *
  * On success, this will return an initialized Kit_Player which can later be freed by Kit_ClosePlayer().
  * On error, NULL is returned and a more detailed error is available via Kit_GetError().
  *

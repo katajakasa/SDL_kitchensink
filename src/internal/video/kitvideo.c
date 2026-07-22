@@ -2,7 +2,10 @@
 
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
+
+#include <SDL_version.h>
 
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitlibstate.h"
@@ -23,6 +26,8 @@ typedef struct Kit_VideoDecoder {
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded video packets
     Kit_VideoOutputFormat output; ///< Output video format description
     AVFrame *current;             ///< video frame we are currently reading from
+    AVFrame *mapped;              ///< CPU-readable view of `current` when it is a hardware frame (zero-copy mode)
+    bool is_zero_copy; ///< Hardware frames flow to the consumer unconverted; map + NV12 upload at render time.
 } Kit_VideoDecoder;
 
 static struct SwsContext *Kit_GetSwsContext(
@@ -34,6 +39,25 @@ static struct SwsContext *Kit_GetSwsContext(
         Kit_SetError("Unable to initialize video converter context");
     }
     return new_context;
+}
+
+// Zero-copy hands hardware frames to the consumer unconverted and uploads them as NV12. That is only
+// valid when the hardware frames context's sw_format (the layout the mapped/transferred frame exposes)
+// is actually NV12. For these device types the 8-bit 4:2:0 sw_format is NV12, so the pass-through is
+// correct. Others (notably VDPAU, whose sw_format is yuv420p, plus DRM/OPENCL/VULKAN/etc.) must take the
+// legacy convert path, or SDL would read planar U as interleaved UV and corrupt the chroma.
+static bool Kit_HWDeviceHasNV12SwFormat(const enum AVHWDeviceType type) {
+    switch(type) {
+        case AV_HWDEVICE_TYPE_VAAPI:
+        case AV_HWDEVICE_TYPE_CUDA:
+        case AV_HWDEVICE_TYPE_QSV:
+        case AV_HWDEVICE_TYPE_D3D11VA:
+        case AV_HWDEVICE_TYPE_DXVA2:
+        case AV_HWDEVICE_TYPE_VIDEOTOOLBOX:
+            return true;
+        default:
+            return false;
+    }
 }
 
 int Kit_GetVideoDecoderOutputFormat(const Kit_Decoder *decoder, Kit_VideoOutputFormat *output) {
@@ -99,6 +123,15 @@ static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
     Kit_VideoDecoder *video_decoder = decoder->userdata;
     if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->tmp_frame) == 0) {
+        if(video_decoder->is_zero_copy && video_decoder->tmp_frame->format == decoder->hw_fmt) {
+            // Zero-copy: hand the hardware frame itself to the consumer. It stays on the GPU until
+            // the consumer maps it right before upload. No conversion, no CPU buffers.
+            *pts = video_decoder->tmp_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
+            if(!Kit_WritePacketBuffer(video_decoder->buffer, video_decoder->tmp_frame)) {
+                av_frame_unref(video_decoder->tmp_frame);
+            }
+            return true;
+        }
         // Process the temporary frame, and then make sure result is in in_frame.
         // If the frame is hardware frame, we need to pull it from the hardware device first!
         if(video_decoder->tmp_frame->format == decoder->hw_fmt) {
@@ -139,6 +172,7 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
     av_frame_free(&video_decoder->in_frame);
     av_frame_free(&video_decoder->tmp_frame);
     av_frame_free(&video_decoder->current);
+    av_frame_free(&video_decoder->mapped);
     av_frame_free(&video_decoder->out_frame);
     sws_freeContext(video_decoder->sws);
     free(video_decoder);
@@ -159,7 +193,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     AVFrame *out_frame = NULL;
     AVFrame *tmp_frame = NULL;
     AVFrame *current = NULL;
-    struct SwsContext *sws = NULL;
+    AVFrame *mapped = NULL;
     Kit_VideoOutputFormat output;
     enum AVPixelFormat output_format;
 
@@ -206,6 +240,10 @@ Kit_Decoder *Kit_CreateVideoDecoder(
         Kit_SetError("Unable to allocate temporary flip video frame for stream %d", stream_index);
         goto exit_5;
     }
+    if((mapped = av_frame_alloc()) == NULL) {
+        Kit_SetError("Unable to allocate mapped hardware video frame for stream %d", stream_index);
+        goto exit_6;
+    }
     if((buffer = Kit_CreatePacketBuffer(
             state->video_frame_buffer_size,
             (buf_obj_alloc)av_frame_alloc,
@@ -215,12 +253,26 @@ Kit_Decoder *Kit_CreateVideoDecoder(
             (buf_obj_ref)av_frame_ref
         )) == NULL) {
         Kit_SetError("Unable to create an output buffer for stream %d", stream_index);
-        goto exit_6;
+        goto exit_7;
     }
 
-    // Set format configs
+    // Set format configs. If hardware decoding is active, the app did not force an output format, and the
+    // content is 8-bit 4:2:0, we can push hardware frames all the way to the consumer and upload them as
+    // NV12 without any intermediate conversion or CPU buffering (see dec_decode_video_cb).
     memset(&output, 0, sizeof(Kit_VideoOutputFormat));
-    if(format_request->format != SDL_PIXELFORMAT_UNKNOWN) {
+#if SDL_VERSION_ATLEAST(2, 0, 16)
+    const AVPixFmtDescriptor *pix_desc = av_pix_fmt_desc_get(decoder->codec_ctx->pix_fmt);
+    video_decoder->is_zero_copy =
+        decoder->hw_type != AV_HWDEVICE_TYPE_NONE && Kit_HWDeviceHasNV12SwFormat(decoder->hw_type) &&
+        format_request->format == SDL_PIXELFORMAT_UNKNOWN && pix_desc != NULL && pix_desc->comp[0].depth == 8 &&
+        pix_desc->log2_chroma_w == 1 && pix_desc->log2_chroma_h == 1;
+#else
+    video_decoder->is_zero_copy = false;
+#endif
+    if(video_decoder->is_zero_copy) {
+        output_format = AV_PIX_FMT_NV12;
+        output.format = SDL_PIXELFORMAT_NV12;
+    } else if(format_request->format != SDL_PIXELFORMAT_UNKNOWN) {
         output_format = Kit_FindAVPixelFormat(format_request->format);
         output.format = format_request->format;
     } else {
@@ -229,29 +281,26 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     }
     if(output_format == AV_PIX_FMT_NONE) {
         Kit_SetError("Unsupported output pixel format");
-        goto exit_7;
+        goto exit_8;
     }
     output.width = (format_request->width > -1) ? format_request->width : decoder->codec_ctx->width;
     output.height = (format_request->height > -1) ? format_request->height : decoder->codec_ctx->height;
     output.hw_device_type = Kit_FindHWDeviceType(decoder->hw_type);
 
-    // Create scaler for handling format changes
-    sws = Kit_GetSwsContext(sws, output.width, output.height, decoder->codec_ctx->pix_fmt, output_format);
-    if(sws == NULL) {
-        goto exit_7;
-    }
-
     video_decoder->in_frame = in_frame;
     video_decoder->out_frame = out_frame;
     video_decoder->tmp_frame = tmp_frame;
     video_decoder->current = current;
-    video_decoder->sws = sws;
+    video_decoder->mapped = mapped;
+    video_decoder->sws = NULL; // Created lazily on first frame that needs conversion (see dec_read_video).
     video_decoder->buffer = buffer;
     video_decoder->output = output;
     return decoder;
 
-exit_7:
+exit_8:
     Kit_FreePacketBuffer(&buffer);
+exit_7:
+    av_frame_free(&mapped);
 exit_6:
     av_frame_free(&current);
 exit_5:
@@ -338,8 +387,32 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
     return true;
 }
 
+static const AVFrame *Kit_GetReadableFrame(const Kit_Decoder *decoder) {
+    Kit_VideoDecoder *video_decoder = decoder->userdata;
+    if(video_decoder->current->format != decoder->hw_fmt)
+        return video_decoder->current; // Already a CPU frame (software decode or converted fallback).
+
+    // Map the hardware surface for reading; this avoids a copy on drivers that support direct mapping.
+    // Some device types (e.g. CUDA) cannot map, so fall back to a full transfer.
+    av_frame_unref(video_decoder->mapped);
+    if(av_hwframe_map(video_decoder->mapped, video_decoder->current, AV_HWFRAME_MAP_READ) == 0 &&
+       video_decoder->mapped->format == AV_PIX_FMT_NV12) {
+        // The consumer uploads this as NV12; only hand it over if the mapping really is NV12.
+        return video_decoder->mapped;
+    }
+    // Drop any partial mapping. Older FFmpeg does not guarantee `mapped` is left blank after a failed
+    // (or format-rejected) map, so unref before reusing it for the transfer fallback.
+    av_frame_unref(video_decoder->mapped);
+    // Force NV12 so the transfer either delivers NV12 or fails cleanly instead of another layout.
+    video_decoder->mapped->format = AV_PIX_FMT_NV12;
+    if(av_hwframe_transfer_data(video_decoder->mapped, video_decoder->current, 0) == 0)
+        return video_decoder->mapped;
+    return NULL;
+}
+
 void Kit_EndReadFrame(Kit_Decoder *decoder) {
     const Kit_VideoDecoder *video_decoder = decoder->userdata;
+    av_frame_unref(video_decoder->mapped);
     av_frame_unref(video_decoder->current);
     Kit_FinishPacketBufferRead(video_decoder->buffer);
 }
@@ -354,11 +427,17 @@ int Kit_GetVideoDecoderSDLTexture(Kit_Decoder *decoder, SDL_Texture *texture, SD
         return 1;
     }
 
+    const AVFrame *frame = Kit_GetReadableFrame(decoder);
+    if(frame == NULL) {
+        Kit_EndReadFrame(decoder);
+        return 1;
+    }
+
     // Update output texture with current video data.
     // Note that frame size may change on the fly. Take that into account.
     SDL_Rect frame_area;
-    frame_area.w = video_decoder->current->width;
-    frame_area.h = video_decoder->current->height;
+    frame_area.w = frame->width;
+    frame_area.h = frame->height;
     frame_area.x = 0;
     frame_area.y = 0;
     switch(video_decoder->output.format) {
@@ -367,35 +446,28 @@ int Kit_GetVideoDecoderSDLTexture(Kit_Decoder *decoder, SDL_Texture *texture, SD
             SDL_UpdateYUVTexture(
                 texture,
                 &frame_area,
-                video_decoder->current->data[0],
-                video_decoder->current->linesize[0],
-                video_decoder->current->data[1],
-                video_decoder->current->linesize[1],
-                video_decoder->current->data[2],
-                video_decoder->current->linesize[2]
+                frame->data[0],
+                frame->linesize[0],
+                frame->data[1],
+                frame->linesize[1],
+                frame->data[2],
+                frame->linesize[2]
             );
             break;
         case SDL_PIXELFORMAT_NV12:
         case SDL_PIXELFORMAT_NV21:
             SDL_UpdateNVTexture(
-                texture,
-                &frame_area,
-                video_decoder->current->data[0],
-                video_decoder->current->linesize[0],
-                video_decoder->current->data[1],
-                video_decoder->current->linesize[1]
+                texture, &frame_area, frame->data[0], frame->linesize[0], frame->data[1], frame->linesize[1]
             );
             break;
         default:
-            SDL_UpdateTexture(
-                texture, &frame_area, video_decoder->current->data[0], video_decoder->current->linesize[0]
-            );
+            SDL_UpdateTexture(texture, &frame_area, frame->data[0], frame->linesize[0]);
             break;
     }
     if(area != NULL)
         *area = frame_area;
 
-    decoder->aspect_ratio = video_decoder->current->sample_aspect_ratio;
+    decoder->aspect_ratio = frame->sample_aspect_ratio;
 
     Kit_EndReadFrame(decoder);
     return 0;
@@ -403,27 +475,32 @@ int Kit_GetVideoDecoderSDLTexture(Kit_Decoder *decoder, SDL_Texture *texture, SD
 
 int Kit_LockVideoDecoderRaw(Kit_Decoder *decoder, unsigned char ***data, int **line_size, SDL_Rect *area) {
     assert(decoder != NULL);
-    const Kit_VideoDecoder *video_decoder = decoder->userdata;
 
     // Try to read and sync frame. If this fails, then there is nothing else to do other than wait.
     if(!Kit_BeginReadFrame(decoder)) {
         return 1;
     }
 
+    const AVFrame *frame = Kit_GetReadableFrame(decoder);
+    if(frame == NULL) {
+        Kit_EndReadFrame(decoder);
+        return 1;
+    }
+
     // Copy pointers.
     if(line_size != NULL) {
-        *line_size = video_decoder->current->linesize;
+        *line_size = (int *)frame->linesize;
     }
     if(data != NULL) {
-        *data = video_decoder->current->data;
+        *data = (unsigned char **)frame->data;
     }
     if(area != NULL) {
-        area->w = video_decoder->current->width;
-        area->h = video_decoder->current->height;
+        area->w = frame->width;
+        area->h = frame->height;
         area->x = 0;
         area->y = 0;
     }
-    decoder->aspect_ratio = video_decoder->current->sample_aspect_ratio;
+    decoder->aspect_ratio = frame->sample_aspect_ratio;
     return 0;
 }
 
