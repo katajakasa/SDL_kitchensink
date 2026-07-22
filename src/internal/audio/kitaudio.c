@@ -120,6 +120,7 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(audio_decoder->buffer);
     av_audio_fifo_reset(audio_decoder->fifo);
     audio_decoder->fifo_start_pts = -1;
+    av_frame_unref(audio_decoder->current);
 }
 
 static void dec_signal_audio_cb(Kit_Decoder *decoder) {
@@ -333,11 +334,14 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     const Kit_AudioDecoder *audio_decoder = decoder->userdata;
     int ret = 0;
-    size_t *size;
-    size_t *left;
+    size_t *size = &audio_decoder->current->crop_top;
+    size_t *left = &audio_decoder->current->crop_bottom;
 
     if(len <= 0)
         return 0;
+    if(*left > 0)
+        goto serve;
+
     if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
         goto no_data;
 
@@ -395,8 +399,9 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     }
     // LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
 
-    size = &audio_decoder->current->crop_top;
-    left = &audio_decoder->current->crop_bottom;
+    Kit_FinishPacketBufferRead(audio_decoder->buffer);
+
+serve:
     len = floor(len / SAMPLE_BYTES(audio_decoder)) * SAMPLE_BYTES(audio_decoder);
     if(*left) {
         ret = (len > *left) ? *left : len;
@@ -404,12 +409,8 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
         memcpy(buf, audio_decoder->current->data[0] + pos, ret);
         *left -= ret;
     }
-
-    av_frame_unref(audio_decoder->current);
-    if(*left) {
-        Kit_CancelPacketBufferRead(audio_decoder->buffer);
-    } else {
-        Kit_FinishPacketBufferRead(audio_decoder->buffer);
+    if(*left == 0) {
+        av_frame_unref(audio_decoder->current);
     }
     return ret;
 
