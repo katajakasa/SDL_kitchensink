@@ -256,31 +256,21 @@ int main(int argc, char *argv[]) {
     fflush(stderr);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
-    SDL_Texture *video_tex = SDL_CreateTexture(
-        renderer,
-        player_info.video_format.format,
-        SDL_TEXTUREACCESS_STATIC,
-        player_info.video_format.width,
-        player_info.video_format.height
-    );
+    SDL_Texture *video_tex = Kit_CreatePlayerVideoSDLTexture(player, renderer, 0, 0);
     if(video_tex == NULL) {
-        fprintf(stderr, "Error while attempting to create a video texture\n");
+        fprintf(stderr, "Error while attempting to create a video texture: %s\n", Kit_GetError());
         return 1;
     }
 
     // This is the subtitle texture atlas. This contains all the subtitle image fragments.
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
-    SDL_Texture *subtitle_tex = SDL_CreateTexture(
-        renderer, player_info.subtitle_format.format, SDL_TEXTUREACCESS_STATIC, ATLAS_WIDTH, ATLAS_HEIGHT
-    );
-    if(subtitle_tex == NULL) {
-        fprintf(stderr, "Error while attempting to create a subtitle texture atlas\n");
-        return 1;
+    SDL_Texture *subtitle_tex = NULL;
+    if(Kit_GetPlayerSubtitleStream(player) >= 0) {
+        subtitle_tex = Kit_CreatePlayerSubtitleSDLTexture(player, renderer, ATLAS_WIDTH, ATLAS_HEIGHT);
+        if(subtitle_tex == NULL) {
+            fprintf(stderr, "Error while attempting to create a subtitle texture atlas: %s\n", Kit_GetError());
+            return 1;
+        }
     }
-
-    // Make sure subtitle texture is in correct blending mode
-    SDL_SetTextureBlendMode(subtitle_tex, SDL_BLENDMODE_BLEND);
 
     // Clear screen with black
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -331,7 +321,9 @@ int main(int argc, char *argv[]) {
                         current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE);
                         next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_SUBTITLE, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE, next_index) != 0) {
-                            fprintf(stderr, "\33[2K\rFailed to set subtitle stream %d: %s\n", next_index, Kit_GetError());
+                            fprintf(
+                                stderr, "\33[2K\rFailed to set subtitle stream %d: %s\n", next_index, Kit_GetError()
+                            );
                         } else {
                             fprintf(stderr, "\33[2K\rSetting subtitle stream %d\n", next_index);
                         }
@@ -458,9 +450,11 @@ int main(int argc, char *argv[]) {
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
-        int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
-        for(int i = 0; i < got; i++) {
-            SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+        if(subtitle_tex != NULL) {
+            int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
+            for(int i = 0; i < got; i++) {
+                SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+            }
         }
 
         // Enable GUI if mouse is hovering over the bottom third of the screen

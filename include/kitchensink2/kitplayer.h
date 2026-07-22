@@ -268,6 +268,23 @@ KIT_API void Kit_GetPlayerSubtitleBufferState(
 );
 
 /**
+ * @brief Creates an SDL texture suitable for player video output
+ *
+ * The texture is created with the pixel format the player outputs (see Kit_GetPlayerInfo()) and
+ * SDL_TEXTUREACCESS_STATIC access, and linear scale mode is set on SDL 2.0.12 or newer. Any w or h
+ * argument <= 0 falls back to the player's video output dimensions for that axis.
+ *
+ * The caller owns the texture and must destroy it with SDL_DestroyTexture().
+ *
+ * @param player Player instance with a video stream
+ * @param renderer Renderer to create the texture for
+ * @param w Texture width in pixels, or <= 0 for the player's video output width
+ * @param h Texture height in pixels, or <= 0 for the player's video output height
+ * @return New texture on success, NULL on error (see Kit_GetError())
+ */
+KIT_API SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, SDL_Renderer *renderer, int w, int h);
+
+/**
  * @brief Fetches a new video frame from the player
  *
  * Note that the output texture must be previously allocated and valid.
@@ -343,6 +360,25 @@ Kit_LockPlayerVideoRawFrame(const Kit_Player *player, unsigned char ***data, int
  * @param player Player instance
  */
 KIT_API void Kit_UnlockPlayerVideoRawFrame(const Kit_Player *player);
+
+/**
+ * @brief Creates an SDL texture suitable for use as the player subtitle atlas
+ *
+ * The texture is created with the pixel format the player outputs (see Kit_GetPlayerInfo()) and
+ * SDL_TEXTUREACCESS_STATIC access, blend mode is set to SDL_BLENDMODE_BLEND, and nearest scale mode
+ * is set on SDL 2.0.12 or newer. Any w or h argument <= 0 falls back to 4096, clamped to the
+ * renderer's maximum texture size for that axis.
+ *
+ * The caller owns the texture and must destroy it with SDL_DestroyTexture().
+ *
+ * @param player Player instance with a subtitle stream
+ * @param renderer Renderer to create the texture for
+ * @param w Texture width in pixels, or <= 0 for the default (4096 clamped to renderer maximum)
+ * @param h Texture height in pixels, or <= 0 for the default (4096 clamped to renderer maximum)
+ * @return New texture on success, NULL on error (see Kit_GetError())
+ */
+KIT_API SDL_Texture *
+Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *renderer, int w, int h);
 
 /**
  * @brief Fetches subtitle data from the player
