@@ -34,7 +34,7 @@ Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer) {
     return demuxer_thread;
 
 exit_0:
-    return false;
+    return NULL;
 }
 
 void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_target) {

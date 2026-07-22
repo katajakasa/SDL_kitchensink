@@ -20,9 +20,22 @@ int Kit_InitASS(Kit_LibraryState *state) {
         Kit_SetError("Unable to load ASS library");
         return 1;
     }
-    load_libass(state->ass_so_handle);
+    if(load_libass(state->ass_so_handle) != 0) {
+        Kit_SetError("Unable to load ASS library functions");
+        SDL_UnloadObject(state->ass_so_handle);
+        state->ass_so_handle = NULL;
+        return 1;
+    }
 #endif
     state->libass_handle = ass_library_init();
+    if(state->libass_handle == NULL) {
+        Kit_SetError("Unable to initialize libass library");
+#ifdef USE_DYNAMIC_LIBASS
+        SDL_UnloadObject(state->ass_so_handle);
+        state->ass_so_handle = NULL;
+#endif
+        return 1;
+    }
     ass_set_message_cb(state->libass_handle, _libass_msg_callback, NULL);
     return 0;
 }
@@ -60,7 +73,9 @@ int Kit_Init(unsigned int flags) {
     return 0;
 
 exit_1:
-    avformat_network_deinit();
+    if(flags & KIT_INIT_NETWORK) {
+        avformat_network_deinit();
+    }
 exit_0:
     return 1;
 }

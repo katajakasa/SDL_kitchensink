@@ -78,8 +78,10 @@ static AVBufferRef *Kit_FindHardwareDecoder(
 
     for(int index = 0; (config = avcodec_get_hw_config(codec, index)) != NULL; index++) {
         Kit_HardwareDeviceType kit_type = Kit_FindHWDeviceType(config->device_type);
+        if(!(hw_device_types & kit_type))
+            continue;
         AVBufferRef *hw_device_ctx = Kit_TestHWDevice(config, w, h);
-        if(hw_device_types & kit_type && hw_device_ctx != NULL) {
+        if(hw_device_ctx != NULL) {
             *type = config->device_type;
             *hw_fmt = config->pix_fmt;
             return hw_device_ctx;
@@ -152,9 +154,9 @@ Kit_Decoder *Kit_CreateDecoder(
 
     // Attempt to set up threading, if supported.
     codec_ctx->thread_count = thread_count;
-    if(codec->capabilities | AV_CODEC_CAP_FRAME_THREADS) {
+    if(codec->capabilities & AV_CODEC_CAP_FRAME_THREADS) {
         codec_ctx->thread_type = FF_THREAD_FRAME;
-    } else if(codec->capabilities | AV_CODEC_CAP_SLICE_THREADS) {
+    } else if(codec->capabilities & AV_CODEC_CAP_SLICE_THREADS) {
         codec_ctx->thread_type = FF_THREAD_SLICE;
     } else {
         codec_ctx->thread_count = 1; // Disable threading
@@ -180,7 +182,6 @@ Kit_Decoder *Kit_CreateDecoder(
     }
     av_dict_free(&codec_opts);
 
-    decoder->stream = stream;
     decoder->stream = stream;
     decoder->sync_timer = sync_timer;
     decoder->codec_ctx = codec_ctx;

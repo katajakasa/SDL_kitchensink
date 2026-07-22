@@ -68,6 +68,9 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     // Convert frame format, if needed. Note that converter context MAY need to be changed here,
     // as video frame size can, in theory, change whenever.
     video_decoder->sws = Kit_GetSwsContext(video_decoder->sws, w, h, in_fmt, out_fmt);
+    if(video_decoder->sws == NULL) {
+        return;
+    }
     sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
     av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
 
@@ -163,7 +166,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     // Find and set up stream.
     if(stream_index < 0 || stream_index >= format_ctx->nb_streams) {
         Kit_SetError("Invalid video stream index %d", stream_index);
-        return NULL;
+        goto exit_0;
     }
     stream = format_ctx->streams[stream_index];
 
@@ -259,10 +262,12 @@ exit_3:
     av_frame_free(&in_frame);
 exit_2:
     Kit_CloseDecoder(&decoder);
-    return NULL; // Above frees the video_decoder also.
+    return NULL; // Above frees the video_decoder and sync_timer also.
 exit_1:
     free(video_decoder);
 exit_0:
+    // This function owns sync_timer, so it must be freed even if decoder creation fails.
+    Kit_CloseTimer(&sync_timer);
     return NULL;
 }
 

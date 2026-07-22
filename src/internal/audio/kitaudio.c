@@ -68,7 +68,10 @@ static void prepare_out_frame(const Kit_AudioDecoder *audio_decoder) {
  */
 static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
     prepare_out_frame(audio_decoder);
-    swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame);
+    if(swr_convert_frame(audio_decoder->swr, audio_decoder->out_frame, audio_decoder->in_frame) < 0) {
+        av_frame_unref(audio_decoder->out_frame);
+        return;
+    }
     av_audio_fifo_write(
         audio_decoder->fifo, (void **)audio_decoder->out_frame->data, audio_decoder->out_frame->nb_samples
     );
@@ -99,7 +102,10 @@ static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
         prepare_out_frame(audio_decoder);
         audio_decoder->out_frame->nb_samples = fifo_samples;
         audio_decoder->out_frame->best_effort_timestamp = audio_decoder->fifo_start_pts;
-        av_frame_get_buffer(audio_decoder->out_frame, 0);
+        if(av_frame_get_buffer(audio_decoder->out_frame, 0) < 0) {
+            av_frame_unref(audio_decoder->out_frame);
+            return;
+        }
 
         // Read all available data from the FIFO
         av_audio_fifo_read(audio_decoder->fifo, (void **)audio_decoder->out_frame->data, fifo_samples);
@@ -201,7 +207,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     // Find and set up stream.
     if(stream_index < 0 || stream_index >= format_ctx->nb_streams) {
         Kit_SetError("Invalid audio stream index %d", stream_index);
-        return NULL;
+        goto exit_none;
     }
     stream = format_ctx->streams[stream_index];
 
@@ -308,10 +314,12 @@ exit_in_frame:
     av_frame_free(&in_frame);
 exit_decoder:
     Kit_CloseDecoder(&decoder);
-    return NULL; // Above frees the audio_decoder also.
+    return NULL; // Above frees the audio_decoder and sync_timer also.
 exit_audio_dec:
     free(audio_decoder);
 exit_none:
+    // This function owns sync_timer, so it must be freed even if decoder creation fails.
+    Kit_CloseTimer(&sync_timer);
     return NULL;
 }
 

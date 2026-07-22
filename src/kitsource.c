@@ -76,6 +76,7 @@ Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
         Kit_SetError("Unable to allocate avio context");
         goto EXIT_2;
     }
+    // avio_alloc_context takes ownership of avio_buf, so don't free it separately after this point
 
     // Set the format as AVIO format
     format_ctx->pb = avio_ctx;
@@ -97,11 +98,19 @@ Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallbac
     return src;
 
 EXIT_4:
+    // Since pb was set by us, AVFMT_FLAG_CUSTOM_IO is set and avformat_close_input()
+    // does not touch the AVIO context; it must be freed separately. The AVIO buffer may
+    // have been reallocated internally by ffmpeg, so free it via avio_ctx, not avio_buf.
     avformat_close_input(&format_ctx);
+    av_freep(&avio_ctx->buffer);
+    avio_context_free(&avio_ctx);
+    goto EXIT_0;
 EXIT_3:
-    av_freep(&avio_ctx);
+    av_freep(&avio_ctx->buffer);
+    avio_context_free(&avio_ctx);
 EXIT_2:
     avformat_free_context(format_ctx);
+    goto EXIT_0;
 EXIT_1:
     av_freep(&avio_buf);
 EXIT_0:
