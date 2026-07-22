@@ -170,6 +170,7 @@ Kit_Decoder *Kit_CreateDecoder(
         if(hw_device_ctx != NULL) {
             codec_ctx->get_format = Kit_GetHardwarePixelFormat;
             codec_ctx->hw_device_ctx = hw_device_ctx;
+            codec_ctx->extra_hw_frames = 4;
         }
     }
 

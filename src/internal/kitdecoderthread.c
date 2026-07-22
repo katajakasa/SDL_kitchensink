@@ -6,18 +6,20 @@
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 
-static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *eof_received) {
+static bool Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *eof_received, const int timeout) {
     Kit_DecoderInputResult ret;
     bool is_eof;
+    bool can_feed_more = false;
 
-    if(!Kit_BeginPacketBufferRead(thread->input, thread->scratch_packet, 100))
-        return;
+    if(!Kit_BeginPacketBufferRead(thread->input, thread->scratch_packet, timeout))
+        return false;
 
     // If a valid packet was found, first check if it's a control packet. Value 1 means seek.
     // Seek packet is created in the demuxer, and is sent after avformat_seek_file() is called.
     if(thread->scratch_packet->opaque == (void *)1) {
         Kit_ClearDecoderBuffers(thread->decoder);
         *pts_jumped = true;
+        can_feed_more = true;
         goto finish;
     }
     is_eof = thread->scratch_packet->opaque == (void *)2;
@@ -30,16 +32,18 @@ static void Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool 
         goto cancel;
     if(ret == KIT_DEC_INPUT_EOF || is_eof)
         *eof_received = true;
+    else
+        can_feed_more = true;
 
 finish:
     Kit_FinishPacketBufferRead(thread->input);
     av_packet_unref(thread->scratch_packet);
-    return;
+    return can_feed_more;
 
 cancel:
     Kit_CancelPacketBufferRead(thread->input);
     av_packet_unref(thread->scratch_packet);
-    return;
+    return false;
 }
 
 static int Kit_DecodeMain(void *ptr) {
@@ -49,7 +53,11 @@ static int Kit_DecodeMain(void *ptr) {
     double pts;
 
     while(SDL_AtomicGet(&thread->run)) {
-        Kit_ProcessPacket(thread, &pts_jumped, &eof_received);
+        // Feed the decoder until its internal queue is full (input callback signals retry) or input runs out.
+        // Queueing multiple packets at once lets decoders keep several frames in flight.
+        int timeout = 100;
+        while(SDL_AtomicGet(&thread->run) && Kit_ProcessPacket(thread, &pts_jumped, &eof_received, timeout))
+            timeout = 0;
 
         // Run the decoder. This will consume packets from the ffmpeg queue. We may need to call this multiple times,
         // since a single data packet might contain multiple frames.
