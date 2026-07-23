@@ -6,7 +6,6 @@
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/kitconfig.h"
-#include "kitchensink2/kitsource.h"
 #include <SDL_thread.h>
 #include <stdbool.h>
 

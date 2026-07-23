@@ -1,6 +1,7 @@
 #include "kitchensink2/internal/audio/kitaudioutils.h"
 
 #include <SDL_audio.h>
+#include <libavutil/samplefmt.h>
 
 enum AVSampleFormat Kit_FindAVSampleFormat(int format)
 {

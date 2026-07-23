@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#include <SDL_mutex.h>
 #include <SDL_surface.h>
 
 #include "kitchensink2/internal/kitlibstate.h"

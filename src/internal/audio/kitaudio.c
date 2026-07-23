@@ -9,6 +9,7 @@
 #include "kitchensink2/internal/audio/kitaudio.h"
 #include "kitchensink2/internal/audio/kitaudioutils.h"
 #include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/internal/utils/kitlog.h"
@@ -192,10 +193,7 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateAudioDecoder(
-    const Kit_Source *src,
-    const Kit_AudioFormatRequest *format_request,
-    Kit_Timer *sync_timer,
-    const int stream_index
+    const Kit_Source *src, const Kit_AudioFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
 ) {
     assert(src != NULL);
 

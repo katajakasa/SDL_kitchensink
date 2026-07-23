@@ -3,15 +3,11 @@
 
 #include <stdbool.h>
 
-#include <SDL_mutex.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 
 #include "kitchensink2/kitcodec.h"
 #include "kitchensink2/kitconfig.h"
-#include "kitchensink2/kitformat.h"
-#include "kitchensink2/kitsource.h"
-#include "kitpacketbuffer.h"
 #include "kittimer.h"
 
 typedef struct Kit_Decoder Kit_Decoder;
