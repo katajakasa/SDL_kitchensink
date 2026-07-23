@@ -375,6 +375,17 @@ int Kit_GetVideoDecoderSDLTexture(Kit_Decoder *decoder, SDL_Texture *texture, SD
                 video_decoder->current->linesize[2]
             );
             break;
+        case SDL_PIXELFORMAT_NV12:
+        case SDL_PIXELFORMAT_NV21:
+            SDL_UpdateNVTexture(
+                texture,
+                &frame_area,
+                video_decoder->current->data[0],
+                video_decoder->current->linesize[0],
+                video_decoder->current->data[1],
+                video_decoder->current->linesize[1]
+            );
+            break;
         default:
             SDL_UpdateTexture(
                 texture, &frame_area, video_decoder->current->data[0], video_decoder->current->linesize[0]

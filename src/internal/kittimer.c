@@ -7,6 +7,8 @@
 typedef struct Kit_TimerValue {
     SDL_atomic_t count;
     bool initialized;
+    bool paused;
+    double pause_start;
     double value;
 } Kit_TimerValue;
 
@@ -64,19 +66,23 @@ bool Kit_IsTimerInitialized(const Kit_Timer *timer) {
 void Kit_ResetTimerBase(Kit_Timer *timer) {
     if(timer->writeable) {
         timer->ref->initialized = false;
+        timer->ref->paused = false;
     }
 }
 
 void Kit_SetTimerBase(Kit_Timer *timer) {
     if(timer->writeable) {
         timer->ref->value = Kit_GetSystemTime();
+        timer->ref->pause_start = timer->ref->value;
         timer->ref->initialized = true;
     }
 }
 
 void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust) {
     if(timer->writeable) {
-        timer->ref->value = Kit_GetSystemTime() - adjust;
+        const double now = Kit_GetSystemTime();
+        timer->ref->value = now - adjust;
+        timer->ref->pause_start = now;
         timer->ref->initialized = true;
     }
 }
@@ -88,7 +94,23 @@ void Kit_AddTimerBase(Kit_Timer *timer, double add) {
     }
 }
 
+void Kit_PauseTimer(Kit_Timer *timer) {
+    if(timer->writeable && timer->ref->initialized && !timer->ref->paused) {
+        timer->ref->pause_start = Kit_GetSystemTime();
+        timer->ref->paused = true;
+    }
+}
+
+void Kit_ResumeTimer(Kit_Timer *timer) {
+    if(timer->writeable && timer->ref->paused) {
+        timer->ref->value += Kit_GetSystemTime() - timer->ref->pause_start;
+        timer->ref->paused = false;
+    }
+}
+
 double Kit_GetTimerElapsed(const Kit_Timer *timer) {
+    if(timer->ref->paused)
+        return timer->ref->pause_start - timer->ref->value;
     return Kit_GetSystemTime() - timer->ref->value;
 }
 
