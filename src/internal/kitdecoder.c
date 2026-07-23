@@ -185,6 +185,7 @@ Kit_Decoder *Kit_CreateDecoder(
 
     decoder->stream = stream;
     decoder->sync_timer = sync_timer;
+    decoder->output_serial = Kit_GetTimerSerial(sync_timer);
     decoder->codec_ctx = codec_ctx;
     decoder->hw_fmt = hw_fmt;
     decoder->hw_type = hw_type;

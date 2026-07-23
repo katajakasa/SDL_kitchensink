@@ -6,6 +6,7 @@
 
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/internal/video/kitvideo.h"
@@ -73,6 +74,7 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     }
     sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
     av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
+    video_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, decoder->output_serial);
 
     // Write video packet to packet buffer. This may block!
     // - if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
@@ -145,7 +147,10 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateVideoDecoder(
-    const Kit_Source *src, const Kit_VideoFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
+    const Kit_Source *src,
+    const Kit_VideoFormatRequest *format_request,
+    Kit_Timer *sync_timer,
+    const int stream_index
 ) {
     assert(src != NULL);
 
@@ -282,6 +287,25 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
 
     if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
         return false;
+
+    // Discard any frames that were decoded before the latest seek request.
+    const unsigned int live_serial = Kit_GetTimerSerial(decoder->sync_timer);
+    while(Kit_GetPacketSerial(video_decoder->current->opaque) != live_serial) {
+        // LOG("[VIDEO] DISCARD BY SERIAL: %d != %d\n", Kit_GetPacketSerial(video_decoder->current->opaque),
+        // live_serial);
+        av_frame_unref(video_decoder->current);
+        Kit_FinishPacketBufferRead(video_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
+            return false;
+    }
+
+    // If the clock has not yet been re-based for the current seek, it still reflects the pre-seek position.
+    // Hold on to the frame instead of judging it against a stale clock -- the primary stream will re-base soon.
+    if(!Kit_IsTimerPrimary(decoder->sync_timer) && !Kit_IsTimerSynced(decoder->sync_timer)) {
+        av_frame_unref(video_decoder->current);
+        Kit_CancelPacketBufferRead(video_decoder->buffer);
+        return false;
+    }
 
     // Initialize timer if it's the primary sync source, and it's not yet initialized.
     Kit_InitTimerBase(decoder->sync_timer);

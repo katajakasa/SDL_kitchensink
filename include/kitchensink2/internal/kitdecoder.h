@@ -31,7 +31,8 @@ typedef void (*dec_close_cb)(Kit_Decoder *decoder);
 typedef void (*dec_get_buffers_cb)(const Kit_Decoder *decoder, unsigned int *length, unsigned int *capacity);
 
 struct Kit_Decoder {
-    Kit_Timer *sync_timer;       ///< Playback synchronization timer
+    Kit_Timer *sync_timer;       ///< Playback synchronization timer (also carries the seek serial)
+    unsigned int output_serial;  ///< Serial stamped on decoded output frames. Only decoder thread touches this.
     AVRational aspect_ratio;     ///< Aspect ratio for the current frame (may change frame-to-frame)
     AVCodecContext *codec_ctx;   ///< FFMpeg internal: Codec context
     AVStream *stream;            ///< FFMpeg internal: Data stream
