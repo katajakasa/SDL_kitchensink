@@ -654,7 +654,7 @@ void Kit_PlayerPlay(Kit_Player *player) {
         case KIT_CLOSED:
             break;
         case KIT_PAUSED:
-            Kit_ResetTimerBase(player->sync_timer);
+            Kit_ResumeTimer(player->sync_timer);
             player->state = KIT_PLAYING;
             break;
         case KIT_STOPPED:
@@ -681,7 +681,10 @@ void Kit_PlayerStop(Kit_Player *player) {
 
 void Kit_PlayerPause(Kit_Player *player) {
     assert(player != NULL);
-    player->state = KIT_PAUSED;
+    if(player->state == KIT_PLAYING) {
+        Kit_PauseTimer(player->sync_timer);
+        player->state = KIT_PAUSED;
+    }
 }
 
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
