@@ -227,9 +227,15 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     // Set format configs
     memset(&output, 0, sizeof(Kit_VideoOutputFormat));
     if(format_request->format != SDL_PIXELFORMAT_UNKNOWN) {
+        // User already decided what they want, so we convert.
         output_format = Kit_FindAVPixelFormat(format_request->format);
         output.format = format_request->format;
+    } else if(decoder->hw_type != AV_HWDEVICE_TYPE_NONE) {
+        // Hardware decoded frames are /usually/ NV12.
+        output_format = AV_PIX_FMT_NV12;
+        output.format = Kit_FindSDLPixelFormat(output_format);
     } else {
+        // Software context, this usually ends up as YV12.
         output_format = Kit_FindBestAVPixelFormat(decoder->codec_ctx->pix_fmt);
         output.format = Kit_FindSDLPixelFormat(output_format);
     }
