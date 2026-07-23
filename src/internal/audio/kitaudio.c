@@ -121,6 +121,11 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     av_audio_fifo_reset(audio_decoder->fifo);
     audio_decoder->fifo_start_pts = -1;
     av_frame_unref(audio_decoder->current);
+    // Drop any samples buffered inside the resampler, so that old audio does not leak past a seek.
+    swr_close(audio_decoder->swr);
+    if(swr_init(audio_decoder->swr) != 0) {
+        LOG("Failed to reinitialize swr context after flush\n");
+    }
 }
 
 static void dec_signal_audio_cb(Kit_Decoder *decoder) {
