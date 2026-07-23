@@ -17,7 +17,7 @@
 #define KIT_VIDEO_EARLY_FAIL 1.0
 
 typedef struct Kit_VideoDecoder {
-    struct SwsContext *sws;       ///< Video scaler context
+    struct SwsContext *sws;       ///< Video converter context, created lazily when conversion is needed
     AVFrame *in_frame;            ///< Raw frame from decoder
     AVFrame *out_frame;           ///< Scaled+converted frame from sws
     AVFrame *tmp_frame;           ///< Intermediary frame for HW decoding
@@ -66,14 +66,19 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     const int w = video_decoder->in_frame->width;
     const int h = video_decoder->in_frame->height;
 
-    // Convert frame format, if needed. Note that converter context MAY need to be changed here,
-    // as video frame size can, in theory, change whenever.
-    video_decoder->sws = Kit_GetSwsContext(video_decoder->sws, w, h, in_fmt, out_fmt);
-    if(video_decoder->sws == NULL) {
-        return;
+    if(in_fmt == out_fmt) {
+        // Frame is already in the correct format; pass it through without conversion.
+        av_frame_move_ref(video_decoder->out_frame, video_decoder->in_frame);
+    } else {
+        // Convert frame format. The converter context is created on first use, and MAY need to be changed
+        // here, as video frame size can, in theory, change whenever.
+        video_decoder->sws = Kit_GetSwsContext(video_decoder->sws, w, h, in_fmt, out_fmt);
+        if(video_decoder->sws == NULL) {
+            return;
+        }
+        sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
+        av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
     }
-    sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
-    av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
     video_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, decoder->output_serial);
 
     // Write video packet to packet buffer. This may block!
@@ -147,10 +152,7 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateVideoDecoder(
-    const Kit_Source *src,
-    const Kit_VideoFormatRequest *format_request,
-    Kit_Timer *sync_timer,
-    const int stream_index
+    const Kit_Source *src, const Kit_VideoFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
 ) {
     assert(src != NULL);
 
@@ -164,7 +166,6 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     AVFrame *out_frame = NULL;
     AVFrame *tmp_frame = NULL;
     AVFrame *current = NULL;
-    struct SwsContext *sws = NULL;
     Kit_VideoOutputFormat output;
     enum AVPixelFormat output_format;
 
@@ -240,17 +241,11 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     output.height = (format_request->height > -1) ? format_request->height : decoder->codec_ctx->height;
     output.hw_device_type = Kit_FindHWDeviceType(decoder->hw_type);
 
-    // Create scaler for handling format changes
-    sws = Kit_GetSwsContext(sws, output.width, output.height, decoder->codec_ctx->pix_fmt, output_format);
-    if(sws == NULL) {
-        goto exit_7;
-    }
-
     video_decoder->in_frame = in_frame;
     video_decoder->out_frame = out_frame;
     video_decoder->tmp_frame = tmp_frame;
     video_decoder->current = current;
-    video_decoder->sws = sws;
+    video_decoder->sws = NULL; // Created when needed.
     video_decoder->buffer = buffer;
     video_decoder->output = output;
     return decoder;
