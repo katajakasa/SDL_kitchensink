@@ -1,3 +1,4 @@
+#include <SDL_atomic.h>
 #include <SDL_timer.h>
 #include <SDL_version.h>
 #include <assert.h>
@@ -13,7 +14,7 @@
 #include "kitchensink2/kitplayer.h"
 
 struct Kit_Player {
-    Kit_PlayerState state;             ///< Playback state
+    SDL_atomic_t state;                ///< Playback state
     Kit_Decoder *decoders[3];          ///< Decoder contexts
     Kit_Demuxer *demuxer;              ///< Demuxer context
     Kit_DecoderThread *dec_threads[3]; ///< Decoder threads
@@ -25,6 +26,14 @@ struct Kit_Player {
     int screen_w;                      ///< Width of the screen surface (for positioning subtitles)
     int screen_h;                      ///< Height of the screen surface (for positioning subtitles)
 };
+
+static Kit_PlayerState Kit_GetState(const Kit_Player *player) {
+    return SDL_AtomicGet((SDL_atomic_t *)&player->state);
+}
+
+static void Kit_SetState(Kit_Player *player, Kit_PlayerState state) {
+    SDL_AtomicSet(&player->state, state);
+}
 
 static bool Kit_InitializeAudioDecoder(
     const Kit_Source *src,
@@ -332,12 +341,13 @@ static void Kit_CloseThreads(Kit_Player *player) {
 }
 
 static void Kit_VerifyState(Kit_Player *player) {
-    if(player->state == KIT_PAUSED || player->state == KIT_PLAYING) {
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PAUSED || state == KIT_PLAYING) {
         if(!Kit_IsRunning(player)) {
             Kit_StopThreads(player);
             Kit_WaitThreads(player);
             Kit_FlushAllBuffers(player);
-            player->state = KIT_STOPPED;
+            Kit_SetState(player, KIT_STOPPED);
         }
     }
 }
@@ -346,7 +356,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     if(player == NULL)
         return;
 
-    player->state = KIT_CLOSED;
+    Kit_SetState(player, KIT_CLOSED);
 
     Kit_StopThreads(player);
     Kit_AbortAllBuffers(player);
@@ -392,7 +402,8 @@ int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture,
     assert(player != NULL);
     if(player->decoders[KIT_VIDEO_INDEX] == NULL)
         return 0;
-    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PAUSED || state == KIT_STOPPED)
         return 0;
     return Kit_GetVideoDecoderSDLTexture(player->decoders[KIT_VIDEO_INDEX], texture, area);
 }
@@ -401,7 +412,8 @@ int Kit_LockPlayerVideoRawFrame(const Kit_Player *player, unsigned char ***data,
     assert(player != NULL);
     if(player->decoders[KIT_VIDEO_INDEX] == NULL)
         return 0;
-    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PAUSED || state == KIT_STOPPED)
         return 0;
     return Kit_LockVideoDecoderRaw(player->decoders[KIT_VIDEO_INDEX], data, line_size, area);
 }
@@ -422,7 +434,8 @@ int Kit_GetPlayerAudioData(
         return 0;
     if(length == 0)
         return 0;
-    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PAUSED || state == KIT_STOPPED)
         return 0;
     return Kit_GetAudioDecoderData(player->decoders[KIT_AUDIO_INDEX], backend_buffer_size, buffer, length);
 }
@@ -439,9 +452,10 @@ int Kit_GetPlayerSubtitleSDLTexture(
     const Kit_Decoder *sub_dec = player->decoders[KIT_SUBTITLE_INDEX];
     if(sub_dec == NULL)
         return 0;
-    if(player->state == KIT_PAUSED) // If paused, just return the current items
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PAUSED) // If paused, just return the current items
         return Kit_GetSubtitleDecoderSDLTextureInfo(sub_dec, sources, targets, limit);
-    if(player->state == KIT_STOPPED) // If stopped, do nothing.
+    if(state == KIT_STOPPED) // If stopped, do nothing.
         return 0;
     Kit_GetSubtitleDecoderSDLTexture(sub_dec, texture, Kit_GetTimerElapsed(player->sync_timer));
     return Kit_GetSubtitleDecoderSDLTextureInfo(sub_dec, sources, targets, limit);
@@ -453,7 +467,8 @@ int Kit_GetPlayerSubtitleRawFrames(
     assert(player != NULL);
     if(player->decoders[KIT_SUBTITLE_INDEX] == NULL)
         return 0;
-    if(player->state == KIT_PAUSED || player->state == KIT_STOPPED)
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PAUSED || state == KIT_STOPPED)
         return 0;
     return Kit_GetSubtitleDecoderRawFrames(
         player->decoders[KIT_SUBTITLE_INDEX], items, sources, targets, Kit_GetTimerElapsed(player->sync_timer)
@@ -632,36 +647,36 @@ void Kit_GetPlayerSubtitleBufferState(
 Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
     assert(player != NULL);
     Kit_VerifyState(player);
-    return player->state;
+    return Kit_GetState(player);
 }
 
 void Kit_PlayerPlay(Kit_Player *player) {
     assert(player != NULL);
-    switch(player->state) {
+    switch(Kit_GetState(player)) {
         case KIT_PLAYING:
         case KIT_CLOSED:
             break;
         case KIT_PAUSED:
             Kit_ResumeTimer(player->sync_timer);
-            player->state = KIT_PLAYING;
+            Kit_SetState(player, KIT_PLAYING);
             break;
         case KIT_STOPPED:
             Kit_StartThreads(player);
             Kit_ResetTimerBase(player->sync_timer);
-            player->state = KIT_PLAYING;
+            Kit_SetState(player, KIT_PLAYING);
             break;
     }
 }
 
 void Kit_PlayerStop(Kit_Player *player) {
     assert(player != NULL);
-    switch(player->state) {
+    switch(Kit_GetState(player)) {
         case KIT_STOPPED:
         case KIT_CLOSED:
             break;
         case KIT_PLAYING:
         case KIT_PAUSED:
-            player->state = KIT_STOPPED;
+            Kit_SetState(player, KIT_STOPPED);
             Kit_StopThreads(player);
             Kit_AbortAllBuffers(player);
             Kit_WaitThreads(player);
@@ -672,15 +687,16 @@ void Kit_PlayerStop(Kit_Player *player) {
 
 void Kit_PlayerPause(Kit_Player *player) {
     assert(player != NULL);
-    if(player->state == KIT_PLAYING) {
+    if(Kit_GetState(player) == KIT_PLAYING) {
         Kit_PauseTimer(player->sync_timer);
-        player->state = KIT_PAUSED;
+        Kit_SetState(player, KIT_PAUSED);
     }
 }
 
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
-    if(player->state == KIT_STOPPED || player->state == KIT_CLOSED) {
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_STOPPED || state == KIT_CLOSED) {
         Kit_SetError("Player is closed");
         return 1;
     }
@@ -866,7 +882,8 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
     // Set the new decoder and thread, and spin up the thread if we were already playing.
     player->decoders[buffer_index] = new_decoder;
     player->dec_threads[buffer_index] = new_thread;
-    if(player->state == KIT_PLAYING || player->state == KIT_PAUSED)
+    const Kit_PlayerState state = Kit_GetState(player);
+    if(state == KIT_PLAYING || state == KIT_PAUSED)
         Kit_StartThreadFor(player, buffer_index);
 
     // Et voila!
