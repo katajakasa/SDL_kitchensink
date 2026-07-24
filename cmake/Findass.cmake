@@ -28,16 +28,14 @@ find_library(ASS_LIBRARY
     PATHS ${ASS_SEARCH_PATHS}
 )
 
-if(ASS_INCLUDE_DIR AND ASS_LIBRARY)
-   set(ASS_FOUND TRUE)
-endif()
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(ass
+    REQUIRED_VARS ASS_LIBRARY ASS_INCLUDE_DIR
+)
 
 if(ASS_FOUND)
     set(ASS_LIBRARIES ${ASS_LIBRARY})
     set(ASS_INCLUDE_DIRS ${ASS_INCLUDE_DIR})
-    message(STATUS "Found libass: ${ASS_LIBRARIES}")
-else()
-    message(WARNING "Could not find libass")
 endif()
 
 mark_as_advanced(ASS_LIBRARY ASS_INCLUDE_DIR ASS_SEARCH_PATHS)

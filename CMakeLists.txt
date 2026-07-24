@@ -48,7 +48,7 @@ if (USE_ASAN)
 endif ()
 
 find_package(SDL2 REQUIRED)
-find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
+find_package(ffmpeg REQUIRED COMPONENTS avcodec avformat avutil swscale swresample)
 
 check_library_exists(m pow "" LIBM_EXISTS)
 
@@ -75,7 +75,7 @@ if (USE_DYNAMIC_LIBASS)
     add_definitions(-DUSE_DYNAMIC_LIBASS)
     add_definitions(-DDYNAMIC_LIBASS_NAME=${DYNAMIC_LIBASS_NAME})
 else ()
-    find_package(ass)
+    find_package(ass REQUIRED)
     set(LIBRARIES ${LIBRARIES} ${ASS_LIBRARIES})
     set(INCLUDES ${INCLUDES} ${ASS_INCLUDE_DIRS})
 endif ()
