@@ -28,7 +28,7 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     // Note that Kit_WritePacketBuffer() may block if the buffer is full. It will also move the scratch_packet
     // references to its own buffer, leaving the scratch_buffer in a clean state.
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if(demuxer->scratch_packet->stream_index == demuxer->stream_indexes[i]) {
+        if(demuxer->scratch_packet->stream_index == SDL_AtomicGet(&demuxer->stream_indexes[i])) {
             Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
             return true;
         }
@@ -102,9 +102,9 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
     demuxer->buffers[KIT_VIDEO_INDEX] = video_buf;
     demuxer->buffers[KIT_AUDIO_INDEX] = audio_buf;
     demuxer->buffers[KIT_SUBTITLE_INDEX] = subtitle_buf;
-    demuxer->stream_indexes[KIT_VIDEO_INDEX] = video_index;
-    demuxer->stream_indexes[KIT_AUDIO_INDEX] = audio_index;
-    demuxer->stream_indexes[KIT_SUBTITLE_INDEX] = subtitle_index;
+    SDL_AtomicSet(&demuxer->stream_indexes[KIT_VIDEO_INDEX], video_index);
+    SDL_AtomicSet(&demuxer->stream_indexes[KIT_AUDIO_INDEX], audio_index);
+    SDL_AtomicSet(&demuxer->stream_indexes[KIT_SUBTITLE_INDEX], subtitle_index);
     return demuxer;
 
 error_4:
@@ -128,7 +128,7 @@ void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer) {
 
 void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int stream_index) {
     Kit_FlushPacketBuffer(demuxer->buffers[index]);
-    demuxer->stream_indexes[index] = stream_index;
+    SDL_AtomicSet(&demuxer->stream_indexes[index], stream_index);
 }
 
 void Kit_AbortDemuxer(const Kit_Demuxer *demuxer) {
@@ -150,7 +150,7 @@ void Kit_CloseDemuxer(Kit_Demuxer **ref) {
     Kit_Demuxer *demuxer = *ref;
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         Kit_FreePacketBuffer(&demuxer->buffers[i]);
-        demuxer->stream_indexes[i] = -1;
+        SDL_AtomicSet(&demuxer->stream_indexes[i], -1);
     }
     av_packet_free(&demuxer->scratch_packet);
     free(demuxer);
