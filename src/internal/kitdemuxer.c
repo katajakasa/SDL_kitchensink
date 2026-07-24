@@ -6,13 +6,14 @@
 #include "kitchensink2/internal/kitdemuxer.h"
 #include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/kiterror.h"
 
 static void Kit_SendEOFPacket(Kit_Demuxer *demuxer) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         if(!demuxer->buffers[i])
             continue;
-        demuxer->scratch_packet->opaque = (void *)2;
+        demuxer->scratch_packet->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_EOF, 0);
         Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
     }
 }
@@ -156,20 +157,20 @@ void Kit_CloseDemuxer(Kit_Demuxer **ref) {
     *ref = NULL;
 }
 
-static void Kit_SendSeekPacket(Kit_Demuxer *demuxer) {
+static void Kit_SendSeekPacket(Kit_Demuxer *demuxer, unsigned int seek_serial) {
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         if(!demuxer->buffers[i])
             continue;
-        demuxer->scratch_packet->opaque = (void *)1;
+        demuxer->scratch_packet->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_SEEK, seek_serial);
         Kit_FlushPacketBuffer(demuxer->buffers[i]);
         Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
     }
 }
 
-bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target) {
+bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target, unsigned int seek_serial) {
     if(avformat_seek_file(demuxer->src->format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, 0) >= 0) {
         Kit_ClearDemuxerBuffers(demuxer);
-        Kit_SendSeekPacket(demuxer);
+        Kit_SendSeekPacket(demuxer, seek_serial);
         return true;
     }
     return false;

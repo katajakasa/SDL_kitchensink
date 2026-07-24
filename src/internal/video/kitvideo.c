@@ -6,7 +6,8 @@
 
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitlibstate.h"
-#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/internal/video/kitvideo.h"
 #include "kitchensink2/internal/video/kitvideoutils.h"
@@ -16,7 +17,7 @@
 #define KIT_VIDEO_EARLY_FAIL 1.0
 
 typedef struct Kit_VideoDecoder {
-    struct SwsContext *sws;       ///< Video scaler context
+    struct SwsContext *sws;       ///< Video converter context, created lazily when conversion is needed
     AVFrame *in_frame;            ///< Raw frame from decoder
     AVFrame *out_frame;           ///< Scaled+converted frame from sws
     AVFrame *tmp_frame;           ///< Intermediary frame for HW decoding
@@ -65,14 +66,20 @@ static void dec_read_video(const Kit_Decoder *decoder) {
     const int w = video_decoder->in_frame->width;
     const int h = video_decoder->in_frame->height;
 
-    // Convert frame format, if needed. Note that converter context MAY need to be changed here,
-    // as video frame size can, in theory, change whenever.
-    video_decoder->sws = Kit_GetSwsContext(video_decoder->sws, w, h, in_fmt, out_fmt);
-    if(video_decoder->sws == NULL) {
-        return;
+    if(in_fmt == out_fmt) {
+        // Frame is already in the correct format; pass it through without conversion.
+        av_frame_move_ref(video_decoder->out_frame, video_decoder->in_frame);
+    } else {
+        // Convert frame format. The converter context is created on first use, and MAY need to be changed
+        // here, as video frame size can, in theory, change whenever.
+        video_decoder->sws = Kit_GetSwsContext(video_decoder->sws, w, h, in_fmt, out_fmt);
+        if(video_decoder->sws == NULL) {
+            return;
+        }
+        sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
+        av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
     }
-    sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
-    av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
+    video_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, decoder->output_serial);
 
     // Write video packet to packet buffer. This may block!
     // - if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
@@ -159,7 +166,6 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     AVFrame *out_frame = NULL;
     AVFrame *tmp_frame = NULL;
     AVFrame *current = NULL;
-    struct SwsContext *sws = NULL;
     Kit_VideoOutputFormat output;
     enum AVPixelFormat output_format;
 
@@ -221,9 +227,15 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     // Set format configs
     memset(&output, 0, sizeof(Kit_VideoOutputFormat));
     if(format_request->format != SDL_PIXELFORMAT_UNKNOWN) {
+        // User already decided what they want, so we convert.
         output_format = Kit_FindAVPixelFormat(format_request->format);
         output.format = format_request->format;
+    } else if(decoder->hw_type != AV_HWDEVICE_TYPE_NONE) {
+        // Hardware decoded frames are /usually/ NV12.
+        output_format = AV_PIX_FMT_NV12;
+        output.format = Kit_FindSDLPixelFormat(output_format);
     } else {
+        // Software context, this usually ends up as YV12.
         output_format = Kit_FindBestAVPixelFormat(decoder->codec_ctx->pix_fmt);
         output.format = Kit_FindSDLPixelFormat(output_format);
     }
@@ -235,17 +247,11 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     output.height = (format_request->height > -1) ? format_request->height : decoder->codec_ctx->height;
     output.hw_device_type = Kit_FindHWDeviceType(decoder->hw_type);
 
-    // Create scaler for handling format changes
-    sws = Kit_GetSwsContext(sws, output.width, output.height, decoder->codec_ctx->pix_fmt, output_format);
-    if(sws == NULL) {
-        goto exit_7;
-    }
-
     video_decoder->in_frame = in_frame;
     video_decoder->out_frame = out_frame;
     video_decoder->tmp_frame = tmp_frame;
     video_decoder->current = current;
-    video_decoder->sws = sws;
+    video_decoder->sws = NULL; // Created when needed.
     video_decoder->buffer = buffer;
     video_decoder->output = output;
     return decoder;
@@ -282,6 +288,25 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
 
     if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
         return false;
+
+    // Discard any frames that were decoded before the latest seek request.
+    const unsigned int live_serial = Kit_GetTimerSerial(decoder->sync_timer);
+    while(Kit_GetPacketSerial(video_decoder->current->opaque) != live_serial) {
+        // LOG("[VIDEO] DISCARD BY SERIAL: %d != %d\n", Kit_GetPacketSerial(video_decoder->current->opaque),
+        // live_serial);
+        av_frame_unref(video_decoder->current);
+        Kit_FinishPacketBufferRead(video_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
+            return false;
+    }
+
+    // If the clock has not yet been re-based for the current seek, it still reflects the pre-seek position.
+    // Hold on to the frame instead of judging it against a stale clock -- the primary stream will re-base soon.
+    if(!Kit_IsTimerPrimary(decoder->sync_timer) && !Kit_IsTimerSynced(decoder->sync_timer)) {
+        av_frame_unref(video_decoder->current);
+        Kit_CancelPacketBufferRead(video_decoder->buffer);
+        return false;
+    }
 
     // Initialize timer if it's the primary sync source, and it's not yet initialized.
     Kit_InitTimerBase(decoder->sync_timer);

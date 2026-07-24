@@ -5,7 +5,9 @@
 #include <stdlib.h>
 
 typedef struct Kit_TimerValue {
-    SDL_atomic_t count;
+    SDL_atomic_t count;       ///< Reference count
+    SDL_atomic_t serial;      ///< Current seek serial; bumped on every seek request
+    SDL_atomic_t base_serial; ///< Seek serial for which the timer base was last set
     bool initialized;
     bool paused;
     double pause_start;
@@ -29,6 +31,8 @@ Kit_Timer *Kit_CreateTimer() {
     }
 
     SDL_AtomicSet(&value->count, 1);
+    SDL_AtomicSet(&value->serial, 0);
+    SDL_AtomicSet(&value->base_serial, 0);
     value->value = 0;
     value->initialized = false;
     timer->ref = value;
@@ -78,12 +82,13 @@ void Kit_SetTimerBase(Kit_Timer *timer) {
     }
 }
 
-void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust) {
+void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust, unsigned int serial) {
     if(timer->writeable) {
         const double now = Kit_GetSystemTime();
         timer->ref->value = now - adjust;
         timer->ref->pause_start = now;
         timer->ref->initialized = true;
+        SDL_AtomicSet(&timer->ref->base_serial, (int)serial);
     }
 }
 
@@ -116,6 +121,24 @@ double Kit_GetTimerElapsed(const Kit_Timer *timer) {
 
 bool Kit_IsTimerPrimary(const Kit_Timer *timer) {
     return timer->writeable;
+}
+
+unsigned int Kit_GetTimerSerial(const Kit_Timer *timer) {
+    return (unsigned int)SDL_AtomicGet(&timer->ref->serial);
+}
+
+unsigned int Kit_IncreaseTimerSerial(Kit_Timer *timer) {
+    return (unsigned int)SDL_AtomicAdd(&timer->ref->serial, 1) + 1;
+}
+
+void Kit_SetTimerBaseSerial(Kit_Timer *timer, unsigned int serial) {
+    if(timer->writeable) {
+        SDL_AtomicSet(&timer->ref->base_serial, (int)serial);
+    }
+}
+
+bool Kit_IsTimerSynced(const Kit_Timer *timer) {
+    return SDL_AtomicGet(&timer->ref->base_serial) == SDL_AtomicGet(&timer->ref->serial);
 }
 
 void Kit_CloseTimer(Kit_Timer **ref) {

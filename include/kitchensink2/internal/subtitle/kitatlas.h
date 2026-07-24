@@ -3,7 +3,6 @@
 
 #include <SDL_rect.h>
 #include <SDL_render.h>
-#include <stdbool.h>
 
 #include "kitchensink2/kitconfig.h"
 

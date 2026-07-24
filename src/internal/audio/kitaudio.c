@@ -9,6 +9,8 @@
 #include "kitchensink2/internal/audio/kitaudio.h"
 #include "kitchensink2/internal/audio/kitaudioutils.h"
 #include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
@@ -94,7 +96,7 @@ static int get_limit(Kit_AudioDecoder *audio_decoder) {
 /**
  * If there is enough data in the FIFO, flush it out as a packet. This will do a memory copy!
  */
-static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
+static void read_fifo_frame(const Kit_Decoder *decoder, Kit_AudioDecoder *audio_decoder, bool flush) {
     int fifo_samples = av_audio_fifo_size(audio_decoder->fifo);
     int nb_sample_limit = get_limit(audio_decoder);
     if(fifo_samples > nb_sample_limit || flush) {
@@ -102,6 +104,7 @@ static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
         prepare_out_frame(audio_decoder);
         audio_decoder->out_frame->nb_samples = fifo_samples;
         audio_decoder->out_frame->best_effort_timestamp = audio_decoder->fifo_start_pts;
+        audio_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, decoder->output_serial);
         if(av_frame_get_buffer(audio_decoder->out_frame, 0) < 0) {
             av_frame_unref(audio_decoder->out_frame);
             return;
@@ -120,7 +123,11 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(audio_decoder->buffer);
     av_audio_fifo_reset(audio_decoder->fifo);
     audio_decoder->fifo_start_pts = -1;
-    av_frame_unref(audio_decoder->current);
+    // Drop any samples buffered inside the resampler, so that old audio does not leak past a seek.
+    swr_close(audio_decoder->swr);
+    if(swr_init(audio_decoder->swr) != 0) {
+        LOG("Failed to reinitialize swr context after flush\n");
+    }
 }
 
 static void dec_signal_audio_cb(Kit_Decoder *decoder) {
@@ -154,20 +161,19 @@ static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, con
 
 static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder != NULL);
-    int ret;
 
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    ret = avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame);
+    const int ret = avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame);
     if(ret == 0) {
         *pts = audio_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
         process_decoded_frame(audio_decoder);
-        read_fifo_frame(audio_decoder, false);
+        read_fifo_frame(decoder, audio_decoder, false);
         av_frame_unref(audio_decoder->in_frame);
         return true;
     }
     if(ret == AVERROR_EOF) {
         // If this is the end of the stream, flush the FIFO.
-        read_fifo_frame(audio_decoder, true);
+        read_fifo_frame(decoder, audio_decoder, true);
     }
     return false;
 }
@@ -333,17 +339,38 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     assert(decoder != NULL);
 
     const Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    const unsigned int live_serial = Kit_GetTimerSerial(decoder->sync_timer);
     int ret = 0;
     size_t *size = &audio_decoder->current->crop_top;
     size_t *left = &audio_decoder->current->crop_bottom;
 
     if(len <= 0)
         return 0;
+    if(*left > 0 && Kit_GetPacketSerial(audio_decoder->current->opaque) != live_serial)
+        av_frame_unref(audio_decoder->current);
     if(*left > 0)
         goto serve;
 
     if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
         goto no_data;
+
+    // Discard any frames that were decoded before the latest seek request.
+    while(Kit_GetPacketSerial(audio_decoder->current->opaque) != live_serial) {
+        // LOG("[AUDIO] DISCARD BY SERIAL: %d != %d\n", Kit_GetPacketSerial(audio_decoder->current->opaque),
+        // live_serial);
+        av_frame_unref(audio_decoder->current);
+        Kit_FinishPacketBufferRead(audio_decoder->buffer);
+        if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
+            goto no_data;
+    }
+
+    // If the clock has not yet been re-based for the current seek, it still reflects the pre-seek position.
+    // Hold on to the frame instead of judging it against a stale clock -- the primary stream will re-base soon.
+    if(!Kit_IsTimerPrimary(decoder->sync_timer) && !Kit_IsTimerSynced(decoder->sync_timer)) {
+        av_frame_unref(audio_decoder->current);
+        Kit_CancelPacketBufferRead(audio_decoder->buffer);
+        goto no_data;
+    }
 
     // Initialize timer if it's the primary sync source, and it's not yet initialized.
     Kit_InitTimerBase(decoder->sync_timer);
@@ -405,7 +432,7 @@ serve:
     len = floor(len / SAMPLE_BYTES(audio_decoder)) * SAMPLE_BYTES(audio_decoder);
     if(*left) {
         ret = (len > *left) ? *left : len;
-        int pos = *size - *left;
+        const int pos = *size - *left;
         memcpy(buf, audio_decoder->current->data[0] + pos, ret);
         *left -= ret;
     }

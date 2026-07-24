@@ -30,13 +30,13 @@ Note! Master branch is for the development of v2.x.x series.
 
 ## 1. Installation
 
-Nowadays you can find SDL_kitchensink in eg. linux repositories. Installation might be as simple as
-running the following (or your distributions' equivalent):
+Nowadays you can find SDL_kitchensink in eg. linux repositories. Installation might be as simple as running the
+following (or your distributions' equivalent):
 
 ```apt install libsdl-kitchensink libsdl-kitchensink-dev```
 
-If you are running on windows/MSYS2 or on linux distributions where the package management does not
-have kitchensink, you will need to compile it yourself. Please see the "Compiling" section below.
+If you are running on windows/MSYS2 or on linux distributions where the package management does not have kitchensink,
+you will need to compile it yourself. Please see the "Compiling" section below.
 
 ## 2. Library requirements
 
@@ -47,12 +47,12 @@ Build requirements:
 
 Library requirements:
 
-* SDL2 2.0.5 or newer
-* FFmpeg 5.0 or newer
+* SDL2 2.0.5 or newer (2.0.12 or newer recommended)
+* FFmpeg 5.1 or newer
 * libass (optional, supports runtime linking via SDL_LoadSO)
 
-Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions
-may or may not work; versions noted here are the only ones tested.
+Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions may or may not work; versions
+noted here are the only ones tested.
 
 ### 2.1. Debian / Ubuntu
 
@@ -120,21 +120,20 @@ ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./complex
 
 Q: What's with the USE_DYNAMIC_LIBASS cmake flag ?
 
-* A: It can be used to link the libass dynamically when needed. This also makes it possible to build the
-  library without libass, if needed. Using this flag is not recommended however, and it will probably
-  be deprecated in the next major version(s). If you use it, you might need to also patch the library
-  path and name to match yours in kitchensink source.
+* A: It can be used to link the libass dynamically when needed. This also makes it possible to build the library without
+  libass, if needed. Using this flag is not recommended however, and it will probably be deprecated in the next major
+  version (s). If you use it, you might need to also patch the library path and name to match yours in kitchensink
+  source.
 
 Q: Why the name SDL_kitchensink
 
-* A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its
-  kitchensink and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
+* A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its kitchensink
+  and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
 ## 5. Examples
 
-Please see examples directory. You can also take a look at unittests for some help.
-Note that examples are NOT meant for any kind of real life use; they are only meant to
-show simple use cases for the library.
+Please see examples directory. You can also take a look at unittests for some help. Note that examples are NOT meant for
+any kind of real life use; they are only meant to show simple use cases for the library.
 
 ## 6. FFMPEG & licensing
 

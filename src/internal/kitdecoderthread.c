@@ -3,6 +3,7 @@
 
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitdecoderthread.h"
+#include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 
@@ -14,15 +15,17 @@ static bool Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool 
     if(!Kit_BeginPacketBufferRead(thread->input, thread->scratch_packet, timeout))
         return false;
 
-    // If a valid packet was found, first check if it's a control packet. Value 1 means seek.
-    // Seek packet is created in the demuxer, and is sent after avformat_seek_file() is called.
-    if(thread->scratch_packet->opaque == (void *)1) {
+    // If a valid packet was found, first check if it's a control packet.
+    // Seek packet is created in the demuxer, and is sent after avformat_seek_file() is called. It carries
+    // the seek serial, which we stamp on all output frames decoded from this point on.
+    if(Kit_GetPacketType(thread->scratch_packet->opaque) == KIT_PACKET_TYPE_SEEK) {
         Kit_ClearDecoderBuffers(thread->decoder);
+        thread->decoder->output_serial = Kit_GetPacketSerial(thread->scratch_packet->opaque);
         *pts_jumped = true;
         can_feed_more = true;
         goto finish;
     }
-    is_eof = thread->scratch_packet->opaque == (void *)2;
+    is_eof = Kit_GetPacketType(thread->scratch_packet->opaque) == KIT_PACKET_TYPE_EOF;
 
     // If valid packet was found and it is not a control packet, it must contain stream data.
     // Attempt to add it to the ffmpeg decoder internal queue. Note that the queue may be full, in which case
@@ -63,15 +66,22 @@ static int Kit_DecodeMain(void *ptr) {
         // since a single data packet might contain multiple frames.
         while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder, &pts)) {
             if(pts_jumped) {
+                // Re-base the clock (only the primary sync stream can do this). This also stamps the serial
+                // on the clock base, telling the other streams that the clock can be trusted again.
                 // Note that we change the sync a bit to give decoders some time to decode.
                 // The 0.1 is essentially a hack that moves the sync time forwards a bit, so that the data getter
                 // functions wait a little bit before they start feeding again.
-                Kit_AdjustTimerBase(thread->decoder->sync_timer, pts - 0.1);
+                Kit_AdjustTimerBase(thread->decoder->sync_timer, pts - 0.1, thread->decoder->output_serial);
                 pts_jumped = false;
             }
         }
-        if(eof_received)
+        if(eof_received) {
+            // If a seek landed past the end of this stream, no frame will ever re-base the clock. Stamp the
+            // base serial anyway, so that the other streams are not left waiting for it forever.
+            if(pts_jumped)
+                Kit_SetTimerBaseSerial(thread->decoder->sync_timer, thread->decoder->output_serial);
             break;
+        }
     }
 
     SDL_AtomicSet(&thread->run, 0);

@@ -6,11 +6,16 @@
 #include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 
+#include <SDL_mutex.h>
+
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitlibstate.h"
+#include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/internal/video/kitvideoutils.h"
 #include "kitchensink2/kiterror.h"
+#include "kitchensink2/kitformat.h"
+#include "kitchensink2/kitsource.h"
 
 /**
  * Check if hardware context supports an output format that we can feed to swscale
@@ -185,6 +190,7 @@ Kit_Decoder *Kit_CreateDecoder(
 
     decoder->stream = stream;
     decoder->sync_timer = sync_timer;
+    decoder->output_serial = Kit_GetTimerSerial(sync_timer);
     decoder->codec_ctx = codec_ctx;
     decoder->hw_fmt = hw_fmt;
     decoder->hw_type = hw_type;

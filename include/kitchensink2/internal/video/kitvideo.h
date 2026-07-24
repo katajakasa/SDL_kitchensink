@@ -6,6 +6,7 @@
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitformat.h"
 #include "kitchensink2/kitsource.h"
 
 KIT_LOCAL Kit_Decoder *Kit_CreateVideoDecoder(

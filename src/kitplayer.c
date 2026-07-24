@@ -106,8 +106,9 @@ static bool Kit_InitializeSubtitleDecoder(
         goto exit_0;
     if((timer = Kit_CreateSecondaryTimer(main_timer, false)) == NULL)
         goto exit_0;
-    if((*decoder = Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)
-       ) == NULL)
+    if((*decoder = Kit_CreateSubtitleDecoder(
+            src, timer, stream_index, output.width, output.height, screen_w, screen_h
+        )) == NULL)
         goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
@@ -171,7 +172,7 @@ Kit_Player *Kit_CreatePlayer(
         goto exit_1;
     if((demuxer = Kit_CreateDemuxer(src, video_stream_index, audio_stream_index, subtitle_stream_index)) == NULL)
         goto exit_2;
-    if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL)
+    if((demux_thread = Kit_CreateDemuxerThread(demuxer, timer)) == NULL)
         goto exit_3;
     if(audio_stream_index > -1) {
         if(!Kit_InitializeAudioDecoder(
