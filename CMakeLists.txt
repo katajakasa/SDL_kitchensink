@@ -97,6 +97,7 @@ if (BUILD_SHARED)
 
     target_link_libraries(SDL_kitchensink ${LIBRARIES})
 
+    set_target_properties(SDL_kitchensink PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink PROPERTIES VERSION ${KIT_VERSION})
     set_target_properties(SDL_kitchensink PROPERTIES SOVERSION ${KIT_VERSION_MAJOR})
     set_target_properties(SDL_kitchensink PROPERTIES DEBUG_POSTFIX "d")
@@ -116,6 +117,7 @@ if (BUILD_STATIC)
         target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=address")
     endif ()
 
+    set_target_properties(SDL_kitchensink_static PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
 
@@ -133,7 +135,7 @@ else ()
     message(STATUS "Development: clang-tidy disabled")
 endif ()
 
-set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink.pc")
+set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink2.pc")
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.in"
         ${PKG_CONFIG_FILE}

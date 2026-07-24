@@ -3,10 +3,10 @@ exec_prefix=${prefix}
 libdir=@CMAKE_INSTALL_FULL_LIBDIR@
 includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
 
-Name: SDL_kitchensink
+Name: SDL_kitchensink2
 Description: SDL2/ffmpeg video playback library
 Version: @KIT_VERSION@
 URL: https://github.com/katajakasa/SDL_kitchensink
 
-Libs: -L${libdir} -l@PROJECT_NAME@
+Libs: -L${libdir} -lSDL_kitchensink2
 Cflags: -I${includedir}
