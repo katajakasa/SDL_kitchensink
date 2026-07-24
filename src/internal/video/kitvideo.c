@@ -360,13 +360,16 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
     }
 
     // LOG("[VIDEO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
+
+    // The frame is in video_decoder->current, so we can drop it from buffer
+    // and release the buffer lock.
+    Kit_FinishPacketBufferRead(video_decoder->buffer);
     return true;
 }
 
 void Kit_EndReadFrame(Kit_Decoder *decoder) {
     const Kit_VideoDecoder *video_decoder = decoder->userdata;
     av_frame_unref(video_decoder->current);
-    Kit_FinishPacketBufferRead(video_decoder->buffer);
 }
 
 int Kit_GetVideoDecoderSDLTexture(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect *area) {
