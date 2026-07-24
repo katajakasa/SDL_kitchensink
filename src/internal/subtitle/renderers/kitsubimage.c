@@ -198,9 +198,9 @@ static void ren_flush_cb(Kit_SubtitleRenderer *ren) {
     Kit_FlushPacketBuffer(image_renderer->buffer);
 }
 
-static void ren_signal_cb(Kit_SubtitleRenderer *ren) {
+static void ren_abort_cb(Kit_SubtitleRenderer *ren) {
     Kit_ImageSubtitleRenderer *image_renderer = ren->userdata;
-    Kit_SignalPacketBuffer(image_renderer->buffer);
+    Kit_AbortPacketBuffer(image_renderer->buffer);
 }
 
 static void ren_close_img_cb(Kit_SubtitleRenderer *renderer) {
@@ -247,7 +247,7 @@ Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int 
             ren_get_img_raw_frames_cb,
             ren_set_img_size_cb,
             ren_flush_cb,
-            ren_signal_cb,
+            ren_abort_cb,
             ren_close_img_cb,
             image_renderer
         )) == NULL) {

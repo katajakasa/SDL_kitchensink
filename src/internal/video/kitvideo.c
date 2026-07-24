@@ -53,10 +53,10 @@ static void dec_flush_video_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(video_decoder->buffer);
 }
 
-static void dec_signal_video_cb(Kit_Decoder *decoder) {
+static void dec_abort_video_cb(Kit_Decoder *decoder) {
     assert(decoder);
     const Kit_VideoDecoder *video_decoder = decoder->userdata;
-    Kit_SignalPacketBuffer(video_decoder->buffer);
+    Kit_AbortPacketBuffer(video_decoder->buffer);
 }
 
 static void dec_read_video(const Kit_Decoder *decoder) {
@@ -188,7 +188,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
             dec_input_video_cb,
             dec_decode_video_cb,
             dec_flush_video_cb,
-            dec_signal_video_cb,
+            dec_abort_video_cb,
             dec_close_video_cb,
             dec_get_video_buffers_cb,
             video_decoder

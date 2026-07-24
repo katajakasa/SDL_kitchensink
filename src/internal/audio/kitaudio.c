@@ -132,10 +132,10 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     }
 }
 
-static void dec_signal_audio_cb(Kit_Decoder *decoder) {
+static void dec_abort_audio_cb(Kit_Decoder *decoder) {
     assert(decoder);
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    Kit_SignalPacketBuffer(audio_decoder->buffer);
+    Kit_AbortPacketBuffer(audio_decoder->buffer);
 }
 
 static void dec_get_audio_buffers_cb(const Kit_Decoder *ref, unsigned int *length, unsigned int *capacity) {
@@ -236,7 +236,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
             dec_input_audio_cb,
             dec_decode_audio_cb,
             dec_flush_audio_cb,
-            dec_signal_audio_cb,
+            dec_abort_audio_cb,
             dec_close_audio_cb,
             dec_get_audio_buffers_cb,
             audio_decoder

@@ -14,6 +14,7 @@ struct Kit_PacketBuffer {
     size_t tail;
     size_t capacity;
     bool full;
+    bool aborted;
     buf_obj_unref unref_cb;
     buf_obj_free free_cb;
     buf_obj_move move_cb;
@@ -70,6 +71,7 @@ Kit_PacketBuffer *Kit_CreatePacketBuffer(
     buffer->head = 0;
     buffer->tail = 0;
     buffer->full = false;
+    buffer->aborted = false;
     buffer->unref_cb = unref_cb;
     buffer->free_cb = free_cb;
     buffer->move_cb = move_cb;
@@ -147,14 +149,19 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
         buffer->head = 0;
         buffer->tail = 0;
         buffer->full = false;
+        buffer->aborted = false;
         SDL_UnlockMutex(buffer->mutex);
         SDL_CondSignal(buffer->can_write);
     }
 }
 
-void Kit_SignalPacketBuffer(Kit_PacketBuffer *buffer) {
+void Kit_AbortPacketBuffer(Kit_PacketBuffer *buffer) {
     if(buffer == NULL)
         return;
+    if(SDL_LockMutex(buffer->mutex) == 0) {
+        buffer->aborted = true;
+        SDL_UnlockMutex(buffer->mutex);
+    }
     SDL_CondBroadcast(buffer->can_write);
     SDL_CondBroadcast(buffer->can_read);
 }
@@ -181,9 +188,11 @@ bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
     assert(src);
     if(SDL_LockMutex(buffer->mutex) < 0)
         goto error_0;
+    if(buffer->aborted)
+        goto error_1;
     if(Kit_IsPacketBufferFull(buffer))
         SDL_CondWait(buffer->can_write, buffer->mutex);
-    if(Kit_IsPacketBufferFull(buffer))
+    if(buffer->aborted || Kit_IsPacketBufferFull(buffer))
         goto error_1;
     buffer->move_cb(buffer->packets[buffer->head], src);
     advance_write(buffer);
@@ -203,13 +212,15 @@ bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     assert(buffer);
     if(SDL_LockMutex(buffer->mutex) < 0)
         goto error_0;
+    if(buffer->aborted)
+        goto error_1;
     if(Kit_IsPacketBufferEmpty(buffer)) {
         if(timeout <= 0)
             goto error_1;
         if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
             goto error_1;
     }
-    if(Kit_IsPacketBufferEmpty(buffer))
+    if(buffer->aborted || Kit_IsPacketBufferEmpty(buffer))
         goto error_1;
     buffer->move_cb(dst, buffer->packets[buffer->tail]);
     advance_read(buffer);
@@ -229,13 +240,15 @@ bool Kit_BeginPacketBufferRead(Kit_PacketBuffer *buffer, void *dst, int timeout)
     assert(buffer);
     if(SDL_LockMutex(buffer->mutex) < 0)
         goto error_0;
+    if(buffer->aborted)
+        goto error_1;
     if(Kit_IsPacketBufferEmpty(buffer)) {
         if(timeout <= 0)
             goto error_1;
         if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
             goto error_1;
     }
-    if(Kit_IsPacketBufferEmpty(buffer))
+    if(buffer->aborted || Kit_IsPacketBufferEmpty(buffer))
         goto error_1;
     buffer->ref_cb(dst, buffer->packets[buffer->tail]);
     // LOG("BEGIN -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,

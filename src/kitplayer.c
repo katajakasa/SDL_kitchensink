@@ -106,9 +106,9 @@ static bool Kit_InitializeSubtitleDecoder(
         goto exit_0;
     if((timer = Kit_CreateSecondaryTimer(main_timer, false)) == NULL)
         goto exit_0;
-    if((*decoder = Kit_CreateSubtitleDecoder(
-            src, timer, stream_index, output.width, output.height, screen_w, screen_h
-        )) == NULL)
+    if((*decoder =
+            Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)) ==
+       NULL)
         goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
@@ -268,8 +268,7 @@ static void Kit_HaltDecoder(Kit_Player *player, int index) {
     Kit_Decoder *decoder = player->decoders[index];
     Kit_DecoderThread *thread = player->dec_threads[index];
     Kit_StopDecoderThread(thread);
-    Kit_ClearDecoderBuffers(decoder);
-    Kit_SignalDecoder(decoder);
+    Kit_AbortDecoder(decoder);
     Kit_CloseDecoderThread(&thread);
     Kit_CloseDecoder(&decoder);
 }
@@ -323,10 +322,10 @@ static void Kit_WaitThreads(const Kit_Player *player) {
     }
 }
 
-static void Kit_SignalAllBuffers(const Kit_Player *player) {
-    Kit_SignalDemuxer(player->demuxer);
+static void Kit_AbortAllBuffers(const Kit_Player *player) {
+    Kit_AbortDemuxer(player->demuxer);
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        Kit_SignalDecoder(player->decoders[i]);
+        Kit_AbortDecoder(player->decoders[i]);
     }
 }
 
@@ -334,13 +333,6 @@ static void Kit_CloseThreads(Kit_Player *player) {
     Kit_CloseDemuxerThread(&player->demux_thread);
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         Kit_CloseDecoderThread(&player->dec_threads[i]);
-    }
-}
-
-static void Kit_FlushAllBuffers(const Kit_Player *player) {
-    Kit_ClearDemuxerBuffers(player->demuxer);
-    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        Kit_ClearDecoderBuffers(player->decoders[i]);
     }
 }
 
@@ -361,8 +353,7 @@ void Kit_ClosePlayer(Kit_Player *player) {
     player->state = KIT_CLOSED;
 
     Kit_StopThreads(player);
-    Kit_FlushAllBuffers(player);
-    Kit_SignalAllBuffers(player);
+    Kit_AbortAllBuffers(player);
     Kit_CloseThreads(player);
     Kit_CloseDemuxer(&player->demuxer);
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
@@ -704,14 +695,13 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
 
     // Threads may have halted. Restart them as needed.
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if (player->dec_threads[i] && !Kit_IsDecoderThreadAlive(player->dec_threads[i])) {
+        if(player->dec_threads[i] && !Kit_IsDecoderThreadAlive(player->dec_threads[i])) {
             Kit_RestartDecoderThread(player, i);
         }
     }
-    if (!Kit_IsDemuxerThreadAlive(player->demux_thread)) {
+    if(!Kit_IsDemuxerThreadAlive(player->demux_thread)) {
         Kit_RestartDemuxerThread(player);
     }
-
 
     return 0;
 }

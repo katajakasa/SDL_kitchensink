@@ -45,10 +45,10 @@ static void dec_flush_subtitle_cb(Kit_Decoder *decoder) {
     Kit_FlushSubtitleRendererBuffers(subtitle_decoder->renderer);
 }
 
-static void dec_signal_subtitle_cb(Kit_Decoder *decoder) {
+static void dec_abort_subtitle_cb(Kit_Decoder *decoder) {
     assert(decoder);
     Kit_SubtitleDecoder *subtitle_decoder = decoder->userdata;
-    Kit_SignalSubtitleRenderer(subtitle_decoder->renderer);
+    Kit_AbortSubtitleRenderer(subtitle_decoder->renderer);
 }
 
 static Kit_DecoderInputResult dec_input_subtitle_cb(const Kit_Decoder *dec, const AVPacket *in_packet) {
@@ -151,7 +151,7 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
             dec_input_subtitle_cb,
             dec_decode_subtitle_cb,
             dec_flush_subtitle_cb,
-            dec_signal_subtitle_cb,
+            dec_abort_subtitle_cb,
             dec_close_subtitle_cb,
             dec_get_subtitle_buffers_cb,
             subtitle_decoder

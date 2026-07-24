@@ -11,7 +11,7 @@ Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     renderer_get_raw_frames_cb get_raw_frames_cb,
     renderer_set_size_cb set_size_cb,
     renderer_flush_cb flush_cb,
-    renderer_signal_cb signal_cb,
+    renderer_abort_cb abort_cb,
     renderer_close_cb close_cb,
     void *userdata
 ) {
@@ -27,7 +27,7 @@ Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     renderer->get_data_cb = get_data_cb;
     renderer->set_size_cb = set_size_cb;
     renderer->flush_cb = flush_cb;
-    renderer->signal_cb = signal_cb;
+    renderer->abort_cb = abort_cb;
     renderer->userdata = userdata;
     return renderer;
 }
@@ -44,9 +44,9 @@ void Kit_FlushSubtitleRendererBuffers(Kit_SubtitleRenderer *renderer) {
         renderer->flush_cb(renderer);
 }
 
-void Kit_SignalSubtitleRenderer(Kit_SubtitleRenderer *renderer) {
-    if(renderer->signal_cb)
-        renderer->signal_cb(renderer);
+void Kit_AbortSubtitleRenderer(Kit_SubtitleRenderer *renderer) {
+    if(renderer->abort_cb)
+        renderer->abort_cb(renderer);
 }
 
 int Kit_GetSubtitleRendererSDLTexture(

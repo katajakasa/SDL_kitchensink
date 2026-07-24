@@ -131,11 +131,11 @@ void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int 
     demuxer->stream_indexes[index] = stream_index;
 }
 
-void Kit_SignalDemuxer(const Kit_Demuxer *demuxer) {
+void Kit_AbortDemuxer(const Kit_Demuxer *demuxer) {
     if(!demuxer)
         return;
     for(int i = 0; i < KIT_INDEX_COUNT; i++)
-        Kit_SignalPacketBuffer(demuxer->buffers[i]);
+        Kit_AbortPacketBuffer(demuxer->buffers[i]);
 }
 
 Kit_PacketBuffer *Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index) {
