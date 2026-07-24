@@ -29,7 +29,8 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     // references to its own buffer, leaving the scratch_buffer in a clean state.
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         if(demuxer->scratch_packet->stream_index == SDL_AtomicGet(&demuxer->stream_indexes[i])) {
-            Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
+            if(!Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet))
+                av_packet_unref(demuxer->scratch_packet);
             return true;
         }
     }

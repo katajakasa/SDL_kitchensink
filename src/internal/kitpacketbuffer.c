@@ -99,15 +99,16 @@ void Kit_FreePacketBuffer(Kit_PacketBuffer **ref) {
     if(!ref || !*ref)
         return;
 
+    // Note that all reader/writer threads must be stopped before this is called; destroying the
+    // mutex and conditions below is not safe while anyone can still be waiting on them.
     Kit_PacketBuffer *buffer = *ref;
     SDL_CondBroadcast(buffer->can_read);
     SDL_CondBroadcast(buffer->can_write);
-    if(SDL_LockMutex(buffer->mutex) == 0) {
-        for(size_t i = 0; i < buffer->capacity; i++) {
-            buffer->free_cb((void **)&buffer->packets[i]);
-        }
-        SDL_UnlockMutex(buffer->mutex);
+    SDL_LockMutex(buffer->mutex);
+    for(size_t i = 0; i < buffer->capacity; i++) {
+        buffer->free_cb((void **)&buffer->packets[i]);
     }
+    SDL_UnlockMutex(buffer->mutex);
     SDL_DestroyCond(buffer->can_read);
     SDL_DestroyCond(buffer->can_write);
     SDL_DestroyMutex(buffer->mutex);
@@ -142,26 +143,26 @@ size_t Kit_GetPacketBufferLength(const Kit_PacketBuffer *buffer) {
 void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
     if(buffer == NULL)
         return;
-    if(SDL_LockMutex(buffer->mutex) == 0) {
-        for(size_t i = 0; i < buffer->capacity; i++) {
-            buffer->unref_cb(buffer->packets[i]);
-        }
-        buffer->head = 0;
-        buffer->tail = 0;
-        buffer->full = false;
-        buffer->aborted = false;
-        SDL_UnlockMutex(buffer->mutex);
-        SDL_CondSignal(buffer->can_write);
+    SDL_LockMutex(buffer->mutex);
+    for(size_t i = 0; i < buffer->capacity; i++) {
+        buffer->unref_cb(buffer->packets[i]);
     }
+    buffer->head = 0;
+    buffer->tail = 0;
+    buffer->full = false;
+    buffer->aborted = false;
+    SDL_UnlockMutex(buffer->mutex);
+    // Wake up writers, since buffer now has free space.
+    SDL_CondSignal(buffer->can_write);
 }
 
 void Kit_AbortPacketBuffer(Kit_PacketBuffer *buffer) {
     if(buffer == NULL)
         return;
-    if(SDL_LockMutex(buffer->mutex) == 0) {
-        buffer->aborted = true;
-        SDL_UnlockMutex(buffer->mutex);
-    }
+    SDL_LockMutex(buffer->mutex);
+    buffer->aborted = true;
+    SDL_UnlockMutex(buffer->mutex);
+    // Wake up all waiters so that they notice the abort.
     SDL_CondBroadcast(buffer->can_write);
     SDL_CondBroadcast(buffer->can_read);
 }
@@ -186,14 +187,13 @@ static void advance_write(Kit_PacketBuffer *buffer) {
 bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
     assert(buffer);
     assert(src);
-    if(SDL_LockMutex(buffer->mutex) < 0)
-        goto error_0;
-    if(buffer->aborted)
-        goto error_1;
-    if(Kit_IsPacketBufferFull(buffer))
+    SDL_LockMutex(buffer->mutex);
+    // The wait may also end due to a spurious wakeup, so keep waiting until there is really
+    // free space (or an abort). Failing the write on a spurious wakeup would drop the packet.
+    while(Kit_IsPacketBufferFull(buffer) && !buffer->aborted)
         SDL_CondWait(buffer->can_write, buffer->mutex);
-    if(buffer->aborted || Kit_IsPacketBufferFull(buffer))
-        goto error_1;
+    if(buffer->aborted)
+        goto error;
     buffer->move_cb(buffer->packets[buffer->head], src);
     advance_write(buffer);
     // LOG("WRITE -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
@@ -202,26 +202,25 @@ bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
     SDL_CondSignal(buffer->can_read);
     return true;
 
-error_1:
+error:
     SDL_UnlockMutex(buffer->mutex);
-error_0:
     return false;
 }
 
 bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     assert(buffer);
-    if(SDL_LockMutex(buffer->mutex) < 0)
-        goto error_0;
+    SDL_LockMutex(buffer->mutex);
     if(buffer->aborted)
-        goto error_1;
+        goto error;
     if(Kit_IsPacketBufferEmpty(buffer)) {
         if(timeout <= 0)
-            goto error_1;
+            goto error;
         if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
-            goto error_1;
+            goto error;
     }
+    // The wait may have ended due to an abort or a spurious wakeup, so re-check the state.
     if(buffer->aborted || Kit_IsPacketBufferEmpty(buffer))
-        goto error_1;
+        goto error;
     buffer->move_cb(dst, buffer->packets[buffer->tail]);
     advance_read(buffer);
     // LOG("READ -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
@@ -230,34 +229,32 @@ bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     SDL_CondSignal(buffer->can_write);
     return true;
 
-error_1:
+error:
     SDL_UnlockMutex(buffer->mutex);
-error_0:
     return false;
 }
 
 bool Kit_BeginPacketBufferRead(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     assert(buffer);
-    if(SDL_LockMutex(buffer->mutex) < 0)
-        goto error_0;
+    SDL_LockMutex(buffer->mutex);
     if(buffer->aborted)
-        goto error_1;
+        goto error;
     if(Kit_IsPacketBufferEmpty(buffer)) {
         if(timeout <= 0)
-            goto error_1;
+            goto error;
         if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
-            goto error_1;
+            goto error;
     }
+    // The wait may have ended due to an abort or a spurious wakeup, so re-check the state.
     if(buffer->aborted || Kit_IsPacketBufferEmpty(buffer))
-        goto error_1;
+        goto error;
     buffer->ref_cb(dst, buffer->packets[buffer->tail]);
     // LOG("BEGIN -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
     // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     return true;
 
-error_1:
+error:
     SDL_UnlockMutex(buffer->mutex);
-error_0:
     return false;
 }
 

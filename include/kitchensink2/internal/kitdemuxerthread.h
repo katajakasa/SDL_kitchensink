@@ -13,11 +13,10 @@ typedef struct Kit_DemuxerThread {
     Kit_Demuxer *demuxer;
     SDL_Thread *thread;
     SDL_atomic_t run;
-    SDL_atomic_t seek;
-    SDL_SpinLock seek_lock; ///< Protects seek_target and seek_serial
-    int64_t seek_target;
-    unsigned int seek_serial;
-    Kit_Timer *timer; ///< Non-writeable reference to the sync timer, used for the seek serial
+    bool seek;                ///< Seek request flag; may only be set while the thread is not running
+    int64_t seek_target;      ///< Seek target position; may only be set while the thread is not running
+    unsigned int seek_serial; ///< Seek serial; may only be set while the thread is not running
+    Kit_Timer *timer;         ///< Non-writeable reference to the sync timer, used for the seek serial
 } Kit_DemuxerThread;
 
 KIT_LOCAL Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer, const Kit_Timer *timer);
