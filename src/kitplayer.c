@@ -289,18 +289,6 @@ static void Kit_StartThreadFor(const Kit_Player *player, Kit_BufferIndex index) 
     }
 }
 
-static void Kit_RestartDecoderThread(const Kit_Player *player, const int index) {
-    Kit_StopDecoderThread(player->dec_threads[index]);
-    Kit_WaitDecoderThread(player->dec_threads[index]);
-    Kit_StartThreadFor(player, index);
-}
-
-static void Kit_RestartDemuxerThread(const Kit_Player *player) {
-    Kit_StopDemuxerThread(player->demux_thread);
-    Kit_WaitDemuxerThread(player->demux_thread);
-    Kit_StartDemuxerThread(player->demux_thread);
-}
-
 static void Kit_StartThreads(const Kit_Player *player) {
     Kit_StartDemuxerThread(player->demux_thread);
     Kit_StartThreadFor(player, KIT_VIDEO_INDEX);
@@ -702,17 +690,16 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     if(seek_set >= duration)
         seek_set = duration;
 
-    Kit_SeekDemuxerThread(player->demux_thread, seek_set * AV_TIME_BASE);
+    // Halt the whole pipeline first to avoid race conditions
+    Kit_StopThreads(player);
+    Kit_AbortAllBuffers(player);
+    Kit_WaitThreads(player);
+    Kit_FlushAllBuffers(player);
 
-    // Threads may have halted. Restart them as needed.
-    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if(player->dec_threads[i] && !Kit_IsDecoderThreadAlive(player->dec_threads[i])) {
-            Kit_RestartDecoderThread(player, i);
-        }
-    }
-    if(!Kit_IsDemuxerThreadAlive(player->demux_thread)) {
-        Kit_RestartDemuxerThread(player);
-    }
+    // Request the seek only now that nothing is running. This ensures the seek packet is read
+    // immediately on thread start.
+    Kit_SeekDemuxerThread(player->demux_thread, seek_set * AV_TIME_BASE);
+    Kit_StartThreads(player);
 
     return 0;
 }
