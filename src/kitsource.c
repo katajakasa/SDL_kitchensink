@@ -22,7 +22,10 @@ static int _ScanSource(AVFormatContext *format_ctx) {
 }
 
 Kit_Source *Kit_CreateSourceFromUrl(const char *url) {
-    assert(url != NULL);
+    if(url == NULL) {
+        Kit_SetError("No source URL provided");
+        return NULL;
+    }
 
     Kit_Source *src = calloc(1, sizeof(Kit_Source));
     if(src == NULL) {
@@ -159,7 +162,8 @@ Kit_Source *Kit_CreateSourceFromRW(SDL_RWops *rw_ops) {
 }
 
 void Kit_CloseSource(Kit_Source *src) {
-    assert(src != NULL);
+    if(src == NULL)
+        return;
     AVFormatContext *format_ctx = src->format_ctx;
     AVIOContext *avio_ctx = src->avio_ctx;
     avformat_close_input(&format_ctx);
