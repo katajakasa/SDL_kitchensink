@@ -199,7 +199,7 @@ Kit_Player *Kit_CreatePlayer(
     }
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         if((player->decoder_ctrl_locks[i] = SDL_CreateMutex()) == NULL) {
-            Kit_SetError("Unable to allocate player slot lock: %s", SDL_GetError());
+            Kit_SetError("Unable to allocate player decoder control lock: %s", SDL_GetError());
             goto exit_1;
         }
     }
@@ -303,7 +303,7 @@ static bool Kit_IsRunning(const Kit_Player *player) {
 }
 
 /**
- * Detach a decoder and its thread from the player under the slot lock, so that getters running on
+ * Detach a decoder and its thread from the player under the decoder control lock, so that getters running on
  * other threads can no longer reach them.
  */
 static void Kit_StealDecoder(Kit_Player *player, int index, Kit_Decoder **decoder, Kit_DecoderThread **thread) {
@@ -954,7 +954,7 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
 
     // Figure out which stream is currently the primary one. This stream is allowed to modify the sync clock.
     // Note that decoder creation happens under the control lock only -- it can be slow, and getters
-    // on other threads must not block on it. The slot lock is taken just for the pointer swap below.
+    // on other threads must not block on it. The decoder control lock is taken just for the pointer swap below.
     SDL_LockMutex(player->control_lock);
     Kit_IsStreamPrimary(player, &video_primary, &audio_primary);
 
