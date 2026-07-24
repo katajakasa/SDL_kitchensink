@@ -5,6 +5,7 @@
 #include "kitchensink2/kitformat.h"
 
 #include <libavutil/channel_layout.h>
+#include <libavutil/samplefmt.h>
 
 KIT_LOCAL enum AVSampleFormat Kit_FindAVSampleFormat(int format);
 KIT_LOCAL void Kit_FindAVChannelLayout(Kit_AudioChannelLayout layout, AVChannelLayout *out);
