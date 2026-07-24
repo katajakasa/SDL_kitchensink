@@ -35,6 +35,28 @@ typedef enum
 } Kit_HardwareDeviceType;
 
 /**
+ * @brief Audio channel layouts supported for audio output
+ *
+ * Channel counts and interleaved speaker orders match what SDL2 expects
+ * for the corresponding SDL_AudioSpec.channels value. Use
+ * Kit_GetChannelLayoutCount() to get the channel count for a layout.
+ *
+ * @ref https://wiki.libsdl.org/SDL2/SDL_AudioSpec
+ * @ref https://ffmpeg.org/doxygen/5.1/channel__layout_8h.html
+ */
+typedef enum Kit_AudioChannelLayout
+{
+    KIT_LAYOUT_UNKNOWN = -1, ///< In requests: use the source stream's layout
+    KIT_LAYOUT_MONO,         ///< 1 channel
+    KIT_LAYOUT_STEREO,       ///< 2 channels: FL FR
+    KIT_LAYOUT_2POINT1,      ///< 3 channels: FL FR LFE
+    KIT_LAYOUT_QUAD,         ///< 4 channels: FL FR BL BR
+    KIT_LAYOUT_5POINT1,      ///< 6 channels: FL FR FC LFE BL BR
+    KIT_LAYOUT_6POINT1,      ///< 7 channels: FL FR FC LFE BC SL SR
+    KIT_LAYOUT_7POINT1,      ///< 8 channels: FL FR FC LFE BL BR SL SR
+} Kit_AudioChannelLayout;
+
+/**
  * @brief Used to request specific type for formats for output video
  *
  * Note that any requests here will cause software conversion, which may be slow!
@@ -60,11 +82,11 @@ KIT_API void Kit_ResetVideoFormatRequest(Kit_VideoFormatRequest *request);
  * Note that any requests here will cause software conversion, which may be slow!
  */
 typedef struct Kit_AudioFormatRequest {
-    unsigned int format; ///< Requested sample format. Defaults to 0 (no change).
-    int is_signed;       ///< Signedness, 1 = signed, 0 = unsigned. Defaults to -1 (no change).
-    int bytes;           ///< Bytes per sample per channel. Defaults to -1 (no change).
-    int sample_rate;     ///< Sampling rate. Defaults to -1 (no change).
-    int channels;        ///< Channels. Defaults to -1 (no change).
+    unsigned int format;           ///< Requested sample format. Defaults to 0 (no change).
+    int is_signed;                 ///< Signedness, 1 = signed, 0 = unsigned. Defaults to -1 (no change).
+    int bytes;                     ///< Bytes per sample per channel. Defaults to -1 (no change).
+    int sample_rate;               ///< Sampling rate. Defaults to -1 (no change).
+    Kit_AudioChannelLayout layout; ///< Channel layout. Defaults to KIT_LAYOUT_UNKNOWN (use source layout).
 } Kit_AudioFormatRequest;
 
 /**
@@ -95,11 +117,11 @@ typedef struct Kit_VideoOutputFormat {
  * @brief Contains information about the audio data format coming out from the player
  */
 typedef struct Kit_AudioOutputFormat {
-    unsigned int format; ///< SDL_AudioFormat for format description
-    int is_signed;       ///< Signedness, 1 = signed, 0 = unsigned
-    int bytes;           ///< Bytes per sample per channel
-    int sample_rate;     ///< Sampling rate
-    int channels;        ///< Channels
+    unsigned int format;           ///< SDL_AudioFormat for format description
+    int is_signed;                 ///< Signedness, 1 = signed, 0 = unsigned
+    int bytes;                     ///< Bytes per sample per channel
+    int sample_rate;               ///< Sampling rate
+    Kit_AudioChannelLayout layout; ///< Channel layout. Kit_GetChannelLayoutCount() gives SDL_AudioSpec.channels.
 } Kit_AudioOutputFormat;
 
 #ifdef __cplusplus

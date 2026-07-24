@@ -14,10 +14,12 @@
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
+#include "kitchensink2/kitutils.h"
 
 #define KIT_AUDIO_EARLY_FAIL 5.0
 
-#define SAMPLE_BYTES(audio_decoder) (audio_decoder->output.channels * audio_decoder->output.bytes)
+#define SAMPLE_BYTES(audio_decoder)                                                                                    \
+    (Kit_GetChannelLayoutCount(audio_decoder->output.layout) * audio_decoder->output.bytes)
 
 typedef struct Kit_AudioDecoder {
     SwrContext *swr;              ///< Audio resampler context
@@ -59,7 +61,7 @@ static void write_packet(Kit_AudioDecoder *audio_decoder, int nb_samples) {
  * Setup correct settings for the output frame, these are required by swr_convert_frame.
  */
 static void prepare_out_frame(const Kit_AudioDecoder *audio_decoder) {
-    Kit_FindAVChannelLayout(audio_decoder->output.channels, &audio_decoder->out_frame->ch_layout);
+    Kit_FindAVChannelLayout(audio_decoder->output.layout, &audio_decoder->out_frame->ch_layout);
     audio_decoder->out_frame->format = Kit_FindAVSampleFormat(audio_decoder->output.format);
     audio_decoder->out_frame->sample_rate = audio_decoder->output.sample_rate;
 }
@@ -216,6 +218,10 @@ Kit_Decoder *Kit_CreateAudioDecoder(
         Kit_SetError("Invalid audio stream index %d", stream_index);
         goto exit_none;
     }
+    if(format_request->layout < KIT_LAYOUT_UNKNOWN || format_request->layout > KIT_LAYOUT_7POINT1) {
+        Kit_SetError("Invalid audio channel layout %d requested for stream %d", format_request->layout, stream_index);
+        goto exit_none;
+    }
     stream = format_ctx->streams[stream_index];
 
     if((audio_decoder = calloc(1, sizeof(Kit_AudioDecoder))) == NULL) {
@@ -265,8 +271,9 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     memset(&output, 0, sizeof(Kit_AudioOutputFormat));
     output.sample_rate =
         (format_request->sample_rate > -1) ? format_request->sample_rate : decoder->codec_ctx->sample_rate;
-    output.channels = (format_request->channels > -1) ? format_request->channels
-                                                      : Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
+    output.layout = (format_request->layout != KIT_LAYOUT_UNKNOWN)
+                        ? format_request->layout
+                        : Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
     output.bytes =
         (format_request->bytes > -1) ? format_request->bytes : Kit_FindBytes(decoder->codec_ctx->sample_fmt);
     output.is_signed = (format_request->is_signed > -1) ? format_request->is_signed
@@ -274,7 +281,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     output.format = (format_request->format != 0) ? format_request->format
                                                   : Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
 
-    Kit_FindAVChannelLayout(output.channels, &out_layout);
+    Kit_FindAVChannelLayout(output.layout, &out_layout);
     if(swr_alloc_set_opts2(
            &swr,
            &out_layout,
@@ -447,7 +454,8 @@ no_data:
         // LOG("[AUDIO] SILENCE due to backend size %ld < %ld\n", backend_buffer_size, len *
         // SAMPLE_BYTES(audio_decoder));
         av_samples_set_silence(
-            &buf, 0, len, audio_decoder->output.channels, Kit_FindAVSampleFormat(audio_decoder->output.format)
+            &buf, 0, len, Kit_GetChannelLayoutCount(audio_decoder->output.layout),
+            Kit_FindAVSampleFormat(audio_decoder->output.format)
         );
         return len * SAMPLE_BYTES(audio_decoder);
     }

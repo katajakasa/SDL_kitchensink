@@ -10,6 +10,7 @@
  */
 
 #include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitformat.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +46,32 @@ KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
  * @return Format string, eg. "KIT_HWDEVICE_TYPE_VDPAU"
  */
 KIT_API const char *Kit_GetHardwareDecoderTypeString(unsigned int type);
+
+/**
+ * @brief Returns the SDL2 channel count for a kitchensink audio channel layout
+ *
+ * @param layout Audio channel layout
+ * @return Channel count (e.g. 6 for KIT_LAYOUT_5POINT1), or -1 for
+ *         KIT_LAYOUT_UNKNOWN or invalid values.
+ */
+KIT_API int Kit_GetChannelLayoutCount(Kit_AudioChannelLayout layout);
+
+/**
+ * @brief Returns the kitchensink audio channel layout for an SDL2 channel count
+ *
+ * @param channels SDL2 channel count (1, 2, 3, 4, 6, 7 or 8)
+ * @return Matching layout, or KIT_LAYOUT_UNKNOWN for any other count.
+ */
+KIT_API Kit_AudioChannelLayout Kit_GetChannelLayoutFromCount(int channels);
+
+/**
+ * @brief Returns a descriptive string for a kitchensink audio channel layout
+ *
+ * @param layout Audio channel layout
+ * @return Format string, eg. "KIT_LAYOUT_5POINT1". Invalid values return
+ *         "KIT_LAYOUT_UNKNOWN", never NULL.
+ */
+KIT_API const char *Kit_GetChannelLayoutString(Kit_AudioChannelLayout layout);
 
 #ifdef __cplusplus
 }
