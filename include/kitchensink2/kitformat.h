@@ -17,6 +17,12 @@ extern "C" {
 
 #define KIT_MAX_HW_DEVICES 32
 
+/**
+ * @brief Hardware decoder device types
+ *
+ * Used as a bitmask in Kit_VideoFormatRequest.hw_device_types to limit which hardware
+ * decoders may be used.
+ */
 typedef enum
 {
     KIT_HWDEVICE_TYPE_NONE = 0,

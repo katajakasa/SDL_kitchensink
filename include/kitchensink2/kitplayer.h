@@ -61,7 +61,7 @@ typedef struct Kit_PlayerInfo {
  * are done on software, so they WILL add some cpu load! If you don't care what the output format is,
  * then just leave these to NULL, or feed the request objects but reset them to defaults with
  * Kit_ResetVideoFormatRequest() and Kit_ResetAudioFormatRequest().
- *'
+ *
  * Screen width and height are used for subtitle positioning, scaling and rendering resolution.
  * Ideally this should be precisely the size of your screen surface (in pixels).
  * Higher resolution leads to higher resolution text rendering. This MUST be set precisely
@@ -124,6 +124,9 @@ KIT_API Kit_Player *Kit_CreatePlayer(
  * Closes a previously initialized Kit_Player instance. Note that this does NOT free
  * the linked Kit_Source -- you must free it manually.
  *
+ * This must not be called while any other thread is still calling functions on the same player;
+ * after this returns, the player pointer is invalid.
+ *
  * @param player Player instance
  */
 KIT_API void Kit_ClosePlayer(Kit_Player *player);
@@ -131,10 +134,11 @@ KIT_API void Kit_ClosePlayer(Kit_Player *player);
 /**
  * @brief Sets the current screen size in pixels
  *
- * Call this to change the subtitle font rendering resolution if eg. your
- * video window size changes.
+ * Call this to change the subtitle rendering resolution if eg. your
+ * video window size changes. For text subtitles this changes the font rendering resolution;
+ * for bitmap subtitles this changes the scaling of the rendered subtitle rectangles.
  *
- * This does nothing if subtitles are not in use or if subtitles are bitmaps.
+ * This does nothing if subtitles are not in use.
  *
  * @param player Player instance
  * @param w New width in pixels
@@ -212,7 +216,7 @@ KIT_API int Kit_WaitBufferFillRate(
 
 /** @brief Gets the player video buffering state
  *
- * Fetch buffering state for video stream (if a stream is selected). IT is safe to pass NULL as an argument.
+ * Fetch buffering state for video stream (if a stream is selected). It is safe to pass NULL as an argument.
  * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
  *
  * @param player Player instance
@@ -231,7 +235,7 @@ KIT_API void Kit_GetPlayerVideoBufferState(
 
 /** @brief Gets the player audio buffering state
  *
- * Fetch buffering state for audio stream (if a stream is selected). IT is safe to pass NULL as an argument.
+ * Fetch buffering state for audio stream (if a stream is selected). It is safe to pass NULL as an argument.
  * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
  *
  * @param player Player instance
@@ -250,7 +254,7 @@ KIT_API void Kit_GetPlayerAudioBufferState(
 
 /** @brief Gets the player subtitle buffering state
  *
- * Fetch buffering state for subtitle stream (if a stream is selected). IT is safe to pass NULL as an argument.
+ * Fetch buffering state for subtitle stream (if a stream is selected). It is safe to pass NULL as an argument.
  * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
  *
  * @param player Player instance
@@ -305,7 +309,7 @@ KIT_API SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, S
  * @param player Player instance
  * @param texture A previously allocated texture
  * @param area Rendered video surface area or NULL.
- * @return 0 on success, 1 on error
+ * @return 0 if the texture was updated (or playback is not active), 1 if no new frame was available
  */
 KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 
@@ -317,7 +321,12 @@ KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *
  * When this function is called, the video decoder checks if there are frames available and if frame read
  * happens in sync. If both conditions succeed, then data, line_size and area pointers are filled and the function
  * returns 0. If either of the conditions fail, this function will return 1. Note that if this function succeeds,
- * then Kit_UnlockPlayerVideoRawFrame() must be called to clean up!
+ * then Kit_UnlockPlayerVideoRawFrame() must be called to clean up! On failure, Kit_UnlockPlayerVideoRawFrame()
+ * must NOT be called.
+ *
+ * The player video output stays locked until Kit_UnlockPlayerVideoRawFrame() is called; the data pointers
+ * are only valid inside this window, and stream switching waits for the lock to be released. Keep the
+ * lock window short.
  *
  * Note that data and line_size pointer values depend on what sort of video data you are fetching.
  * Data contains an array of pointers of the actual pixel data, while line_size contains the widths
@@ -336,9 +345,9 @@ KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *
  * unsigned char **data;
  * int *line_size;
  * SDL_Rect rect;
- * if(Kit_LockPlayerVideoRaw(player, &data, &line_size, &rect) == 0) {
+ * if(Kit_LockPlayerVideoRawFrame(player, &data, &line_size, &rect) == 0) {
  *     // Do something with the data here.
- *     Kit_UnlockPlayerVideoRaw(player);
+ *     Kit_UnlockPlayerVideoRawFrame(player);
  * }
  * ```
  *
@@ -386,16 +395,14 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  * Output texture will be used as a texture atlas for the subtitle fragments.
  *
  * Note that the output texture must be previously allocated and valid. Make sure to have large
- * enough a texture for the rendering resolution you picked! If your rendering resolution if 4k,
+ * enough a texture for the rendering resolution you picked! If your rendering resolution is 4k,
  * then make sure to have texture sized 4096x4096 etc. This gives the texture room to handle the
- * worst case subtitle textures. If your resolution is too small, this function will return
- * value -1. At that point you can replace your current texture with a bigger one on the fly.
+ * worst case subtitle textures. Subtitle fragments that do not fit the atlas texture are dropped.
  *
- * Note that the texture format for the atlas texture *MUST* be SDL_PIXELFORMAT_RGBA32 and
- * the access flag *MUST* be set to SDL_TEXTUREACCESS_STATIC for correct rendering.
- * Using any other format will lead to undefined behaviour. Also, make sure to set scaling quality
- * to 0 or "nearest" before creating the texture -- otherwise you get artifacts
- * (see SDL_HINT_RENDER_SCALE_QUALITY).
+ * Note that the texture format for the atlas texture *MUST* be SDL_PIXELFORMAT_RGBA32, the access
+ * flag *MUST* be set to SDL_TEXTUREACCESS_STATIC and the scale mode *MUST* be nearest for correct
+ * rendering. Using any other format will lead to undefined behaviour. The easiest way to get a correct
+ * texture is to create it with Kit_CreatePlayerSubtitleSDLTexture().
  *
  * This function will do nothing if player playback has not been started.
  *
@@ -403,7 +410,7 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  * ```
  * SDL_Rect sources[256];
  * SDL_Rect targets[256];
- * int got = Kit_GetPlayerSubtitleData(player, subtitle_tex, sources, targets, 256);
+ * int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, 256);
  * for(int i = 0; i < got; i++) {
  *     SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
  * }
@@ -414,7 +421,7 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  * @param sources List of source rectangles to copy from
  * @param targets List of target rectangles to render
  * @param limit Defines the maximum size of your rectangle lists
- * @return Number of sources or <0 on error
+ * @return Number of subtitle rectangles to render (may be 0)
  */
 KIT_API int Kit_GetPlayerSubtitleSDLTexture(
     const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit
@@ -424,7 +431,8 @@ KIT_API int Kit_GetPlayerSubtitleSDLTexture(
  * @brief Fetches raw subtitle frames from the player
  *
  * When called, this function will set the pointers for the items and targets lists of frame data and target
- * rectangles. The pointers will be valid until the next time this function is called OR until the player is closed.
+ * rectangles. The pointers will be valid until the next time this function is called, the subtitle stream
+ * is switched or closed, or the player is closed.
  *
  * Each source rectangle represents the size of the source data, and each target rectangle will have the width
  * and height of the final subtitle block, and the x and y coordinates of where it should be rendered.
@@ -450,7 +458,7 @@ KIT_API int Kit_GetPlayerSubtitleSDLTexture(
  * @param items Subtitle frame RGBA8888 item pointers
  * @param sources List of source rectangles to render
  * @param targets List of target rectangles to render
- * @return Number of sources or <0 on error
+ * @return Number of subtitle frames to render (may be 0)
  */
 KIT_API int Kit_GetPlayerSubtitleRawFrames(
     const Kit_Player *player, unsigned char ***items, SDL_Rect **sources, SDL_Rect **targets
@@ -471,11 +479,13 @@ KIT_API int Kit_GetPlayerSubtitleRawFrames(
  *
  * This function will do nothing if player playback has not been started.
  *
+ * This function is safe to call from an SDL audio callback.
+ *
  * @param player Player instance
  * @param backend_buffer_size Amount of data currently queued to the driver/hw device.
  * @param buffer Buffer to read into
  * @param length Maximum length of the buffer
- * @return Amount of data that was read, <0 on error.
+ * @return Amount of data (in bytes) that was read; 0 if no data was available
  */
 KIT_API int
 Kit_GetPlayerAudioData(const Kit_Player *player, size_t backend_buffer_size, unsigned char *buffer, size_t length);
@@ -493,6 +503,9 @@ KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 
 /**
  * @brief Returns the current state of the player
+ *
+ * Note that this is not a pure read: if playback has finished, this performs the transition to
+ * KIT_STOPPED (shutting down the internal decoder threads).
  *
  * @param player Player instance
  * @return Current state of the player, see Kit_PlayerState
@@ -539,6 +552,8 @@ KIT_API void Kit_PlayerPause(Kit_Player *player);
  * @brief Seek to timestamp
  *
  * Rewinds or forwards video/audio playback to the given timestamp (in seconds).
+ *
+ * The player must be playing or paused; seeking a stopped player fails.
  *
  * This may not work for network or custom sources!
  *
@@ -602,6 +617,8 @@ KIT_API int Kit_ClosePlayerStream(Kit_Player *player, Kit_StreamType type);
  * 1 will be returned and old stream will continue to be used.
  *
  * Setting index to -1 will close the stream completely.
+ *
+ * Note that subtitle streams require an open video stream to render against.
  *
  * @param player Player instance
  * @param type Stream to switch
