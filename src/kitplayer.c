@@ -329,6 +329,13 @@ static void Kit_AbortAllBuffers(const Kit_Player *player) {
     }
 }
 
+static void Kit_FlushAllBuffers(const Kit_Player *player) {
+    Kit_ClearDemuxerBuffers(player->demuxer);
+    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+        Kit_ClearDecoderBuffers(player->decoders[i]);
+    }
+}
+
 static void Kit_CloseThreads(Kit_Player *player) {
     Kit_CloseDemuxerThread(&player->demux_thread);
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
@@ -341,6 +348,7 @@ static void Kit_VerifyState(Kit_Player *player) {
         if(!Kit_IsRunning(player)) {
             Kit_StopThreads(player);
             Kit_WaitThreads(player);
+            Kit_FlushAllBuffers(player);
             player->state = KIT_STOPPED;
         }
     }
@@ -667,6 +675,9 @@ void Kit_PlayerStop(Kit_Player *player) {
         case KIT_PAUSED:
             player->state = KIT_STOPPED;
             Kit_StopThreads(player);
+            Kit_AbortAllBuffers(player);
+            Kit_WaitThreads(player);
+            Kit_FlushAllBuffers(player);
             break;
     }
 }
