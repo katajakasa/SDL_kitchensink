@@ -134,6 +134,14 @@ else ()
     message(STATUS "Development: clang-tidy disabled")
 endif ()
 
+set(PC_REQUIRES_PRIVATE "sdl2 libavcodec libavformat libavutil libswresample libswscale")
+if (NOT USE_DYNAMIC_LIBASS)
+    string(APPEND PC_REQUIRES_PRIVATE " libass")
+endif ()
+set(PC_LIBS_PRIVATE "")
+if (LIBM_EXISTS)
+    set(PC_LIBS_PRIVATE "-lm")
+endif ()
 set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink2.pc")
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.in"
