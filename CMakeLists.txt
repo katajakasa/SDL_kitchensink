@@ -116,6 +116,7 @@ if (BUILD_STATIC)
         target_compile_options(SDL_kitchensink2_static PRIVATE "-fsanitize=address")
     endif ()
 
+    set_target_properties(SDL_kitchensink2_static PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink2_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink2_static PROPERTY C_STANDARD 99)
 
