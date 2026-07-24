@@ -21,7 +21,7 @@ extern "C" {
  */
 typedef struct Kit_Codec {
     unsigned int threads;                 ///< Currently enabled threads (For all decoders)
-    char name[KIT_CODEC_NAME_MAX];        ///< Codec short name, eg. "ogg" or "webm"
+    char name[KIT_CODEC_NAME_MAX];        ///< Codec short name, eg. "h264" or "aac"
     char description[KIT_CODEC_DESC_MAX]; ///< Codec longer, more descriptive name
 } Kit_Codec;
 

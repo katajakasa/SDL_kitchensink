@@ -1,5 +1,4 @@
 #include <SDL_thread.h>
-#include <SDL_timer.h>
 
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitdecoderthread.h"
@@ -26,6 +25,12 @@ static bool Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool 
         goto finish;
     }
     is_eof = Kit_GetPacketType(thread->scratch_packet->opaque) == KIT_PACKET_TYPE_EOF;
+
+    // A stream switch can leave in-flight packets from the previous stream in the buffer.
+    if(!is_eof && thread->scratch_packet->stream_index != Kit_GetDecoderStreamIndex(thread->decoder)) {
+        can_feed_more = true;
+        goto finish;
+    }
 
     // If valid packet was found and it is not a control packet, it must contain stream data.
     // Attempt to add it to the ffmpeg decoder internal queue. Note that the queue may be full, in which case

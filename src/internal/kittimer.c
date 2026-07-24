@@ -8,6 +8,7 @@ typedef struct Kit_TimerValue {
     SDL_atomic_t count;       ///< Reference count
     SDL_atomic_t serial;      ///< Current seek serial; bumped on every seek request
     SDL_atomic_t base_serial; ///< Seek serial for which the timer base was last set
+    SDL_SpinLock lock;        ///< Guards the non-atomic fields below (shared by multiple threads)
     bool initialized;
     bool paused;
     double pause_start;
@@ -57,66 +58,95 @@ Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
 }
 
 void Kit_InitTimerBase(Kit_Timer *timer) {
-    if(timer->writeable && !timer->ref->initialized) {
-        timer->ref->value = Kit_GetSystemTime();
+    if(!timer->writeable)
+        return;
+    const double now = Kit_GetSystemTime();
+    SDL_AtomicLock(&timer->ref->lock);
+    if(!timer->ref->initialized) {
+        timer->ref->value = now;
         timer->ref->initialized = true;
     }
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 bool Kit_IsTimerInitialized(const Kit_Timer *timer) {
-    return timer->ref->initialized;
+    SDL_AtomicLock(&timer->ref->lock);
+    const bool initialized = timer->ref->initialized;
+    SDL_AtomicUnlock(&timer->ref->lock);
+    return initialized;
 }
 
 void Kit_ResetTimerBase(Kit_Timer *timer) {
-    if(timer->writeable) {
-        timer->ref->initialized = false;
-        timer->ref->paused = false;
-    }
+    if(!timer->writeable)
+        return;
+    SDL_AtomicLock(&timer->ref->lock);
+    timer->ref->initialized = false;
+    timer->ref->paused = false;
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 void Kit_SetTimerBase(Kit_Timer *timer) {
-    if(timer->writeable) {
-        timer->ref->value = Kit_GetSystemTime();
-        timer->ref->pause_start = timer->ref->value;
-        timer->ref->initialized = true;
-    }
+    if(!timer->writeable)
+        return;
+    const double now = Kit_GetSystemTime();
+    SDL_AtomicLock(&timer->ref->lock);
+    timer->ref->value = now;
+    timer->ref->pause_start = now;
+    timer->ref->initialized = true;
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust, unsigned int serial) {
-    if(timer->writeable) {
-        const double now = Kit_GetSystemTime();
-        timer->ref->value = now - adjust;
-        timer->ref->pause_start = now;
-        timer->ref->initialized = true;
-        SDL_AtomicSet(&timer->ref->base_serial, (int)serial);
-    }
+    if(!timer->writeable)
+        return;
+    const double now = Kit_GetSystemTime();
+    SDL_AtomicLock(&timer->ref->lock);
+    timer->ref->value = now - adjust;
+    timer->ref->pause_start = now;
+    timer->ref->initialized = true;
+    SDL_AtomicSet(&timer->ref->base_serial, (int)serial);
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 void Kit_AddTimerBase(Kit_Timer *timer, double add) {
-    if(timer->writeable) {
-        timer->ref->value += add;
-        timer->ref->initialized = true;
-    }
+    if(!timer->writeable)
+        return;
+    SDL_AtomicLock(&timer->ref->lock);
+    timer->ref->value += add;
+    timer->ref->initialized = true;
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 void Kit_PauseTimer(Kit_Timer *timer) {
-    if(timer->writeable && timer->ref->initialized && !timer->ref->paused) {
-        timer->ref->pause_start = Kit_GetSystemTime();
+    if(!timer->writeable)
+        return;
+    const double now = Kit_GetSystemTime();
+    SDL_AtomicLock(&timer->ref->lock);
+    if(timer->ref->initialized && !timer->ref->paused) {
+        timer->ref->pause_start = now;
         timer->ref->paused = true;
     }
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 void Kit_ResumeTimer(Kit_Timer *timer) {
-    if(timer->writeable && timer->ref->paused) {
-        timer->ref->value += Kit_GetSystemTime() - timer->ref->pause_start;
+    if(!timer->writeable)
+        return;
+    const double now = Kit_GetSystemTime();
+    SDL_AtomicLock(&timer->ref->lock);
+    if(timer->ref->paused) {
+        timer->ref->value += now - timer->ref->pause_start;
         timer->ref->paused = false;
     }
+    SDL_AtomicUnlock(&timer->ref->lock);
 }
 
 double Kit_GetTimerElapsed(const Kit_Timer *timer) {
-    if(timer->ref->paused)
-        return timer->ref->pause_start - timer->ref->value;
-    return Kit_GetSystemTime() - timer->ref->value;
+    const double now = Kit_GetSystemTime();
+    SDL_AtomicLock(&timer->ref->lock);
+    const double elapsed = timer->ref->paused ? timer->ref->pause_start - timer->ref->value : now - timer->ref->value;
+    SDL_AtomicUnlock(&timer->ref->lock);
+    return elapsed;
 }
 
 bool Kit_IsTimerPrimary(const Kit_Timer *timer) {

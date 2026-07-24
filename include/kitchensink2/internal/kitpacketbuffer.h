@@ -22,12 +22,10 @@ KIT_LOCAL Kit_PacketBuffer *Kit_CreatePacketBuffer(
 );
 KIT_LOCAL void Kit_FreePacketBuffer(Kit_PacketBuffer **buffer);
 
-KIT_LOCAL bool Kit_IsPacketBufferFull(const Kit_PacketBuffer *buffer);
-KIT_LOCAL bool Kit_IsPacketBufferEmpty(const Kit_PacketBuffer *buffer);
 KIT_LOCAL size_t Kit_GetPacketBufferCapacity(const Kit_PacketBuffer *buffer);
 KIT_LOCAL size_t Kit_GetPacketBufferLength(const Kit_PacketBuffer *buffer);
 
-KIT_LOCAL void Kit_SignalPacketBuffer(Kit_PacketBuffer *buffer);
+KIT_LOCAL void Kit_AbortPacketBuffer(Kit_PacketBuffer *buffer);
 KIT_LOCAL void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer);
 KIT_LOCAL bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src);
 KIT_LOCAL bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout);

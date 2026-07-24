@@ -32,7 +32,7 @@ static struct SwsContext *Kit_GetSwsContext(
     struct SwsContext *new_context =
         sws_getCachedContext(old_context, w, h, in_fmt, w, h, out_fmt, SWS_BILINEAR, NULL, NULL, NULL);
     if(new_context == NULL) {
-        Kit_SetError("Unable to initialize video converter context");
+        LOG("Unable to initialize video converter context\n");
     }
     return new_context;
 }
@@ -53,10 +53,10 @@ static void dec_flush_video_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(video_decoder->buffer);
 }
 
-static void dec_signal_video_cb(Kit_Decoder *decoder) {
+static void dec_abort_video_cb(Kit_Decoder *decoder) {
     assert(decoder);
     const Kit_VideoDecoder *video_decoder = decoder->userdata;
-    Kit_SignalPacketBuffer(video_decoder->buffer);
+    Kit_AbortPacketBuffer(video_decoder->buffer);
 }
 
 static void dec_read_video(const Kit_Decoder *decoder) {
@@ -188,7 +188,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
             dec_input_video_cb,
             dec_decode_video_cb,
             dec_flush_video_cb,
-            dec_signal_video_cb,
+            dec_abort_video_cb,
             dec_close_video_cb,
             dec_get_video_buffers_cb,
             video_decoder
@@ -290,10 +290,9 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
         return false;
 
     // Discard any frames that were decoded before the latest seek request.
-    const unsigned int live_serial = Kit_GetTimerSerial(decoder->sync_timer);
-    while(Kit_GetPacketSerial(video_decoder->current->opaque) != live_serial) {
+    while(Kit_GetPacketSerial(video_decoder->current->opaque) != Kit_GetTimerSerial(decoder->sync_timer)) {
         // LOG("[VIDEO] DISCARD BY SERIAL: %d != %d\n", Kit_GetPacketSerial(video_decoder->current->opaque),
-        // live_serial);
+        // Kit_GetTimerSerial(decoder->sync_timer));
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))
@@ -360,13 +359,16 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
     }
 
     // LOG("[VIDEO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
+
+    // The frame is in video_decoder->current, so we can drop it from buffer
+    // and release the buffer lock.
+    Kit_FinishPacketBufferRead(video_decoder->buffer);
     return true;
 }
 
 void Kit_EndReadFrame(Kit_Decoder *decoder) {
     const Kit_VideoDecoder *video_decoder = decoder->userdata;
     av_frame_unref(video_decoder->current);
-    Kit_FinishPacketBufferRead(video_decoder->buffer);
 }
 
 int Kit_GetVideoDecoderSDLTexture(Kit_Decoder *decoder, SDL_Texture *texture, SDL_Rect *area) {

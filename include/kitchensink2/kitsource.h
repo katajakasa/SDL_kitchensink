@@ -35,8 +35,8 @@ typedef enum Kit_StreamType
 /**
  * @brief Audio/video source.
  *
- * Should be created using Kit_CreateSourceFromUrl() or Kit_CreateSourceFromCustom(), and
- * closed with Kit_CloseSource().
+ * Should be created using Kit_CreateSourceFromUrl(), Kit_CreateSourceFromCustom() or
+ * Kit_CreateSourceFromRW(), and closed with Kit_CloseSource().
  *
  * Source must exist for the whole duration of using a player. You must take care of closing the source
  * yourself after you are done with it!
@@ -173,16 +173,16 @@ KIT_API Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_See
  * ```
  *
  * @param rw_ops Initialized RWOps
- * @return KIT_API* Kit_CreateSourceFromRW
+ * @return Returns an initialized Kit_Source* on success or NULL on failure
  */
 KIT_API Kit_Source *Kit_CreateSourceFromRW(SDL_RWops *rw_ops);
 
 /**
  * @brief Closes a previously initialized source
  *
- * Closes a Kit_Source that was previously created by Kit_CreateSourceFromUrl() or Kit_CreateSourceFromCustom()
- * and frees up all memory and resources used by it. Using the source for anything after this will
- * lead to undefined behaviour.
+ * Closes a Kit_Source that was previously created by Kit_CreateSourceFromUrl(), Kit_CreateSourceFromCustom()
+ * or Kit_CreateSourceFromRW(), and frees up all memory and resources used by it. Using the source for
+ * anything after this will lead to undefined behaviour.
  *
  * Passing NULL as argument is valid, and will do nothing.
  *
@@ -202,7 +202,7 @@ KIT_API void Kit_CloseSource(Kit_Source *src);
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }
- * fprintf(stderr, "Stream type: %s\n", Kit_GetKitStreamTypeString(stream.type))
+ * fprintf(stderr, "Stream type: %s\n", Kit_GetKitStreamTypeString(stream.type));
  * ```
  *
  * @param src Source to query from
@@ -263,7 +263,7 @@ KIT_API int Kit_GetSourceStreamList(const Kit_Source *src, const Kit_StreamType 
  *
  * @param src Source to query from
  * @param type Stream type to search
- * @param current Index to to start iterating from
+ * @param current_index Index to start iterating from
  * @param loop Start looping from the start of the stream list if we go past the end.
  * @return Index number if found, -1 if no more streams of given type were found.
  */
