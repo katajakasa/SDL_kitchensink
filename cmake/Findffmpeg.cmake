@@ -8,7 +8,7 @@
 #  * FFMPEG_INCLUDE_DIRS
 #  * FFMPEG_LIBRARIES
 #
-# Also declares ${component}_FOUND for each component, eg. avcodec_FOUND etc.
+# Also declares ffmpeg_${component}_FOUND for each component, eg. ffmpeg_avcodec_FOUND etc.
 #
 
 set(FFMPEG_SEARCH_PATHS
@@ -48,15 +48,13 @@ foreach(comp ${FFMPEG_COMPONENTS})
         )
 
         # If library and header was found, set proper variables
-        # Otherwise print out a warning!
         if(${comp}_LIBRARY AND ${comp}_INCLUDE_DIR)
-            set(${comp}_FOUND TRUE)
+            set(ffmpeg_${comp}_FOUND TRUE)
             list(APPEND FFMPEG_INCLUDE_DIRS ${${comp}_INCLUDE_DIR})
             list(APPEND FFMPEG_LIBRARIES ${${comp}_LIBRARY})
         else()
             set(FFMPEG_FOUND FALSE)
-            set(${comp}_FOUND FALSE)
-            message(WARNING "Could not find component: ${comp}")
+            set(ffmpeg_${comp}_FOUND FALSE)
         endif()
 
         # Mark the temporary variables as hidden in the ui
@@ -64,10 +62,10 @@ foreach(comp ${FFMPEG_COMPONENTS})
     endif()
 endforeach()
 
-if(FFMPEG_FOUND)
-    message(STATUS "Found FFMPEG: ${FFMPEG_LIBRARIES}")
-else()
-    message(WARNING "Could not find FFMPEG")
-endif()
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(ffmpeg
+    REQUIRED_VARS FFMPEG_LIBRARIES FFMPEG_INCLUDE_DIRS
+    HANDLE_COMPONENTS
+)
 
 mark_as_advanced(FFMPEG_COMPONENTS FFMPEG_SEARCH_PATHS)
