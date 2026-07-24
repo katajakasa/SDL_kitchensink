@@ -117,13 +117,11 @@ void Kit_FreePacketBuffer(Kit_PacketBuffer **ref) {
     *ref = NULL;
 }
 
-bool Kit_IsPacketBufferFull(const Kit_PacketBuffer *buffer) {
-    assert(buffer);
+static bool Kit_IsPacketBufferFull(const Kit_PacketBuffer *buffer) {
     return buffer->full;
 }
 
-bool Kit_IsPacketBufferEmpty(const Kit_PacketBuffer *buffer) {
-    assert(buffer);
+static bool Kit_IsPacketBufferEmpty(const Kit_PacketBuffer *buffer) {
     return (!buffer->full && (buffer->head == buffer->tail));
 }
 
@@ -134,10 +132,15 @@ size_t Kit_GetPacketBufferCapacity(const Kit_PacketBuffer *buffer) {
 
 size_t Kit_GetPacketBufferLength(const Kit_PacketBuffer *buffer) {
     assert(buffer);
+    size_t length;
+    SDL_LockMutex(buffer->mutex);
     if(buffer->full)
-        return buffer->capacity;
-    return (buffer->head >= buffer->tail) ? buffer->head - buffer->tail
-                                          : buffer->capacity + buffer->head - buffer->tail;
+        length = buffer->capacity;
+    else
+        length = (buffer->head >= buffer->tail) ? buffer->head - buffer->tail
+                                                : buffer->capacity + buffer->head - buffer->tail;
+    SDL_UnlockMutex(buffer->mutex);
+    return length;
 }
 
 void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {

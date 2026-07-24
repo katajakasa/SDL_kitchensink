@@ -22,8 +22,6 @@ KIT_LOCAL Kit_PacketBuffer *Kit_CreatePacketBuffer(
 );
 KIT_LOCAL void Kit_FreePacketBuffer(Kit_PacketBuffer **buffer);
 
-KIT_LOCAL bool Kit_IsPacketBufferFull(const Kit_PacketBuffer *buffer);
-KIT_LOCAL bool Kit_IsPacketBufferEmpty(const Kit_PacketBuffer *buffer);
 KIT_LOCAL size_t Kit_GetPacketBufferCapacity(const Kit_PacketBuffer *buffer);
 KIT_LOCAL size_t Kit_GetPacketBufferLength(const Kit_PacketBuffer *buffer);
 
