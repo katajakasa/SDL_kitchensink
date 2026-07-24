@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = pinfo.audio_format.sample_rate;
     wanted_spec.format = pinfo.audio_format.format;
-    wanted_spec.channels = pinfo.audio_format.channels;
+    wanted_spec.channels = Kit_GetChannelLayoutCount(pinfo.audio_format.layout);
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 

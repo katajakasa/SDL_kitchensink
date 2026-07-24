@@ -17,24 +17,48 @@ enum AVSampleFormat Kit_FindAVSampleFormat(int format)
     }
 }
 
-void Kit_FindAVChannelLayout(int channels, AVChannelLayout *layout) {
-    switch(channels) {
-        case 1:
-            *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
+void Kit_FindAVChannelLayout(Kit_AudioChannelLayout layout, AVChannelLayout *out) {
+    switch(layout) {
+        case KIT_LAYOUT_MONO:
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_MONO;
             break;
-        case 2:
-            *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+        case KIT_LAYOUT_2POINT1:
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_2POINT1;
             break;
+        case KIT_LAYOUT_QUAD:
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_QUAD;
+            break;
+        case KIT_LAYOUT_5POINT1:
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_5POINT1_BACK;
+            break;
+        case KIT_LAYOUT_6POINT1:
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_6POINT1;
+            break;
+        case KIT_LAYOUT_7POINT1:
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_7POINT1;
+            break;
+        case KIT_LAYOUT_STEREO:
         default:
-            *layout = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
+            *out = (AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO;
             break;
     }
 }
 
-int Kit_FindChannelLayout(const AVChannelLayout *channel_layout) {
-    if(channel_layout->nb_channels > 2)
-        return 2;
-    return channel_layout->nb_channels;
+Kit_AudioChannelLayout Kit_FindChannelLayout(const AVChannelLayout *channel_layout) {
+    const int channels = channel_layout->nb_channels;
+    if(channels >= 8)
+        return KIT_LAYOUT_7POINT1;
+    if(channels == 7)
+        return KIT_LAYOUT_6POINT1;
+    if(channels == 6)
+        return KIT_LAYOUT_5POINT1;
+    if(channels >= 4)
+        return KIT_LAYOUT_QUAD;
+    if(channels == 3)
+        return KIT_LAYOUT_2POINT1;
+    if(channels == 1)
+        return KIT_LAYOUT_MONO;
+    return KIT_LAYOUT_STEREO;
 }
 
 int Kit_FindBytes(enum AVSampleFormat fmt) {

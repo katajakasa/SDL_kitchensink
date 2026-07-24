@@ -106,6 +106,69 @@ const char *Kit_GetSDLPixelFormatString(unsigned int type) {
     }
 }
 
+int Kit_GetChannelLayoutCount(Kit_AudioChannelLayout layout) {
+    switch(layout) {
+        case KIT_LAYOUT_MONO:
+            return 1;
+        case KIT_LAYOUT_STEREO:
+            return 2;
+        case KIT_LAYOUT_2POINT1:
+            return 3;
+        case KIT_LAYOUT_QUAD:
+            return 4;
+        case KIT_LAYOUT_5POINT1:
+            return 6;
+        case KIT_LAYOUT_6POINT1:
+            return 7;
+        case KIT_LAYOUT_7POINT1:
+            return 8;
+        default:
+            return -1;
+    }
+}
+
+Kit_AudioChannelLayout Kit_GetChannelLayoutFromCount(int channels) {
+    switch(channels) {
+        case 1:
+            return KIT_LAYOUT_MONO;
+        case 2:
+            return KIT_LAYOUT_STEREO;
+        case 3:
+            return KIT_LAYOUT_2POINT1;
+        case 4:
+            return KIT_LAYOUT_QUAD;
+        case 6:
+            return KIT_LAYOUT_5POINT1;
+        case 7:
+            return KIT_LAYOUT_6POINT1;
+        case 8:
+            return KIT_LAYOUT_7POINT1;
+        default:
+            return KIT_LAYOUT_UNKNOWN;
+    }
+}
+
+const char *Kit_GetChannelLayoutString(Kit_AudioChannelLayout layout) {
+    switch(layout) {
+        case KIT_LAYOUT_MONO:
+            return "KIT_LAYOUT_MONO";
+        case KIT_LAYOUT_STEREO:
+            return "KIT_LAYOUT_STEREO";
+        case KIT_LAYOUT_2POINT1:
+            return "KIT_LAYOUT_2POINT1";
+        case KIT_LAYOUT_QUAD:
+            return "KIT_LAYOUT_QUAD";
+        case KIT_LAYOUT_5POINT1:
+            return "KIT_LAYOUT_5POINT1";
+        case KIT_LAYOUT_6POINT1:
+            return "KIT_LAYOUT_6POINT1";
+        case KIT_LAYOUT_7POINT1:
+            return "KIT_LAYOUT_7POINT1";
+        default:
+            return "KIT_LAYOUT_UNKNOWN";
+    }
+}
+
 const char *Kit_GetKitStreamTypeString(unsigned int type) {
     switch(type) {
         case KIT_STREAMTYPE_UNKNOWN:

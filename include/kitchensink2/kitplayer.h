@@ -105,7 +105,7 @@ typedef struct Kit_PlayerInfo {
  * @param audio_format_request Audio format request object or NULL.
  * @param screen_w Screen width in pixels
  * @param screen_h Screen height in pixels
- * @return Ínitialized Kit_Player or NULL
+ * @return Initialized Kit_Player or NULL
  */
 KIT_API Kit_Player *Kit_CreatePlayer(
     const Kit_Source *src,

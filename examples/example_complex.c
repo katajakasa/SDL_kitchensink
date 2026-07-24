@@ -22,7 +22,7 @@ void dump_audio_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_inf
             player_info->audio_codec.description,
             player_info->video_codec.threads,
             player_info->audio_format.sample_rate,
-            player_info->audio_format.channels,
+            Kit_GetChannelLayoutCount(player_info->audio_format.layout),
             player_info->audio_format.bytes,
             player_info->audio_format.is_signed ? "signed" : "unsigned"
         );
@@ -245,13 +245,14 @@ int main(int argc, char *argv[]) {
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = player_info.audio_format.sample_rate;
     wanted_spec.format = player_info.audio_format.format;
-    wanted_spec.channels = player_info.audio_format.channels;
+    wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
     audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
     // Print some format info
     fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(player_info.video_format.format));
     fprintf(stderr, "Audio format: %s\n", Kit_GetSDLAudioFormatString(player_info.audio_format.format));
+    fprintf(stderr, "Audio layout: %s\n", Kit_GetChannelLayoutString(player_info.audio_format.layout));
     fprintf(stderr, "Subtitle format: %s\n", Kit_GetSDLPixelFormatString(player_info.subtitle_format.format));
     fflush(stderr);
 
@@ -348,7 +349,7 @@ int main(int argc, char *argv[]) {
                             SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
                             wanted_spec.freq = player_info.audio_format.sample_rate;
                             wanted_spec.format = player_info.audio_format.format;
-                            wanted_spec.channels = player_info.audio_format.channels;
+                            wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
                             SDL_CloseAudioDevice(audio_dev);
                             audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
                             dump_audio_stream_info(player, &player_info);
