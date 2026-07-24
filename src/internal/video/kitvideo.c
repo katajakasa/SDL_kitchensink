@@ -32,7 +32,7 @@ static struct SwsContext *Kit_GetSwsContext(
     struct SwsContext *new_context =
         sws_getCachedContext(old_context, w, h, in_fmt, w, h, out_fmt, SWS_BILINEAR, NULL, NULL, NULL);
     if(new_context == NULL) {
-        Kit_SetError("Unable to initialize video converter context");
+        LOG("Unable to initialize video converter context\n");
     }
     return new_context;
 }
