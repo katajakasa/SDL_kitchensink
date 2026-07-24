@@ -36,7 +36,7 @@ KIT_API const char *Kit_GetSDLPixelFormatString(unsigned int type);
  * @brief Returns a descriptive string for Kitchensink stream types
  *
  * @param type Kit_StreamType
- * @return Format string, eg. "KIT_STREAMTYPE_VIDEO"
+ * @return Format string, eg. "KIT_STREAMTYPE_VIDEO", or NULL for unknown values
  */
 KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
 
