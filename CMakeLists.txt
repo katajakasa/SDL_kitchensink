@@ -48,7 +48,7 @@ if (USE_ASAN)
 endif ()
 
 find_package(SDL2 REQUIRED)
-find_package(ffmpeg COMPONENTS avcodec avformat avutil swscale swresample)
+find_package(ffmpeg REQUIRED COMPONENTS avcodec avformat avutil swscale swresample)
 
 check_library_exists(m pow "" LIBM_EXISTS)
 
@@ -75,7 +75,7 @@ if (USE_DYNAMIC_LIBASS)
     add_definitions(-DUSE_DYNAMIC_LIBASS)
     add_definitions(-DDYNAMIC_LIBASS_NAME=${DYNAMIC_LIBASS_NAME})
 else ()
-    find_package(ass)
+    find_package(ass REQUIRED)
     set(LIBRARIES ${LIBRARIES} ${ASS_LIBRARIES})
     set(INCLUDES ${INCLUDES} ${ASS_INCLUDE_DIRS})
 endif ()
@@ -97,6 +97,7 @@ if (BUILD_SHARED)
 
     target_link_libraries(SDL_kitchensink ${LIBRARIES})
 
+    set_target_properties(SDL_kitchensink PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink PROPERTIES VERSION ${KIT_VERSION})
     set_target_properties(SDL_kitchensink PROPERTIES SOVERSION ${KIT_VERSION_MAJOR})
     set_target_properties(SDL_kitchensink PROPERTIES DEBUG_POSTFIX "d")
@@ -116,6 +117,7 @@ if (BUILD_STATIC)
         target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=address")
     endif ()
 
+    set_target_properties(SDL_kitchensink_static PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
 
@@ -133,7 +135,15 @@ else ()
     message(STATUS "Development: clang-tidy disabled")
 endif ()
 
-set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink.pc")
+set(PC_REQUIRES_PRIVATE "sdl2 libavcodec libavformat libavutil libswresample libswscale")
+if (NOT USE_DYNAMIC_LIBASS)
+    string(APPEND PC_REQUIRES_PRIVATE " libass")
+endif ()
+set(PC_LIBS_PRIVATE "")
+if (LIBM_EXISTS)
+    set(PC_LIBS_PRIVATE "-lm")
+endif ()
+set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink2.pc")
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.in"
         ${PKG_CONFIG_FILE}
