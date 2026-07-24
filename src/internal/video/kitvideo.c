@@ -290,10 +290,9 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
         return false;
 
     // Discard any frames that were decoded before the latest seek request.
-    const unsigned int live_serial = Kit_GetTimerSerial(decoder->sync_timer);
-    while(Kit_GetPacketSerial(video_decoder->current->opaque) != live_serial) {
+    while(Kit_GetPacketSerial(video_decoder->current->opaque) != Kit_GetTimerSerial(decoder->sync_timer)) {
         // LOG("[VIDEO] DISCARD BY SERIAL: %d != %d\n", Kit_GetPacketSerial(video_decoder->current->opaque),
-        // live_serial);
+        // Kit_GetTimerSerial(decoder->sync_timer));
         av_frame_unref(video_decoder->current);
         Kit_FinishPacketBufferRead(video_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(video_decoder->buffer, video_decoder->current, 0))

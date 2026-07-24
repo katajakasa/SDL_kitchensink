@@ -346,14 +346,13 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     assert(decoder != NULL);
 
     const Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    const unsigned int live_serial = Kit_GetTimerSerial(decoder->sync_timer);
     int ret = 0;
     size_t *size = &audio_decoder->current->crop_top;
     size_t *left = &audio_decoder->current->crop_bottom;
 
     if(len <= 0)
         return 0;
-    if(*left > 0 && Kit_GetPacketSerial(audio_decoder->current->opaque) != live_serial)
+    if(*left > 0 && Kit_GetPacketSerial(audio_decoder->current->opaque) != Kit_GetTimerSerial(decoder->sync_timer))
         av_frame_unref(audio_decoder->current);
     if(*left > 0)
         goto serve;
@@ -362,9 +361,9 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
         goto no_data;
 
     // Discard any frames that were decoded before the latest seek request.
-    while(Kit_GetPacketSerial(audio_decoder->current->opaque) != live_serial) {
+    while(Kit_GetPacketSerial(audio_decoder->current->opaque) != Kit_GetTimerSerial(decoder->sync_timer)) {
         // LOG("[AUDIO] DISCARD BY SERIAL: %d != %d\n", Kit_GetPacketSerial(audio_decoder->current->opaque),
-        // live_serial);
+        // Kit_GetTimerSerial(decoder->sync_timer));
         av_frame_unref(audio_decoder->current);
         Kit_FinishPacketBufferRead(audio_decoder->buffer);
         if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
