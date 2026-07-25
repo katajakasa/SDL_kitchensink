@@ -24,6 +24,7 @@ option(BUILD_EXAMPLES "Build examples" OFF)
 option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" OFF)
 option(USE_ASAN "Use AddressSanitizer" OFF)
 option(USE_TIDY "Use clang-tidy" OFF)
+option(USE_FORMAT "Use clang-format for formatting" OFF)
 option(BUILD_SHARED "Build shared library" ON)
 option(BUILD_STATIC "Build static library" ON)
 
@@ -133,6 +134,24 @@ if (USE_TIDY)
     message(STATUS "Development: clang-tidy enabled")
 else ()
     message(STATUS "Development: clang-tidy disabled")
+endif ()
+
+if (USE_FORMAT)
+    include(cmake/ClangFormat.cmake)
+    file(GLOB_RECURSE FORMAT_FILES
+            LIST_DIRECTORIES OFF
+            CONFIGURE_DEPENDS
+            RELATIVE ${CMAKE_SOURCE_DIR}
+            "src/*.c"
+            "src/*.h"
+            "include/*.h"
+            "examples/*.c"
+            "tests/*.c"
+    )
+    clangformat_setup(${FORMAT_FILES})
+    message(STATUS "Development: clang-format enabled")
+else ()
+    message(STATUS "Development: clang-format disabled")
 endif ()
 
 set(PC_REQUIRES_PRIVATE "sdl2 libavcodec libavformat libavutil libswresample libswscale")
