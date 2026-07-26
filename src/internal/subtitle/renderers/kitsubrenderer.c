@@ -2,6 +2,7 @@
 
 #include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubrenderer.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/kiterror.h"
 
 Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
@@ -15,7 +16,7 @@ Kit_SubtitleRenderer *Kit_CreateSubtitleRenderer(
     renderer_close_cb close_cb,
     void *userdata
 ) {
-    Kit_SubtitleRenderer *renderer = calloc(1, sizeof(Kit_SubtitleRenderer));
+    Kit_SubtitleRenderer *renderer = Kit_Calloc(1, sizeof(Kit_SubtitleRenderer));
     if(renderer == NULL) {
         Kit_SetError("Unable to allocate kit subtitle renderer");
         return NULL;

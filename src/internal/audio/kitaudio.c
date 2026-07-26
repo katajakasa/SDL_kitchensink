@@ -8,8 +8,10 @@
 
 #include "kitchensink2/internal/audio/kitaudio.h"
 #include "kitchensink2/internal/audio/kitaudioutils.h"
+#include "kitchensink2/internal/kitfaultinject.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
@@ -153,7 +155,8 @@ static void dec_get_audio_buffers_cb(const Kit_Decoder *ref, unsigned int *lengt
 
 static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder != NULL);
-    switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
+    int ret = KIT_FAULT_WRAP_CODE("decode_send", avcodec_send_packet(decoder->codec_ctx, in_packet));
+    switch(ret) {
         case AVERROR_EOF:
             return KIT_DEC_INPUT_EOF;
         case AVERROR(ENOMEM):
@@ -168,7 +171,8 @@ static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder != NULL);
 
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
-    const int ret = avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame);
+    const int ret =
+        KIT_FAULT_WRAP_CODE("decode_receive", avcodec_receive_frame(decoder->codec_ctx, audio_decoder->in_frame));
     if(ret == 0) {
         *pts = audio_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
         process_decoded_frame(audio_decoder);
@@ -232,7 +236,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     }
     stream = format_ctx->streams[stream_index];
 
-    if((audio_decoder = calloc(1, sizeof(Kit_AudioDecoder))) == NULL) {
+    if((audio_decoder = Kit_Calloc(1, sizeof(Kit_AudioDecoder))) == NULL) {
         Kit_SetError("Unable to allocate audio decoder for stream %d", stream_index);
         goto exit_none;
     }
@@ -252,6 +256,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.
         goto exit_audio_dec;
     }
+
     // Some decoders (notably raw PCM codecs used by e.g. WAV files) never populate a channel order in the
     // codec context, since there is no bitstream-level negotiation to do for them. swr_convert_frame() requires
     // a fully specified input channel layout though, so fall back to a sane default (based on channel count)
@@ -300,21 +305,24 @@ Kit_Decoder *Kit_CreateAudioDecoder(
                                                   : Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
 
     Kit_FindAVChannelLayout(output.layout, &out_layout);
-    if(swr_alloc_set_opts2(
-           &swr,
-           &out_layout,
-           Kit_FindAVSampleFormat(output.format),
-           output.sample_rate,
-           &decoder->codec_ctx->ch_layout,
-           decoder->codec_ctx->sample_fmt,
-           decoder->codec_ctx->sample_rate,
-           0,
-           NULL
+    if(KIT_FAULT_WRAP_CODE(
+           "swr_init",
+           swr_alloc_set_opts2(
+               &swr,
+               &out_layout,
+               Kit_FindAVSampleFormat(output.format),
+               output.sample_rate,
+               &decoder->codec_ctx->ch_layout,
+               decoder->codec_ctx->sample_fmt,
+               decoder->codec_ctx->sample_rate,
+               0,
+               NULL
+           )
        ) != 0) {
         Kit_SetError("Unable to allocate audio resampler context");
         goto exit_buffer;
     }
-    if(swr_init(swr) != 0) {
+    if(KIT_FAULT_WRAP_CODE("swr_init", swr_init(swr)) != 0) {
         Kit_SetError("Unable to initialize audio resampler context");
         goto exit_swr;
     }

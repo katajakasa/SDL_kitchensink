@@ -28,6 +28,7 @@ option(USE_TIDY "Use clang-tidy" OFF)
 option(USE_FORMAT "Use clang-format for formatting" OFF)
 option(BUILD_SHARED "Build shared library" ON)
 option(BUILD_STATIC "Build static library" ON)
+option(KIT_FAULT_INJECTION "Compile in the debug fault-injection registry (tests only)" OFF)
 
 if (USE_ASAN AND USE_TSAN)
     message(FATAL_ERROR "USE_ASAN and USE_TSAN are mutually exclusive")
@@ -93,7 +94,15 @@ endif ()
 FILE(GLOB_RECURSE SOURCES "src/*.c")
 FILE(GLOB INSTALL_HEADERS "include/kitchensink2/*.h")
 
+# Compiled in only via the KIT_FAULT_INJECTION option below, not unconditionally.
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/internal/kitfaultinject.c")
+
 include_directories(${INCLUDES})
+
+if (KIT_FAULT_INJECTION)
+    message(STATUS "DEVELOPMENT: fault-injection registry enabled!")
+    list(APPEND SOURCES "src/internal/kitfaultinject.c")
+endif ()
 
 set(INSTALL_TARGETS "")
 
@@ -120,6 +129,10 @@ if (BUILD_SHARED)
     target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
     target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
 
+    if (KIT_FAULT_INJECTION)
+        target_compile_definitions(SDL_kitchensink PRIVATE KIT_FAULT_INJECTION)
+    endif ()
+
     set_property(TARGET SDL_kitchensink PROPERTY C_STANDARD 99)
 
     set(INSTALL_TARGETS SDL_kitchensink ${INSTALL_TARGETS})
@@ -139,6 +152,10 @@ if (BUILD_STATIC)
     set_target_properties(SDL_kitchensink_static PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
+
+    if (KIT_FAULT_INJECTION)
+        target_compile_definitions(SDL_kitchensink_static PUBLIC KIT_FAULT_INJECTION)
+    endif ()
 
     set(INSTALL_TARGETS SDL_kitchensink_static ${INSTALL_TARGETS})
 endif ()

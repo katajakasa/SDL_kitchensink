@@ -7,6 +7,7 @@
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
 
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/kiterror.h"
 
 #define KIT_ERRBUFSIZE 1024
@@ -33,7 +34,7 @@ static Kit_ErrorState *Kit_GetErrorState(void) {
     }
     Kit_ErrorState *state = SDL_TLSGet(error_tls_id);
     if(state == NULL) {
-        if((state = calloc(1, sizeof(Kit_ErrorState))) == NULL)
+        if((state = Kit_Calloc(1, sizeof(Kit_ErrorState))) == NULL)
             return NULL;
         // Note: check for < 0; sdl2-compat returns 1 (SDL3 bool) on success here, real SDL2 returns 0.
         if(SDL_TLSSet(error_tls_id, state, free) < 0) {

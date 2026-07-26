@@ -11,6 +11,7 @@
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/internal/video/kitvideoutils.h"
 #include "kitchensink2/kiterror.h"
@@ -138,7 +139,7 @@ Kit_Decoder *Kit_CreateDecoder(
     AVDictionary *codec_opts = NULL;
     const AVCodec *codec = NULL;
 
-    if((decoder = calloc(1, sizeof(Kit_Decoder))) == NULL) {
+    if((decoder = Kit_Calloc(1, sizeof(Kit_Decoder))) == NULL) {
         Kit_SetError("Unable to allocate kit decoder for stream %d", stream->index);
         goto exit_0;
     }

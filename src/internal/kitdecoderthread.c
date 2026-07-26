@@ -3,6 +3,7 @@
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/kitdecoderthread.h"
 #include "kitchensink2/internal/kitpackettag.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 
@@ -120,7 +121,7 @@ Kit_DecoderThread *Kit_CreateDecoderThread(Kit_PacketBuffer *input, Kit_Decoder 
         Kit_SetError("Unable to allocate decoder scratch packet");
         goto error_0;
     }
-    if((decoder_thread = calloc(1, sizeof(Kit_DecoderThread))) == NULL) {
+    if((decoder_thread = Kit_Calloc(1, sizeof(Kit_DecoderThread))) == NULL) {
         Kit_SetError("Unable to allocate decoder thread");
         goto error_1;
     }

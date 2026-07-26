@@ -7,6 +7,7 @@
 #include "kitchensink2/internal/subtitle/kitatlas.h"
 #include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubimage.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/kiterror.h"
 
 typedef struct Kit_ImageSubtitleRenderer {
@@ -236,7 +237,7 @@ Kit_SubtitleRenderer *Kit_CreateImageSubtitleRenderer(
     Kit_SubtitlePacket *in_packet;
     Kit_SubtitlePacket *out_packet;
 
-    if((image_renderer = calloc(1, sizeof(Kit_ImageSubtitleRenderer))) == NULL) {
+    if((image_renderer = Kit_Calloc(1, sizeof(Kit_ImageSubtitleRenderer))) == NULL) {
         Kit_SetError("Unable to allocate image subtitle renderer");
         goto exit_0;
     }
