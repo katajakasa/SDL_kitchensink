@@ -309,7 +309,8 @@ KIT_API SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, S
  * @param player Player instance
  * @param texture A previously allocated texture
  * @param area Rendered video surface area or NULL.
- * @return 0 if the texture was updated (or playback is not active), 1 if no new frame was available
+ * @return 0 if the texture was updated and 1 if no new frame was available, when playback
+ *         is stopped or paused, or no video stream is selected.
  */
 KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 

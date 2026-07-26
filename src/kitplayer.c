@@ -464,7 +464,7 @@ int Kit_GetPlayerSubtitleStream(const Kit_Player *player) {
 
 int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
     assert(player != NULL);
-    int ret = 0;
+    int ret = 1;
     Kit_LockDecoderCtrl(player, KIT_VIDEO_INDEX);
     Kit_Decoder *decoder = player->decoders[KIT_VIDEO_INDEX];
     const Kit_PlayerState state = Kit_GetState(player);
