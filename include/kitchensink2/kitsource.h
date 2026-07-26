@@ -7,6 +7,7 @@
  * @file kitsource.h
  * @author Tuomas Virtanen
  * @date 2018-06-27
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
 #include "kitchensink2/kitconfig.h"

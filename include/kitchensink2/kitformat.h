@@ -7,6 +7,7 @@
  * @file kitformat.h
  * @author Tuomas Virtanen
  * @date 2018-06-25
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
 #ifdef __cplusplus
