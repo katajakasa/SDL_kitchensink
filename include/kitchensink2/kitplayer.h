@@ -473,10 +473,12 @@ KIT_API int Kit_GetPlayerSubtitleRawFrames(
  *
  * Audio data format can be acquired by calling Kit_GetPlayerInfo().
  *
- * The "backend_buffer_size" argument should be set to the size of backend (hardware) audio buffers.
- * If your backend is SDL2, this can be provided by SDL_GetQueuedAudioSize(). This information is used
- * to supply silence, if the output is almost empty and video stream has no audio data to give.
- * If you don't have this value or just don't care, just set it to UINT_MAX or some other large value.
+ * The "backend_buffer_size" argument should be set to the amount of audio currently queued in the
+ * backend (hardware) buffers. If your backend is SDL2, this can be provided by
+ * SDL_GetQueuedAudioSize(). This information is used to supply silence if the backend queue is about
+ * to run empty while the decoder momentarily has no audio data to give, protecting against audible
+ * underruns. If you don't have this value, a large value (e.g. SIZE_MAX) disables the silence
+ * padding, while 0 always enables it whenever the decoder has no data.
  *
  * This function will do nothing if player playback has not been started.
  *

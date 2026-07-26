@@ -18,7 +18,7 @@
 
 #define KIT_AUDIO_EARLY_FAIL 5.0
 
-#define SAMPLE_BYTES(audio_decoder)                                                                                    \
+#define SAMPLE_BYTES(audio_decoder)                                                                                   \
     (Kit_GetChannelLayoutCount(audio_decoder->output.layout) * audio_decoder->output.bytes)
 
 typedef struct Kit_AudioDecoder {
@@ -30,6 +30,7 @@ typedef struct Kit_AudioDecoder {
     int64_t fifo_start_pts;       ///< Audio fifo start PTS
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded audio packets
     Kit_AudioOutputFormat output; ///< Output audio format description
+    SDL_atomic_t eof_seen;        ///< Codec fully drained at end of stream (decoder thread writes, getter reads)
 } Kit_AudioDecoder;
 
 int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *decoder, Kit_AudioOutputFormat *output) {
@@ -125,6 +126,7 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(audio_decoder->buffer);
     av_audio_fifo_reset(audio_decoder->fifo);
     audio_decoder->fifo_start_pts = -1;
+    SDL_AtomicSet(&audio_decoder->eof_seen, 0);
     // Drop any samples buffered inside the resampler, so that old audio does not leak past a seek.
     swr_close(audio_decoder->swr);
     if(swr_init(audio_decoder->swr) != 0) {
@@ -176,6 +178,7 @@ static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
     if(ret == AVERROR_EOF) {
         // If this is the end of the stream, flush the FIFO.
         read_fifo_frame(decoder, audio_decoder, true);
+        SDL_AtomicSet(&audio_decoder->eof_seen, 1);
     }
     return false;
 }
@@ -355,7 +358,7 @@ static double Kit_GetCurrentPTS(const Kit_Decoder *decoder) {
 int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, unsigned char *buf, size_t len) {
     assert(decoder != NULL);
 
-    const Kit_AudioDecoder *audio_decoder = decoder->userdata;
+    Kit_AudioDecoder *audio_decoder = decoder->userdata;
     int ret = 0;
     size_t *size = &audio_decoder->current->crop_top;
     size_t *left = &audio_decoder->current->crop_bottom;
@@ -458,12 +461,16 @@ serve:
     return ret;
 
 no_data:
+    // If we are at EOF, then no point in generating silence.
+    if(SDL_AtomicGet(&audio_decoder->eof_seen))
+        return 0;
     len = Kit_min(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
     if(backend_buffer_size < len * SAMPLE_BYTES(audio_decoder)) {
-        // LOG("[AUDIO] SILENCE due to backend size %ld < %ld\n", backend_buffer_size, len *
-        // SAMPLE_BYTES(audio_decoder));
         av_samples_set_silence(
-            &buf, 0, len, Kit_GetChannelLayoutCount(audio_decoder->output.layout),
+            &buf,
+            0,
+            len,
+            Kit_GetChannelLayoutCount(audio_decoder->output.layout),
             Kit_FindAVSampleFormat(audio_decoder->output.format)
         );
         return len * SAMPLE_BYTES(audio_decoder);
