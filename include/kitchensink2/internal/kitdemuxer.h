@@ -25,6 +25,7 @@ KIT_LOCAL void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer);
 KIT_LOCAL void Kit_AbortDemuxer(const Kit_Demuxer *demuxer);
 KIT_LOCAL bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target, unsigned int seek_serial);
 KIT_LOCAL void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int stream_index);
+KIT_LOCAL void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index);
 KIT_LOCAL void Kit_GetDemuxerBufferState(
     const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index, unsigned int *length, unsigned int *capacity
 );

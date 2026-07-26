@@ -1020,6 +1020,10 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
     // will no longer get packets from the old stream.
     Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, index);
 
+    // EOF packet may have been lost in the flush; resend it if needed.
+    if(!Kit_IsDemuxerThreadAlive(player->demux_thread))
+        Kit_SendDemuxerEOFPacket(player->demuxer, buffer_index);
+
     // Set the new decoder and thread, and spin up the thread if we were already playing.
     Kit_LockDecoderCtrl(player, buffer_index);
     player->decoders[buffer_index] = new_decoder;

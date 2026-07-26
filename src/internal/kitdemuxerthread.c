@@ -6,6 +6,7 @@
 
 static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;
+    bool eof = false;
 
     while(SDL_AtomicGet(&thread->run)) {
         if(thread->seek) {
@@ -13,10 +14,18 @@ static int Kit_DemuxMain(void *ptr) {
             thread->seek = false;
             Kit_DemuxerSeek(thread->demuxer, thread->seek_target, thread->seek_serial);
         }
-        if(!Kit_RunDemuxer(thread->demuxer))
+        if(!Kit_RunDemuxer(thread->demuxer)) {
+            eof = true;
             break;
+        }
     }
+
     SDL_AtomicSet(&thread->run, 0);
+    if(eof) {
+        for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+            Kit_SendDemuxerEOFPacket(thread->demuxer, i);
+        }
+    }
     return 0;
 }
 

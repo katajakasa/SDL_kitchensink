@@ -9,18 +9,21 @@
 #include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/kiterror.h"
 
-static void Kit_SendEOFPacket(Kit_Demuxer *demuxer) {
-    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if(!demuxer->buffers[i])
-            continue;
-        demuxer->scratch_packet->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_EOF, 0);
-        Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
-    }
+void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index) {
+    AVPacket *packet;
+    if(!demuxer->buffers[index])
+        return;
+    // Use a local packet instead of the shared scratch packet -- this may get called from the API thread
+    // (stream switch) while the demuxer thread is still sending its own EOF packets on exit.
+    if((packet = av_packet_alloc()) == NULL)
+        return;
+    packet->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_EOF, 0);
+    Kit_WritePacketBuffer(demuxer->buffers[index], packet);
+    av_packet_free(&packet);
 }
 
 bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     if(av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet) < 0) {
-        Kit_SendEOFPacket(demuxer);
         return false;
     }
 
