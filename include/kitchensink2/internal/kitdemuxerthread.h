@@ -15,7 +15,6 @@ typedef struct Kit_DemuxerThread {
     SDL_atomic_t run;
     bool seek;                ///< Seek request flag; may only be set while the thread is not running
     int64_t seek_target;      ///< Seek target position; may only be set while the thread is not running
-    unsigned int seek_serial; ///< Seek serial; may only be set while the thread is not running
     Kit_Timer *timer;         ///< Non-writeable reference to the sync timer, used for the seek serial
 } Kit_DemuxerThread;
 

@@ -171,10 +171,10 @@ static void Kit_SendSeekPacket(Kit_Demuxer *demuxer, unsigned int seek_serial) {
     }
 }
 
-bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target, unsigned int seek_serial) {
+bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, Kit_Timer *timer, const int64_t seek_target) {
     if(avformat_seek_file(demuxer->src->format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, 0) >= 0) {
         Kit_ClearDemuxerBuffers(demuxer);
-        Kit_SendSeekPacket(demuxer, seek_serial);
+        Kit_SendSeekPacket(demuxer, Kit_IncreaseTimerSerial(timer));
         return true;
     }
     return false;
