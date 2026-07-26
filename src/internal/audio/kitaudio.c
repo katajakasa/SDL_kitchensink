@@ -151,7 +151,7 @@ static void dec_get_audio_buffers_cb(const Kit_Decoder *ref, unsigned int *lengt
 static Kit_DecoderInputResult dec_input_audio_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder != NULL);
     switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
-        case AVERROR(EOF):
+        case AVERROR_EOF:
             return KIT_DEC_INPUT_EOF;
         case AVERROR(ENOMEM):
         case AVERROR(EAGAIN):
