@@ -90,6 +90,10 @@ enum AVPixelFormat Kit_FindAVPixelFormat(const unsigned int fmt)
             return AV_PIX_FMT_ARGB;
         case SDL_PIXELFORMAT_RGBA32:
             return AV_PIX_FMT_RGBA;
+        case SDL_PIXELFORMAT_BGRA32:
+            return AV_PIX_FMT_BGRA;
+        case SDL_PIXELFORMAT_ABGR32:
+            return AV_PIX_FMT_ABGR;
         case SDL_PIXELFORMAT_BGR24:
             return AV_PIX_FMT_BGR24;
         case SDL_PIXELFORMAT_RGB24:
