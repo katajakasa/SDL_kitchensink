@@ -532,6 +532,8 @@ KIT_API void Kit_PlayerPlay(Kit_Player *player);
  * - If player is paused, will stop playback.
  * - If player is started, will stop playback (and background decoding).
  *
+ * Note that after calling this, Kit_GetPlayerPosition() will return 0.
+ *
  * @param player Player instance
  */
 KIT_API void Kit_PlayerStop(Kit_Player *player);
@@ -577,10 +579,11 @@ KIT_API double Kit_GetPlayerDuration(const Kit_Player *player);
 /**
  * @brief Get the current position of the playback
  *
- * Returns the position of the playback in seconds
+ * Returns the position of the playback in seconds. If playback has not yet started,
+ * or playback has been stopped, this will return 0.
  *
  * @param player Player instance
- * @return Position
+ * @return Position in seconds
  */
 KIT_API double Kit_GetPlayerPosition(const Kit_Player *player);
 

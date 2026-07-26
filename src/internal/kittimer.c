@@ -155,7 +155,9 @@ void Kit_ResumeTimer(Kit_Timer *timer) {
 double Kit_GetTimerElapsed(const Kit_Timer *timer) {
     const double now = Kit_GetSystemTime();
     SDL_LockMutex(timer->ref->lock);
-    const double elapsed = timer->ref->paused ? timer->ref->pause_start - timer->ref->value : now - timer->ref->value;
+    double elapsed = 0.0;
+    if(timer->ref->initialized)
+        elapsed = timer->ref->paused ? timer->ref->pause_start - timer->ref->value : now - timer->ref->value;
     SDL_UnlockMutex(timer->ref->lock);
     return elapsed;
 }

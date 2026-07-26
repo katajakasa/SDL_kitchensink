@@ -299,6 +299,8 @@ static bool Kit_IsRunning(const Kit_Player *player) {
     if(player->dec_threads[KIT_AUDIO_INDEX])
         if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_AUDIO_INDEX]))
             return true;
+    if(!Kit_IsTimerInitialized(player->sync_timer))
+        return false;
     return Kit_GetPlayerPosition(player) < Kit_GetPlayerDuration(player);
 }
 
@@ -797,6 +799,10 @@ void Kit_PlayerStop(Kit_Player *player) {
             Kit_AbortAllBuffers(player);
             Kit_WaitThreads(player);
             Kit_FlushAllBuffers(player);
+            // Rewind the clock, so a stopped player reads position 0 and a following
+            // Kit_PlayerPlay() starts over. (The lazy end-of-media settle deliberately does
+            // NOT do this -- an ended player parks its position at the duration.)
+            Kit_ResetTimerBase(player->sync_timer);
             break;
     }
     SDL_UnlockMutex(player->control_lock);
