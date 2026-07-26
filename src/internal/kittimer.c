@@ -2,6 +2,7 @@
 
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink2/kiterror.h"
 #include <stdlib.h>
 
 typedef struct Kit_TimerValue {
@@ -25,9 +26,11 @@ Kit_Timer *Kit_CreateTimer() {
     Kit_TimerValue *value;
 
     if((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
+        Kit_SetError("Unable to allocate timer");
         goto exit_0;
     }
     if((value = calloc(1, sizeof(Kit_TimerValue))) == NULL) {
+        Kit_SetError("Unable to allocate timer value");
         goto exit_1;
     }
 
@@ -49,6 +52,7 @@ exit_0:
 Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
     Kit_Timer *timer;
     if((timer = calloc(1, sizeof(Kit_Timer))) == NULL) {
+        Kit_SetError("Unable to allocate secondary timer");
         return NULL;
     }
     timer->ref = src->ref;
