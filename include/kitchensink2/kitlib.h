@@ -55,6 +55,8 @@ typedef enum Kit_HintType
     KIT_HINT_VIDEO_EARLY_THRESHOLD,   ///< Early threshold for video frames in milliseconds (default: 5ms)
     KIT_HINT_AUDIO_LATE_THRESHOLD,    ///< Late threshold for audio frames in milliseconds (default: 50ms)
     KIT_HINT_AUDIO_EARLY_THRESHOLD,   ///< Early threshold for audio frames in milliseconds (default: 30ms)
+    KIT_HINT_DEMUXER_READ_ATTEMPTS,   ///< Read attempts before a failing read is treated as end-of-stream (default: 3)
+    KIT_HINT_DEMUXER_READ_RETRY_DELAY, ///< Delay between read retry attempts in milliseconds (default: 10ms)
 } Kit_HintType;
 
 /**

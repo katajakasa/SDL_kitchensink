@@ -23,8 +23,15 @@ void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index) {
 }
 
 bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
-    if(av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet) < 0) {
-        return false;
+    for(unsigned int attempt = 0;; attempt++) {
+        const int ret = av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet);
+        if(ret >= 0)
+            break;
+        if(ret == AVERROR_EOF)
+            return false;
+        if(attempt >= Kit_GetLibraryState()->demuxer_read_attempts - 1)
+            return false;
+        SDL_Delay(Kit_GetLibraryState()->demuxer_read_retry_delay);
     }
 
     // Figure out if we are interested in this stream. If we are, write the packet to a buffer for decoder to pick up.

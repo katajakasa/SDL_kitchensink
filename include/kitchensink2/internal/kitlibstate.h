@@ -18,6 +18,8 @@ typedef struct Kit_LibraryState {
     unsigned int video_late_threshold;
     unsigned int audio_early_threshold;
     unsigned int audio_late_threshold;
+    unsigned int demuxer_read_attempts;
+    unsigned int demuxer_read_retry_delay;
     ASS_Library *libass_handle;
     void *ass_so_handle;
 } Kit_LibraryState;
