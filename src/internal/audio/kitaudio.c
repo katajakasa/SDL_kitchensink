@@ -244,6 +244,16 @@ Kit_Decoder *Kit_CreateAudioDecoder(
         // No need to Kit_SetError, it will be set in Kit_CreateDecoder.
         goto exit_audio_dec;
     }
+    // Some decoders (notably raw PCM codecs used by e.g. WAV files) never populate a channel order in the
+    // codec context, since there is no bitstream-level negotiation to do for them. swr_convert_frame() requires
+    // a fully specified input channel layout though, so fall back to a sane default (based on channel count)
+    // whenever the codec left it unspecified.
+    if(decoder->codec_ctx->ch_layout.order == AV_CHANNEL_ORDER_UNSPEC) {
+        const int nb_channels = decoder->codec_ctx->ch_layout.nb_channels;
+        av_channel_layout_uninit(&decoder->codec_ctx->ch_layout);
+        av_channel_layout_default(&decoder->codec_ctx->ch_layout, nb_channels);
+    }
+
     if((in_frame = av_frame_alloc()) == NULL) {
         Kit_SetError("Unable to allocate input audio frame for stream %d", stream_index);
         goto exit_decoder;
