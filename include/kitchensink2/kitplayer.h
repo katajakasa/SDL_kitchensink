@@ -504,9 +504,6 @@ KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 /**
  * @brief Returns the current state of the player
  *
- * Note that this is not a pure read: if playback has finished, this performs the transition to
- * KIT_STOPPED (shutting down the internal decoder threads).
- *
  * @param player Player instance
  * @return Current state of the player, see Kit_PlayerState
  */
@@ -553,7 +550,8 @@ KIT_API void Kit_PlayerPause(Kit_Player *player);
  *
  * Rewinds or forwards video/audio playback to the given timestamp (in seconds).
  *
- * The player must be playing or paused; seeking a stopped player fails.
+ * If the player has already stopped, the playback will be restarted from the seek position.
+ * If the player is paused, it will start from the seek position when playback is continued.
  *
  * This may not work for network or custom sources!
  *

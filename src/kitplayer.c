@@ -765,6 +765,7 @@ Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
 void Kit_PlayerPlay(Kit_Player *player) {
     assert(player != NULL);
     SDL_LockMutex(player->control_lock);
+    Kit_VerifyState(player);
     switch(Kit_GetState(player)) {
         case KIT_PLAYING:
         case KIT_CLOSED:
@@ -804,6 +805,7 @@ void Kit_PlayerStop(Kit_Player *player) {
 void Kit_PlayerPause(Kit_Player *player) {
     assert(player != NULL);
     SDL_LockMutex(player->control_lock);
+    Kit_VerifyState(player);
     if(Kit_GetState(player) == KIT_PLAYING) {
         Kit_PauseTimer(player->sync_timer);
         Kit_SetState(player, KIT_PAUSED);
@@ -814,8 +816,9 @@ void Kit_PlayerPause(Kit_Player *player) {
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
     SDL_LockMutex(player->control_lock);
+    Kit_VerifyState(player);
     const Kit_PlayerState state = Kit_GetState(player);
-    if(state == KIT_STOPPED || state == KIT_CLOSED) {
+    if(state == KIT_CLOSED) {
         SDL_UnlockMutex(player->control_lock);
         Kit_SetError("Player is closed");
         return 1;
@@ -836,6 +839,14 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     // immediately on thread start.
     Kit_SeekDemuxerThread(player->demux_thread, seek_set * AV_TIME_BASE);
     Kit_StartThreads(player);
+
+    // A stopped player restarts playback from the seek position. The timer resume matters only
+    // when the player settled to stopped state while its clock was still paused; in other stop
+    // paths the clock is already unpaused and the resume is a no-op.
+    if(state == KIT_STOPPED) {
+        Kit_ResumeTimer(player->sync_timer);
+        Kit_SetState(player, KIT_PLAYING);
+    }
     SDL_UnlockMutex(player->control_lock);
 
     return 0;
