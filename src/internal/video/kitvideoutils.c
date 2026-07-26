@@ -77,11 +77,14 @@ enum AVPixelFormat Kit_FindAVPixelFormat(const unsigned int fmt)
 {
     switch(fmt) {
         case SDL_PIXELFORMAT_YV12:
+        case SDL_PIXELFORMAT_IYUV:
             return AV_PIX_FMT_YUV420P;
         case SDL_PIXELFORMAT_YUY2:
             return AV_PIX_FMT_YUYV422;
         case SDL_PIXELFORMAT_UYVY:
             return AV_PIX_FMT_UYVY422;
+        case SDL_PIXELFORMAT_YVYU:
+            return AV_PIX_FMT_YVYU422;
         case SDL_PIXELFORMAT_NV12:
             return AV_PIX_FMT_NV12;
         case SDL_PIXELFORMAT_NV21:
@@ -94,6 +97,10 @@ enum AVPixelFormat Kit_FindAVPixelFormat(const unsigned int fmt)
             return AV_PIX_FMT_BGRA;
         case SDL_PIXELFORMAT_ABGR32:
             return AV_PIX_FMT_ABGR;
+        case SDL_PIXELFORMAT_RGB888:
+            return AV_PIX_FMT_0RGB32;
+        case SDL_PIXELFORMAT_BGR888:
+            return AV_PIX_FMT_0BGR32;
         case SDL_PIXELFORMAT_BGR24:
             return AV_PIX_FMT_BGR24;
         case SDL_PIXELFORMAT_RGB24:
