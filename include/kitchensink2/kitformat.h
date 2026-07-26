@@ -66,6 +66,12 @@ typedef enum Kit_AudioChannelLayout
  * @brief Used to request specific type for formats for output video
  *
  * Note that any requests here will cause software conversion, which may be slow!
+ *
+ * A requested surface format must be one the player supports: the YUV family
+ * (YV12, IYUV, YUY2, UYVY, YVYU, NV12, NV21) or the RGB family (the RGBA32/ARGB32/BGRA32/ABGR32
+ * byte-order aliases, XRGB8888/XBGR8888, RGB24/BGR24, and the 555/565 16-bit formats).
+ * Requesting anything else fails player creation cleanly with an error -- there is no
+ * automatic fallback to a default format.
  */
 typedef struct Kit_VideoFormatRequest {
     unsigned int

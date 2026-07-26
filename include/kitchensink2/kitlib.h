@@ -40,6 +40,13 @@ typedef struct Kit_Version {
  * @brief Library hint types. Used as keys for Kit_SetHint().
  *
  * Note that all of these must be set *before* player initialization for them to take effect!
+ *
+ * CAUTION on the buffer size hints: the defaults are chosen so that the pipeline can re-prime
+ * itself after a seek. Very small audio buffer sizes (a few packets/frames) can deadlock
+ * post-seek playback: the audio side holds data until the video stream re-bases the shared
+ * clock, and with too little audio buffer slack that backpressure stalls the shared demuxer
+ * thread before video can decode its first frame. Prefer the defaults; if you must shrink,
+ * keep the audio buffers at a couple dozen packets/frames or more.
  */
 typedef enum Kit_HintType
 {
@@ -77,7 +84,9 @@ enum
  *
  * Following flags can be used to initialize subsystems:
  * - `KIT_INIT_NETWORK` for ffmpeg network support (playback from the internet, for example)
- * - `KIT_INIT_ASS` for libass subtitles (text and ass/ssa subtitle support)
+ * - `KIT_INIT_ASS` for libass subtitles (text and ass/ssa subtitle support). NOTE: this flag is
+ *   *required* for playing text-based subtitle streams (SRT/ASS/SSA) -- without it, creating a
+ *   player with such a subtitle stream selected fails. Bitmap subtitles work without it.
  * - `KIT_INIT_HW_DECODE` to enable hardware decoding capabilities. Hardware is picked automatically.
  *
  * Note that if this function fails, the failure reason should be available via Kit_GetError().

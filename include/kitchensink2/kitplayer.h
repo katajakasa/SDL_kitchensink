@@ -68,8 +68,12 @@ typedef struct Kit_PlayerInfo {
  * if you plan to use font hinting! If you don't care or don't have subtitles at all,
  * set both to video surface size or 0.
  *
- * For streams, either video and/or audio stream MUST be set! Either set the stream indexes manually,
- * or pick them automatically by using Kit_GetBestSourceStream().
+ * Stream indexes can be set manually, or picked automatically by using Kit_GetBestSourceStream().
+ * Any stream can be left out with -1. Normally you want at least a video and/or an audio stream;
+ * a player with every index set to -1 is valid, but idle (it has nothing to decode). A subtitle
+ * stream requires a video stream to attach to, and text-based subtitle formats (SRT/ASS/SSA)
+ * additionally require the library to be initialized with the KIT_INIT_ASS flag -- player
+ * creation fails otherwise.
  *
  * If hardware accelerated decoding has been enabled in Kit_Init(), then an automatic acquisition
  * of hardware decoder context is attempted. If acquiring a hardware decoder fails, we fall back to standard
@@ -557,6 +561,10 @@ KIT_API void Kit_PlayerPause(Kit_Player *player);
  *
  * If the player has already stopped, the playback will be restarted from the seek position.
  * If the player is paused, it will start from the seek position when playback is continued.
+ *
+ * Out-of-range targets are silently clamped to [0, duration] and the call still reports
+ * success. Note also that the actual seek operation runs asynchronously on the demuxer
+ * thread; if it fails there, playback simply continues from the old position.
  *
  * This may not work for network or custom sources!
  *
