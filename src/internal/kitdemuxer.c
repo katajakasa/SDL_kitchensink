@@ -9,19 +9,48 @@
 #include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/kiterror.h"
 
-static void Kit_SendEOFPacket(Kit_Demuxer *demuxer) {
-    for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if(!demuxer->buffers[i])
-            continue;
-        demuxer->scratch_packet->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_EOF, 0);
-        Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet);
+void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index) {
+    AVPacket *packet;
+    if(!demuxer->buffers[index])
+        return;
+    // Use a local packet instead of the shared scratch packet -- this may get called from the API thread
+    // (stream switch) while the demuxer thread is still sending its own EOF packets on exit.
+    if((packet = av_packet_alloc()) == NULL)
+        return;
+    packet->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_EOF, 0);
+    Kit_WritePacketBuffer(demuxer->buffers[index], packet);
+    av_packet_free(&packet);
+}
+
+/**
+ * Sleep up to delay_ms in small slices, bailing out early if the demuxer gets aborted. This keeps
+ * player stop/close/seek latency bounded by a single slice, no matter how large the configured
+ * retry delay is. Returns false if the demuxer was aborted.
+ */
+static bool Kit_DemuxerRetryDelay(Kit_Demuxer *demuxer, unsigned int delay_ms) {
+    while(delay_ms > 0) {
+        if(SDL_AtomicGet(&demuxer->abort_requested))
+            return false;
+        const unsigned int slice = delay_ms < 10 ? delay_ms : 10;
+        SDL_Delay(slice);
+        delay_ms -= slice;
     }
+    return !SDL_AtomicGet(&demuxer->abort_requested);
 }
 
 bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
-    if(av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet) < 0) {
-        Kit_SendEOFPacket(demuxer);
-        return false;
+    for(unsigned int attempt = 0;; attempt++) {
+        const int ret = av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet);
+        if(ret >= 0)
+            break;
+        if(ret == AVERROR_EOF)
+            return false;
+        if(attempt >= Kit_GetLibraryState()->demuxer_read_attempts - 1)
+            return false;
+        // On abort, bail out through the EOF path. The EOF packets written by the demuxer thread
+        // then land in already-aborted buffers and are simply dropped.
+        if(!Kit_DemuxerRetryDelay(demuxer, Kit_GetLibraryState()->demuxer_read_retry_delay))
+            return false;
     }
 
     // Figure out if we are interested in this stream. If we are, write the packet to a buffer for decoder to pick up.
@@ -120,9 +149,10 @@ error_0:
     return NULL;
 }
 
-void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer) {
+void Kit_ClearDemuxerBuffers(Kit_Demuxer *demuxer) {
     if(!demuxer)
         return;
+    SDL_AtomicSet(&demuxer->abort_requested, 0);
     for(int i = 0; i < KIT_INDEX_COUNT; i++)
         Kit_FlushPacketBuffer(demuxer->buffers[i]);
 }
@@ -132,9 +162,10 @@ void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int 
     SDL_AtomicSet(&demuxer->stream_indexes[index], stream_index);
 }
 
-void Kit_AbortDemuxer(const Kit_Demuxer *demuxer) {
+void Kit_AbortDemuxer(Kit_Demuxer *demuxer) {
     if(!demuxer)
         return;
+    SDL_AtomicSet(&demuxer->abort_requested, 1);
     for(int i = 0; i < KIT_INDEX_COUNT; i++)
         Kit_AbortPacketBuffer(demuxer->buffers[i]);
 }
@@ -168,10 +199,10 @@ static void Kit_SendSeekPacket(Kit_Demuxer *demuxer, unsigned int seek_serial) {
     }
 }
 
-bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target, unsigned int seek_serial) {
+bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, Kit_Timer *timer, const int64_t seek_target) {
     if(avformat_seek_file(demuxer->src->format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, 0) >= 0) {
         Kit_ClearDemuxerBuffers(demuxer);
-        Kit_SendSeekPacket(demuxer, seek_serial);
+        Kit_SendSeekPacket(demuxer, Kit_IncreaseTimerSerial(timer));
         return true;
     }
     return false;

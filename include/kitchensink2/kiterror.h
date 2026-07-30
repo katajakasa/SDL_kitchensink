@@ -10,6 +10,7 @@
  * @file kiterror.h
  * @author Tuomas Virtanen
  * @date 2018-06-25
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
 #include "kitchensink2/kitconfig.h"

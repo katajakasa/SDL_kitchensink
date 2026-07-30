@@ -130,6 +130,12 @@ void Kit_SetHint(Kit_HintType type, int value) {
         case KIT_HINT_VIDEO_LATE_THRESHOLD:
             state->video_late_threshold = Kit_max(value, 0);
             break;
+        case KIT_HINT_DEMUXER_READ_ATTEMPTS:
+            state->demuxer_read_attempts = Kit_max(value, 1);
+            break;
+        case KIT_HINT_DEMUXER_READ_RETRY_DELAY:
+            state->demuxer_read_retry_delay = Kit_max(value, 0);
+            break;
     }
 }
 
@@ -160,6 +166,10 @@ int Kit_GetHint(Kit_HintType type) {
             return state->video_early_threshold;
         case KIT_HINT_VIDEO_LATE_THRESHOLD:
             return state->video_late_threshold;
+        case KIT_HINT_DEMUXER_READ_ATTEMPTS:
+            return state->demuxer_read_attempts;
+        case KIT_HINT_DEMUXER_READ_RETRY_DELAY:
+            return state->demuxer_read_retry_delay;
         default:
             return 0;
     }

@@ -7,6 +7,7 @@
  * @file kitplayer.h
  * @author Tuomas Virtanen
  * @date 2018-06-27
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
 #include "kitchensink2/kitcodec.h"
@@ -68,8 +69,12 @@ typedef struct Kit_PlayerInfo {
  * if you plan to use font hinting! If you don't care or don't have subtitles at all,
  * set both to video surface size or 0.
  *
- * For streams, either video and/or audio stream MUST be set! Either set the stream indexes manually,
- * or pick them automatically by using Kit_GetBestSourceStream().
+ * Stream indexes can be set manually, or picked automatically by using Kit_GetBestSourceStream().
+ * Any stream can be left out with -1. Normally you want at least a video and/or an audio stream;
+ * a player with every index set to -1 is valid, but idle (it has nothing to decode). A subtitle
+ * stream requires a video stream to attach to, and text-based subtitle formats (SRT/ASS/SSA)
+ * additionally require the library to be initialized with the KIT_INIT_ASS flag -- player
+ * creation fails otherwise.
  *
  * If hardware accelerated decoding has been enabled in Kit_Init(), then an automatic acquisition
  * of hardware decoder context is attempted. If acquiring a hardware decoder fails, we fall back to standard
@@ -309,7 +314,8 @@ KIT_API SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, S
  * @param player Player instance
  * @param texture A previously allocated texture
  * @param area Rendered video surface area or NULL.
- * @return 0 if the texture was updated (or playback is not active), 1 if no new frame was available
+ * @return 0 if the texture was updated and 1 if no new frame was available, when playback
+ *         is stopped or paused, or no video stream is selected.
  */
 KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 
@@ -472,10 +478,12 @@ KIT_API int Kit_GetPlayerSubtitleRawFrames(
  *
  * Audio data format can be acquired by calling Kit_GetPlayerInfo().
  *
- * The "backend_buffer_size" argument should be set to the size of backend (hardware) audio buffers.
- * If your backend is SDL2, this can be provided by SDL_GetQueuedAudioSize(). This information is used
- * to supply silence, if the output is almost empty and video stream has no audio data to give.
- * If you don't have this value or just don't care, just set it to UINT_MAX or some other large value.
+ * The "backend_buffer_size" argument should be set to the amount of audio currently queued in the
+ * backend (hardware) buffers. If your backend is SDL2, this can be provided by
+ * SDL_GetQueuedAudioSize(). This information is used to supply silence if the backend queue is about
+ * to run empty while the decoder momentarily has no audio data to give, protecting against audible
+ * underruns. If you don't have this value, a large value (e.g. SIZE_MAX) disables the silence
+ * padding, while 0 always enables it whenever the decoder has no data.
  *
  * This function will do nothing if player playback has not been started.
  *
@@ -504,9 +512,6 @@ KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 /**
  * @brief Returns the current state of the player
  *
- * Note that this is not a pure read: if playback has finished, this performs the transition to
- * KIT_STOPPED (shutting down the internal decoder threads).
- *
  * @param player Player instance
  * @return Current state of the player, see Kit_PlayerState
  */
@@ -532,6 +537,8 @@ KIT_API void Kit_PlayerPlay(Kit_Player *player);
  * - If player is paused, will stop playback.
  * - If player is started, will stop playback (and background decoding).
  *
+ * Note that after calling this, Kit_GetPlayerPosition() will return 0.
+ *
  * @param player Player instance
  */
 KIT_API void Kit_PlayerStop(Kit_Player *player);
@@ -553,7 +560,12 @@ KIT_API void Kit_PlayerPause(Kit_Player *player);
  *
  * Rewinds or forwards video/audio playback to the given timestamp (in seconds).
  *
- * The player must be playing or paused; seeking a stopped player fails.
+ * If the player has already stopped, the playback will be restarted from the seek position.
+ * If the player is paused, it will start from the seek position when playback is continued.
+ *
+ * Out-of-range targets are silently clamped to [0, duration] and the call still reports
+ * success. Note also that the actual seek operation runs asynchronously on the demuxer
+ * thread; if it fails there, playback simply continues from the old position.
  *
  * This may not work for network or custom sources!
  *
@@ -576,10 +588,11 @@ KIT_API double Kit_GetPlayerDuration(const Kit_Player *player);
 /**
  * @brief Get the current position of the playback
  *
- * Returns the position of the playback in seconds
+ * Returns the position of the playback in seconds. If playback has not yet started,
+ * or playback has been stopped, this will return 0.
  *
  * @param player Player instance
- * @return Position
+ * @return Position in seconds
  */
 KIT_API double Kit_GetPlayerPosition(const Kit_Player *player);
 

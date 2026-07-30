@@ -299,6 +299,8 @@ static bool Kit_IsRunning(const Kit_Player *player) {
     if(player->dec_threads[KIT_AUDIO_INDEX])
         if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_AUDIO_INDEX]))
             return true;
+    if(!Kit_IsTimerInitialized(player->sync_timer))
+        return false;
     return Kit_GetPlayerPosition(player) < Kit_GetPlayerDuration(player);
 }
 
@@ -464,7 +466,7 @@ int Kit_GetPlayerSubtitleStream(const Kit_Player *player) {
 
 int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area) {
     assert(player != NULL);
-    int ret = 0;
+    int ret = 1;
     Kit_LockDecoderCtrl(player, KIT_VIDEO_INDEX);
     Kit_Decoder *decoder = player->decoders[KIT_VIDEO_INDEX];
     const Kit_PlayerState state = Kit_GetState(player);
@@ -765,6 +767,7 @@ Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
 void Kit_PlayerPlay(Kit_Player *player) {
     assert(player != NULL);
     SDL_LockMutex(player->control_lock);
+    Kit_VerifyState(player);
     switch(Kit_GetState(player)) {
         case KIT_PLAYING:
         case KIT_CLOSED:
@@ -796,6 +799,10 @@ void Kit_PlayerStop(Kit_Player *player) {
             Kit_AbortAllBuffers(player);
             Kit_WaitThreads(player);
             Kit_FlushAllBuffers(player);
+            // Rewind the clock, so a stopped player reads position 0 and a following
+            // Kit_PlayerPlay() starts over. (The lazy end-of-media settle deliberately does
+            // NOT do this -- an ended player parks its position at the duration.)
+            Kit_ResetTimerBase(player->sync_timer);
             break;
     }
     SDL_UnlockMutex(player->control_lock);
@@ -804,6 +811,7 @@ void Kit_PlayerStop(Kit_Player *player) {
 void Kit_PlayerPause(Kit_Player *player) {
     assert(player != NULL);
     SDL_LockMutex(player->control_lock);
+    Kit_VerifyState(player);
     if(Kit_GetState(player) == KIT_PLAYING) {
         Kit_PauseTimer(player->sync_timer);
         Kit_SetState(player, KIT_PAUSED);
@@ -814,8 +822,9 @@ void Kit_PlayerPause(Kit_Player *player) {
 int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     assert(player != NULL);
     SDL_LockMutex(player->control_lock);
+    Kit_VerifyState(player);
     const Kit_PlayerState state = Kit_GetState(player);
-    if(state == KIT_STOPPED || state == KIT_CLOSED) {
+    if(state == KIT_CLOSED) {
         SDL_UnlockMutex(player->control_lock);
         Kit_SetError("Player is closed");
         return 1;
@@ -836,6 +845,14 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     // immediately on thread start.
     Kit_SeekDemuxerThread(player->demux_thread, seek_set * AV_TIME_BASE);
     Kit_StartThreads(player);
+
+    // A stopped player restarts playback from the seek position. The timer resume matters only
+    // when the player settled to stopped state while its clock was still paused; in other stop
+    // paths the clock is already unpaused and the resume is a no-op.
+    if(state == KIT_STOPPED) {
+        Kit_ResumeTimer(player->sync_timer);
+        Kit_SetState(player, KIT_PLAYING);
+    }
     SDL_UnlockMutex(player->control_lock);
 
     return 0;
@@ -1019,6 +1036,10 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
     // Switch demuxer to track the new stream index. This will also clear the packet buffer, so that the decoder
     // will no longer get packets from the old stream.
     Kit_SetDemuxerStreamIndex(player->demuxer, buffer_index, index);
+
+    // EOF packet may have been lost in the flush; resend it if needed.
+    if(!Kit_IsDemuxerThreadAlive(player->demux_thread))
+        Kit_SendDemuxerEOFPacket(player->demuxer, buffer_index);
 
     // Set the new decoder and thread, and spin up the thread if we were already playing.
     Kit_LockDecoderCtrl(player, buffer_index);

@@ -304,12 +304,10 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
-    // Run until playback is stopped
+    // Run until the user quits. When playback ends, the window goes black but stays open --
+    // clicking the progress bar seeks, which restarts playback from the clicked position.
     while(run) {
-        if(Kit_GetPlayerState(player) == KIT_STOPPED) {
-            run = false;
-            continue;
-        }
+        const bool stopped = Kit_GetPlayerState(player) == KIT_STOPPED;
 
         // Check for events
         const Uint8 *state;
@@ -446,15 +444,18 @@ int main(int argc, char *argv[]) {
 
         // Refresh the video texture and render it. Do not that Kit_GetPlayerVideoData does not change the texture
         // or the video area coords if there is no new video data! In that case, you should just use the old content.
-        Kit_GetPlayerVideoSDLTexture(player, video_tex, &video_area);
-        SDL_RenderCopy(renderer, video_tex, &video_area, NULL);
+        // A stopped player renders nothing, leaving the cleared (black) window.
+        if(!stopped) {
+            Kit_GetPlayerVideoSDLTexture(player, video_tex, &video_area);
+            SDL_RenderCopy(renderer, video_tex, &video_area, NULL);
 
-        // Refresh subtitle texture atlas and render subtitle frames from it
-        // For subtitles, use screen size instead of video size for best quality
-        if(subtitle_tex != NULL) {
-            int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
-            for(int i = 0; i < got; i++) {
-                SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+            // Refresh subtitle texture atlas and render subtitle frames from it
+            // For subtitles, use screen size instead of video size for best quality
+            if(subtitle_tex != NULL) {
+                int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
+                for(int i = 0; i < got; i++) {
+                    SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+                }
             }
         }
 

@@ -6,17 +6,26 @@
 
 static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;
+    bool eof = false;
 
     while(SDL_AtomicGet(&thread->run)) {
         if(thread->seek) {
             // Seeks are only requested while the demuxer thread is stopped, no locks needed.
             thread->seek = false;
-            Kit_DemuxerSeek(thread->demuxer, thread->seek_target, thread->seek_serial);
+            Kit_DemuxerSeek(thread->demuxer, thread->timer, thread->seek_target);
         }
-        if(!Kit_RunDemuxer(thread->demuxer))
+        if(!Kit_RunDemuxer(thread->demuxer)) {
+            eof = true;
             break;
+        }
     }
+
     SDL_AtomicSet(&thread->run, 0);
+    if(eof) {
+        for(int i = 0; i < KIT_INDEX_COUNT; i++) {
+            Kit_SendDemuxerEOFPacket(thread->demuxer, i);
+        }
+    }
     return 0;
 }
 
@@ -37,7 +46,6 @@ Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer, const Kit_Timer
     demuxer_thread->demuxer = demuxer;
     demuxer_thread->seek = false;
     demuxer_thread->seek_target = 0;
-    demuxer_thread->seek_serial = 0;
     demuxer_thread->timer = seek_timer;
     SDL_AtomicSet(&demuxer_thread->run, 0);
     return demuxer_thread;
@@ -51,7 +59,6 @@ exit_0:
 void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_target) {
     assert(demuxer_thread->thread == NULL);
     demuxer_thread->seek_target = seek_target;
-    demuxer_thread->seek_serial = Kit_IncreaseTimerSerial(demuxer_thread->timer);
     demuxer_thread->seek = true;
 }
 

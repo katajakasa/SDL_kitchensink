@@ -23,9 +23,15 @@ set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -DNDEBUG")
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(USE_DYNAMIC_LIBASS "Use dynamically loaded libass" OFF)
 option(USE_ASAN "Use AddressSanitizer" OFF)
+option(USE_TSAN "Use ThreadSanitizer" OFF)
 option(USE_TIDY "Use clang-tidy" OFF)
+option(USE_FORMAT "Use clang-format for formatting" OFF)
 option(BUILD_SHARED "Build shared library" ON)
 option(BUILD_STATIC "Build static library" ON)
+
+if (USE_ASAN AND USE_TSAN)
+    message(FATAL_ERROR "USE_ASAN and USE_TSAN are mutually exclusive")
+endif ()
 
 if (NOT BUILD_SHARED AND NOT BUILD_STATIC)
     message(FATAL_ERROR "Nothing to build, set BUILD_SHARED and/or BUILD_STATIC.")
@@ -45,6 +51,10 @@ endif ()
 
 if (USE_ASAN)
     message(STATUS "DEVELOPMENT: AddressSanitizer enabled!")
+endif ()
+
+if (USE_TSAN)
+    message(STATUS "DEVELOPMENT: ThreadSanitizer enabled!")
 endif ()
 
 find_package(SDL2 REQUIRED)
@@ -95,6 +105,11 @@ if (BUILD_SHARED)
         target_link_libraries(SDL_kitchensink asan)
     endif ()
 
+    if (USE_TSAN)
+        target_compile_options(SDL_kitchensink PRIVATE "-fsanitize=thread")
+        target_link_libraries(SDL_kitchensink tsan)
+    endif ()
+
     target_link_libraries(SDL_kitchensink ${LIBRARIES})
 
     set_target_properties(SDL_kitchensink PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
@@ -117,6 +132,10 @@ if (BUILD_STATIC)
         target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=address")
     endif ()
 
+    if (USE_TSAN)
+        target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=thread")
+    endif ()
+
     set_target_properties(SDL_kitchensink_static PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
     set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
@@ -133,6 +152,24 @@ if (USE_TIDY)
     message(STATUS "Development: clang-tidy enabled")
 else ()
     message(STATUS "Development: clang-tidy disabled")
+endif ()
+
+if (USE_FORMAT)
+    include(cmake/ClangFormat.cmake)
+    file(GLOB_RECURSE FORMAT_FILES
+            LIST_DIRECTORIES OFF
+            CONFIGURE_DEPENDS
+            RELATIVE ${CMAKE_SOURCE_DIR}
+            "src/*.c"
+            "src/*.h"
+            "include/*.h"
+            "examples/*.c"
+            "tests/*.c"
+    )
+    clangformat_setup(${FORMAT_FILES})
+    message(STATUS "Development: clang-format enabled")
+else ()
+    message(STATUS "Development: clang-format disabled")
 endif ()
 
 set(PC_REQUIRES_PRIVATE "sdl2 libavcodec libavformat libavutil libswresample libswscale")
@@ -163,6 +200,9 @@ if (BUILD_EXAMPLES)
     if (USE_ASAN)
         set(EXAMPLE_LIBRARIES asan ${EXAMPLE_LIBRARIES})
     endif ()
+    if (USE_TSAN)
+        set(EXAMPLE_LIBRARIES tsan ${EXAMPLE_LIBRARIES})
+    endif ()
 
     foreach (TARGET ${EXAMPLE_TARGETS})
         add_executable(${TARGET} examples/example_${TARGET}.c)
@@ -178,6 +218,9 @@ if (BUILD_EXAMPLES)
 
         if (USE_ASAN)
             target_compile_options(${TARGET} PRIVATE "-fsanitize=address")
+        endif ()
+        if (USE_TSAN)
+            target_compile_options(${TARGET} PRIVATE "-fsanitize=thread")
         endif ()
     endforeach ()
 endif ()

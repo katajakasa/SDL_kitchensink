@@ -7,6 +7,7 @@
  * @file kitlib.h
  * @author Tuomas Virtanen
  * @date 2018-06-25
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
 #include "kitchensink2/kitconfig.h"
@@ -40,6 +41,13 @@ typedef struct Kit_Version {
  * @brief Library hint types. Used as keys for Kit_SetHint().
  *
  * Note that all of these must be set *before* player initialization for them to take effect!
+ *
+ * CAUTION on the buffer size hints: the defaults are chosen so that the pipeline can re-prime
+ * itself after a seek. Very small audio buffer sizes (a few packets/frames) can deadlock
+ * post-seek playback: the audio side holds data until the video stream re-bases the shared
+ * clock, and with too little audio buffer slack that backpressure stalls the shared demuxer
+ * thread before video can decode its first frame. Prefer the defaults; if you must shrink,
+ * keep the audio buffers at a couple dozen packets/frames or more.
  */
 typedef enum Kit_HintType
 {
@@ -55,6 +63,8 @@ typedef enum Kit_HintType
     KIT_HINT_VIDEO_EARLY_THRESHOLD,   ///< Early threshold for video frames in milliseconds (default: 5ms)
     KIT_HINT_AUDIO_LATE_THRESHOLD,    ///< Late threshold for audio frames in milliseconds (default: 50ms)
     KIT_HINT_AUDIO_EARLY_THRESHOLD,   ///< Early threshold for audio frames in milliseconds (default: 30ms)
+    KIT_HINT_DEMUXER_READ_ATTEMPTS,   ///< Read attempts before a failing read is treated as end-of-stream (default: 3)
+    KIT_HINT_DEMUXER_READ_RETRY_DELAY, ///< Delay between read retry attempts in milliseconds (default: 10ms)
 } Kit_HintType;
 
 /**
@@ -75,7 +85,9 @@ enum
  *
  * Following flags can be used to initialize subsystems:
  * - `KIT_INIT_NETWORK` for ffmpeg network support (playback from the internet, for example)
- * - `KIT_INIT_ASS` for libass subtitles (text and ass/ssa subtitle support)
+ * - `KIT_INIT_ASS` for libass subtitles (text and ass/ssa subtitle support). NOTE: this flag is
+ *   *required* for playing text-based subtitle streams (SRT/ASS/SSA) -- without it, creating a
+ *   player with such a subtitle stream selected fails. Bitmap subtitles work without it.
  * - `KIT_INIT_HW_DECODE` to enable hardware decoding capabilities. Hardware is picked automatically.
  *
  * Note that if this function fails, the failure reason should be available via Kit_GetError().

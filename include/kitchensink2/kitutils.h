@@ -7,6 +7,7 @@
  * @file kitutils.h
  * @author Tuomas Virtanen
  * @date 2018-06-25
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
 #include "kitchensink2/kitconfig.h"
@@ -36,12 +37,13 @@ KIT_API const char *Kit_GetSDLPixelFormatString(unsigned int type);
  * @brief Returns a descriptive string for Kitchensink stream types
  *
  * @param type Kit_StreamType
- * @return Format string, eg. "KIT_STREAMTYPE_VIDEO"
+ * @return Format string, eg. "KIT_STREAMTYPE_VIDEO", or NULL for unknown values
  */
 KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
 
 /**
  * @brief Returns a descriptive string for Kitchensink hardware video decoder type
+ *
  * @param type Kit_HardwareDeviceType
  * @return Format string, eg. "KIT_HWDEVICE_TYPE_VDPAU"
  */
