@@ -27,6 +27,7 @@ typedef struct Kit_Demuxer {
     const Kit_Source *src;                          ///< Source being demuxed; not owned.
     Kit_PacketBuffer *buffers[KIT_INDEX_COUNT];      ///< Per-stream-type output packet buffers; NULL if unused.
     SDL_atomic_t stream_indexes[KIT_INDEX_COUNT];    ///< Per-stream-type source stream index; -1 if unused.
+    SDL_atomic_t abort_requested;                    ///< Breaks the read-retry delay in Kit_RunDemuxer() on abort.
     AVPacket *scratch_packet;                        ///< Reusable packet used for reading/writing.
 } Kit_Demuxer;
 
@@ -70,20 +71,22 @@ KIT_LOCAL bool Kit_RunDemuxer(Kit_Demuxer *demuxer);
 KIT_LOCAL Kit_PacketBuffer *Kit_GetDemuxerPacketBuffer(const Kit_Demuxer *demuxer, Kit_BufferIndex buffer_index);
 
 /**
- * @brief Flushes all of the demuxer's packet buffers.
+ * @brief Flushes all of the demuxer's packet buffers and clears the demuxer's abort state.
  *
  * @param demuxer Demuxer whose buffers to flush; no-op if NULL.
  */
-KIT_LOCAL void Kit_ClearDemuxerBuffers(const Kit_Demuxer *demuxer);
+KIT_LOCAL void Kit_ClearDemuxerBuffers(Kit_Demuxer *demuxer);
 
 /**
- * @brief Unblocks any full/empty waits on all of the demuxer's packet buffers.
+ * @brief Unblocks any full/empty waits on all of the demuxer's packet buffers, and breaks an ongoing
+ * read-retry delay in Kit_RunDemuxer().
  *
- * Only wakes blocked buffer operations; it does not stop the demuxer thread's run loop by itself.
+ * Only wakes blocked buffer operations and retry waits; it does not stop the demuxer thread's run loop
+ * by itself. The abort state is cleared by Kit_ClearDemuxerBuffers().
  *
  * @param demuxer Demuxer to abort; no-op if NULL.
  */
-KIT_LOCAL void Kit_AbortDemuxer(const Kit_Demuxer *demuxer);
+KIT_LOCAL void Kit_AbortDemuxer(Kit_Demuxer *demuxer);
 
 /**
  * @brief Seeks the underlying format context and, on success, flushes buffers and injects a seek marker packet.
