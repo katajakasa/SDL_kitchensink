@@ -729,14 +729,14 @@ void Kit_GetPlayerVideoBufferState(
 
 void Kit_GetPlayerAudioBufferState(
     const Kit_Player *player,
-    unsigned int *samples_length,
-    unsigned int *samples_capacity,
+    unsigned int *frames_length,
+    unsigned int *frames_capacity,
     unsigned int *packets_length,
     unsigned int *packets_capacity
 ) {
     assert(player != NULL);
     Kit_LockDecoderCtrl(player, KIT_AUDIO_INDEX);
-    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], samples_length, samples_capacity);
+    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], frames_length, frames_capacity);
     Kit_UnlockDecoderCtrl(player, KIT_AUDIO_INDEX);
     Kit_GetDemuxerBufferState(player->demuxer, KIT_AUDIO_INDEX, packets_length, packets_capacity);
 }

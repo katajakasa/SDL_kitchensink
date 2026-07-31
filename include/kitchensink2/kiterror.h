@@ -23,6 +23,8 @@ extern "C" {
  * @brief Returns the latest error of the calling thread. This is set by SDL_kitchensink library
  * functions on error.
  *
+ * Note that reading the error consumes it: a second call returns NULL until a new error is set.
+ *
  * @return Error message or NULL
  */
 KIT_API const char *Kit_GetError();
