@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "example_common.h"
+
 /*
  * Note! This example does not do proper error handling etc.
  * It is for example use only!
@@ -94,8 +96,8 @@ static void draw_cube(void) {
  * @param screen_h Window height in pixels
  */
 static void set_perspective(int screen_w, int screen_h) {
-    float aspect = (float)screen_w / (float)screen_h;
-    float top = 0.1f * tanf(60.0f * (float)M_PI / 360.0f);
+    const float aspect = (float)screen_w / (float)screen_h;
+    const float top = 0.1f * tanf(60.0f * (float)M_PI / 360.0f);
     glViewport(0, 0, screen_w, screen_h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -103,60 +105,28 @@ static void set_perspective(int screen_w, int screen_h) {
 }
 
 int main(int argc, char *argv[]) {
-    int err = 0;
-    const char *filename = NULL;
-    SDL_Window *window = NULL;
-    SDL_GLContext gl_ctx = NULL;
-    bool run = true;
-    Kit_Source *src = NULL;
-    Kit_Player *player = NULL;
-    Kit_VideoFormatRequest video_request;
-    int screen_w = 1280, screen_h = 720;
+    const int screen_w = 1280, screen_h = 720;
 
     // Get filename to open
-    if(argc != 2) {
-        fprintf(stderr, "Usage: glcube <filename>\n");
-        return 0;
-    }
-    filename = argv[1];
+    const char *filename = get_filename_arg(argc, argv, "glcube");
 
     // Init SDL with an OpenGL context. SDL's default GL attributes give us a
     // compatibility context, which is all the fixed-function pipeline needs.
-    err = SDL_Init(SDL_INIT_VIDEO);
-    if(err != 0) {
-        fprintf(stderr, "Unable to initialize SDL2!\n");
-        return 1;
-    }
+    initialize_sdl(SDL_INIT_VIDEO);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-    window = SDL_CreateWindow(
-        filename,
-        SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED,
-        screen_w,
-        screen_h,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
-    );
-    if(window == NULL) {
-        fprintf(stderr, "Unable to create a new window!\n");
-        return 1;
-    }
-    gl_ctx = SDL_GL_CreateContext(window);
-    if(gl_ctx == NULL) {
-        fprintf(stderr, "Unable to create an OpenGL context!\n");
-        return 1;
-    }
-    SDL_GL_SetSwapInterval(1); // Vsync, so we don't need to play around with SDL_Delay.
+    SDL_Window *window = create_window(filename, screen_w, screen_h, SDL_WINDOW_OPENGL);
+    SDL_GLContext gl_ctx = create_gl_context(window);
 
     // Initialize Kitchensink with network support. No libass needed, since we
     // don't render subtitles in this example.
-    err = Kit_Init(KIT_INIT_NETWORK);
+    const int err = Kit_Init(KIT_INIT_NETWORK);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
     }
 
     // Open the source file.
-    src = Kit_CreateSourceFromUrl(filename);
+    Kit_Source *src = Kit_CreateSourceFromUrl(filename);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -168,13 +138,14 @@ int main(int argc, char *argv[]) {
     // conversion on our side. Note that if the decoder does not output RGB
     // natively (most video is YUV), the player converts in software, which
     // costs some performance.
+    Kit_VideoFormatRequest video_request;
     Kit_ResetVideoFormatRequest(&video_request);
     video_request.format = SDL_PIXELFORMAT_RGBA32;
 
     // Create the player with the best video stream. Audio and subtitle streams
     // are disabled by passing -1. The player clock still runs normally, so
     // video frames come out in sync even without an audio device.
-    player = Kit_CreatePlayer(
+    Kit_Player *player = Kit_CreatePlayer(
         src, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO), -1, -1, &video_request, NULL, screen_w, screen_h
     );
     if(player == NULL) {
@@ -211,6 +182,7 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
+    bool run = true;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -256,7 +228,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Render the cube, rotation driven by wall-clock time.
-        float t = SDL_GetTicks() / 1000.0f;
+        const float t = SDL_GetTicks() / 1000.0f;
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();

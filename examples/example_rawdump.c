@@ -26,6 +26,15 @@ typedef struct __attribute__((__packed__)) tga_header {
     uint8_t descriptor;
 } tga_header;
 
+/**
+ * @brief Writes an RGB24 image buffer to disk as an uncompressed TGA file.
+ *
+ * @param filename Path of the file to write
+ * @param src Source image buffer, tightly packed RGB24 pixels
+ * @param w Image width in pixels
+ * @param h Image height in pixels
+ * @return true on success, false on failure
+ */
 bool write_tga(const char *filename, const unsigned char *src, uint16_t w, uint16_t h) {
     FILE *fp = fopen(filename, "wb");
     if(fp == NULL) {
@@ -63,32 +72,23 @@ bool write_tga(const char *filename, const unsigned char *src, uint16_t w, uint1
 }
 
 int main(int argc, char *argv[]) {
-    int err = 0;
-    const char *filename = NULL;
-    const char *output_dir = NULL;
-    int frame_index = 0;
-    char file_name[MAX_FILESIZE];
-    bool run = true;
-    Kit_Source *src = NULL;
-    Kit_Player *player = NULL;
-
     // Get filename to open
     if(argc != 3) {
         fprintf(stderr, "Usage: rawdump <filename> <outputdir>\n");
         return 0;
     }
-    filename = argv[1];
-    output_dir = argv[2];
+    const char *filename = argv[1];
+    const char *output_dir = argv[2];
 
     // Initialize Kitchensink with hardware decode and libass support.
-    err = Kit_Init(KIT_INIT_ASS | KIT_INIT_HW_DECODE);
+    const int err = Kit_Init(KIT_INIT_ASS | KIT_INIT_HW_DECODE);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
     }
 
     // Open up the sourcefile. This can be a local file, network url, ...
-    src = Kit_CreateSourceFromUrl(filename);
+    Kit_Source *src = Kit_CreateSourceFromUrl(filename);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
     v_req.format = SDL_PIXELFORMAT_RGB24;
 
     // Create the player. Pick best video and subtitle streams, and set subtitle rendering resolution.
-    player = Kit_CreatePlayer(
+    Kit_Player *player = Kit_CreatePlayer(
         src,
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         -1,
@@ -128,6 +128,9 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
+    char file_name[MAX_FILESIZE];
+    int frame_index = 0;
+    bool run = true;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -151,10 +154,11 @@ int main(int argc, char *argv[]) {
             SDL_Surface *pic = SDL_CreateRGBSurfaceWithFormatFrom(frame_data[0], area.w, area.h, 24, frame_line_size[0], SDL_PIXELFORMAT_RGB24);
 
             // Fetch and render subtitles on top of the image frame
-            int subtitle_frames = Kit_GetPlayerSubtitleRawFrames(player, &subtitle_data, &source_rects, &target_rects);
+            const int subtitle_frames =
+                Kit_GetPlayerSubtitleRawFrames(player, &subtitle_data, &source_rects, &target_rects);
             if(subtitle_frames > 0) {
                 for (int i = 0; i < subtitle_frames; i++) {
-                    SDL_Rect *s = &source_rects[i];
+                    const SDL_Rect *s = &source_rects[i];
                     SDL_Rect *t = &target_rects[i];
                     SDL_Surface *frame = SDL_CreateRGBSurfaceWithFormatFrom(
                         subtitle_data[i], s->w, s->h, 32, s->w * 4, SDL_PIXELFORMAT_RGBA32);

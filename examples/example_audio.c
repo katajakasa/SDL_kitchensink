@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "example_common.h"
+
 /*
  * Note! This example does not do proper error handling etc.
  * It is for example use only!
@@ -14,36 +16,13 @@
 #define AUDIO_BUFFER_FRAMES 32
 
 int main(int argc, char *argv[]) {
-    int err = 0, ret = 0;
-    const char *filename = NULL;
-
-    // Events
-    bool run = true;
-
-    // Kitchensink
-    Kit_Source *src = NULL;
-    Kit_Player *player = NULL;
-
-    // Audio playback
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_AudioDeviceID audio_dev;
-    char audio_buf[AUDIO_BUFFER_SIZE];
-
     // Get filename to open
-    if(argc != 2) {
-        fprintf(stderr, "Usage: audio <filename>\n");
-        return 0;
-    }
-    filename = argv[1];
+    const char *filename = get_filename_arg(argc, argv, "audio");
 
     // Init SDL
-    err = SDL_Init(SDL_INIT_AUDIO);
-    if(err != 0) {
-        fprintf(stderr, "Unable to initialize SDL!\n");
-        return 1;
-    }
+    initialize_sdl(SDL_INIT_AUDIO);
 
-    err = Kit_Init(KIT_INIT_NETWORK);
+    const int err = Kit_Init(KIT_INIT_NETWORK);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -58,7 +37,7 @@ int main(int argc, char *argv[]) {
     Kit_SetHint(KIT_HINT_AUDIO_LATE_THRESHOLD, 100);
 
     // Open up the sourcefile.
-    src = Kit_CreateSourceFromUrl(filename);
+    Kit_Source *src = Kit_CreateSourceFromUrl(filename);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -68,8 +47,7 @@ int main(int argc, char *argv[]) {
     Kit_SourceStreamInfo source_info;
     fprintf(stderr, "Source streams:\n");
     for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
-        err = Kit_GetSourceStreamInfo(src, &source_info, i);
-        if(err) {
+        if(Kit_GetSourceStreamInfo(src, &source_info, i)) {
             fprintf(stderr, "Unable to fetch stream #%d information: %s.\n", i, Kit_GetError());
             return 1;
         }
@@ -77,7 +55,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Create the player. No video, pick best audio stream, no subtitles, no screen
-    player = Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, NULL, 0, 0);
+    Kit_Player *player =
+        Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, NULL, 0, 0);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
@@ -106,11 +85,12 @@ int main(int argc, char *argv[]) {
     );
 
     // Init audio
+    SDL_AudioSpec wanted_spec, audio_spec;
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = player_info.audio_format.sample_rate;
     wanted_spec.format = player_info.audio_format.format;
     wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-    audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
+    const SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
     // Flush output just in case
@@ -119,7 +99,11 @@ int main(int argc, char *argv[]) {
     // Start playback
     Kit_PlayerPlay(player);
 
+    // Audio playback buffer
+    char audio_buf[AUDIO_BUFFER_SIZE];
+
     bool is_buffering = false;
+    bool run = true;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -137,7 +121,7 @@ int main(int argc, char *argv[]) {
         }
 
         // If audio buffers fall below given threshold, pause playback and start buffering.
-        if (!is_buffering) {
+        if(!is_buffering) {
             if(!Kit_HasBufferFillRate(player, -1, 10, -1, -1)) {
                 Kit_PlayerPause(player);
                 is_buffering = true;
@@ -152,7 +136,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Fetch as many audio samples as the decoder is willing to give.
-        int queued;
+        int queued, ret;
         do {
             queued = SDL_GetQueuedAudioSize(audio_dev);
             ret = Kit_GetPlayerAudioData(player, UINT_MAX, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
