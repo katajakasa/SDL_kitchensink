@@ -190,6 +190,15 @@ configure_file(
 if (BUILD_EXAMPLES)
     list(APPEND EXAMPLE_TARGETS audio complex simple custom rwops rawdump)
 
+    # The OpenGL cube example needs an OpenGL library; skip it if not available.
+    set(OpenGL_GL_PREFERENCE GLVND)
+    find_package(OpenGL)
+    if (OpenGL_FOUND)
+        list(APPEND EXAMPLE_TARGETS glcube)
+    else ()
+        message(STATUS "OpenGL not found, skipping glcube example")
+    endif ()
+
     # If we are building static, just link all libraries (ffmpeg, sdl, etc.)
     # If building shared, link shared kitchensink + SDL2 (ffmpeg gets pulled by kitchensink)
     if (BUILD_STATIC)
@@ -223,6 +232,10 @@ if (BUILD_EXAMPLES)
             target_compile_options(${TARGET} PRIVATE "-fsanitize=thread")
         endif ()
     endforeach ()
+
+    if (TARGET glcube)
+        target_link_libraries(glcube OpenGL::GL)
+    endif ()
 endif ()
 
 # documentation target
