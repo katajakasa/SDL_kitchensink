@@ -54,9 +54,22 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(source_info.type));
     }
 
+    // Request a fixed audio output format from the player: signed 16bit stereo at 48kHz,
+    // regardless of what the source file contains. This is useful when the audio backend
+    // wants its input in one known format. Note that if the source format differs, the
+    // player converts in software, which costs some performance. Any field can also be
+    // left at its Kit_ResetAudioFormatRequest() default to keep the source value.
+    Kit_AudioFormatRequest audio_request;
+    Kit_ResetAudioFormatRequest(&audio_request);
+    audio_request.format = AUDIO_S16SYS;
+    audio_request.is_signed = 1;
+    audio_request.bytes = 2;
+    audio_request.sample_rate = 48000;
+    audio_request.layout = KIT_LAYOUT_STEREO;
+
     // Create the player. No video, pick best audio stream, no subtitles, no screen
     Kit_Player *player =
-        Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, NULL, 0, 0);
+        Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, &audio_request, 0, 0);
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;
