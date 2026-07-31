@@ -54,8 +54,8 @@ typedef struct Kit_PlayerInfo {
  * @brief Video stream configuration, see Kit_PlayerConfig.
  */
 typedef struct Kit_PlayerVideoConfig {
-    int packet_buffer_size; ///< Input buffer, packets (default 16)
-    int frame_buffer_size;  ///< Output buffer, frames (default 2)
+    int packet_buffer_size; ///< Input buffer, packets (default 64)
+    int frame_buffer_size;  ///< Output buffer, frames (default 3)
     int early_threshold;    ///< Early sync threshold, ms (default 5)
     int late_threshold;     ///< Late sync threshold, ms (default 50)
 } Kit_PlayerVideoConfig;

@@ -156,8 +156,8 @@ exit_0:
 void Kit_ResetPlayerConfig(Kit_PlayerConfig *config) {
     assert(config != NULL);
     config->thread_count = 0;
-    config->video.packet_buffer_size = 16;
-    config->video.frame_buffer_size = 2;
+    config->video.packet_buffer_size = 64;
+    config->video.frame_buffer_size = 3;
     config->video.early_threshold = 5;
     config->video.late_threshold = 50;
     config->audio.packet_buffer_size = 64;
