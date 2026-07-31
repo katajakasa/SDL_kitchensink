@@ -26,6 +26,7 @@ struct Kit_Player {
     Kit_DecoderThread *dec_threads[3]; ///< Decoder threads
     Kit_DemuxerThread *demux_thread;   ///< Demuxer thread
     Kit_Timer *sync_timer;             ///< Sync timer for the decoders
+    Kit_PlayerConfig config;           ///< Clamped copy of the creation-time configuration
     Kit_VideoFormatRequest video_req;  ///< Original video format request
     Kit_AudioFormatRequest audio_req;  ///< Original audio format request
     const Kit_Source *src;             ///< Reference to Audio/Video source
@@ -56,6 +57,8 @@ static bool Kit_InitializeAudioDecoder(
     const Kit_Timer *main_timer,
     const Kit_DemuxerThread *demux_thread,
     const Kit_AudioFormatRequest *format_request,
+    const Kit_PlayerAudioConfig *config,
+    int thread_count,
     bool is_primary,
     int stream_index,
     Kit_Decoder **decoder,
@@ -68,7 +71,7 @@ static bool Kit_InitializeAudioDecoder(
         goto exit_0;
     if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
         goto exit_0;
-    if((*decoder = Kit_CreateAudioDecoder(src, format_request, timer, stream_index)) == NULL)
+    if((*decoder = Kit_CreateAudioDecoder(src, format_request, config, thread_count, timer, stream_index)) == NULL)
         goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
@@ -86,6 +89,8 @@ static bool Kit_InitializeVideoDecoder(
     const Kit_Timer *main_timer,
     const Kit_DemuxerThread *demux_thread,
     const Kit_VideoFormatRequest *format_request,
+    const Kit_PlayerVideoConfig *config,
+    int thread_count,
     bool is_primary,
     int stream_index,
     Kit_Decoder **decoder,
@@ -98,7 +103,7 @@ static bool Kit_InitializeVideoDecoder(
         goto exit_0;
     if((timer = Kit_CreateSecondaryTimer(main_timer, is_primary)) == NULL)
         goto exit_0;
-    if((*decoder = Kit_CreateVideoDecoder(src, format_request, timer, stream_index)) == NULL)
+    if((*decoder = Kit_CreateVideoDecoder(src, format_request, config, thread_count, timer, stream_index)) == NULL)
         goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
@@ -116,6 +121,8 @@ static bool Kit_InitializeSubtitleDecoder(
     const Kit_Timer *main_timer,
     const Kit_DemuxerThread *demux_thread,
     const Kit_Decoder *video_decoder,
+    const Kit_PlayerSubtitleConfig *config,
+    int thread_count,
     int stream_index,
     int screen_w,
     int screen_h,
@@ -131,9 +138,9 @@ static bool Kit_InitializeSubtitleDecoder(
         goto exit_0;
     if((timer = Kit_CreateSecondaryTimer(main_timer, false)) == NULL)
         goto exit_0;
-    if((*decoder =
-            Kit_CreateSubtitleDecoder(src, timer, stream_index, output.width, output.height, screen_w, screen_h)) ==
-       NULL)
+    if((*decoder = Kit_CreateSubtitleDecoder(
+            src, config, thread_count, timer, stream_index, output.width, output.height, screen_w, screen_h
+        )) == NULL)
         goto exit_0;
     if((*thread = Kit_CreateDecoderThread(packet_buffer, *decoder)) == NULL)
         goto exit_1;
@@ -146,6 +153,41 @@ exit_0:
     return false;
 }
 
+void Kit_ResetPlayerConfig(Kit_PlayerConfig *config) {
+    assert(config != NULL);
+    config->thread_count = 0;
+    config->video.packet_buffer_size = 16;
+    config->video.frame_buffer_size = 2;
+    config->video.early_threshold = 5;
+    config->video.late_threshold = 50;
+    config->audio.packet_buffer_size = 64;
+    config->audio.frame_buffer_size = 64;
+    config->audio.early_threshold = 30;
+    config->audio.late_threshold = 50;
+    config->subtitle.packet_buffer_size = 64;
+    config->subtitle.frame_buffer_size = 64;
+    config->subtitle.font_hinting = KIT_FONT_HINTING_NONE;
+    config->demuxer.read_attempts = 3;
+    config->demuxer.read_retry_delay = 10;
+}
+
+static void Kit_ClampPlayerConfig(Kit_PlayerConfig *config) {
+    config->thread_count = Kit_max(config->thread_count, 0);
+    config->video.packet_buffer_size = Kit_max(config->video.packet_buffer_size, 1);
+    config->video.frame_buffer_size = Kit_max(config->video.frame_buffer_size, 1);
+    config->video.early_threshold = Kit_max(config->video.early_threshold, 0);
+    config->video.late_threshold = Kit_max(config->video.late_threshold, 0);
+    config->audio.packet_buffer_size = Kit_max(config->audio.packet_buffer_size, 1);
+    config->audio.frame_buffer_size = Kit_max(config->audio.frame_buffer_size, 1);
+    config->audio.early_threshold = Kit_max(config->audio.early_threshold, 0);
+    config->audio.late_threshold = Kit_max(config->audio.late_threshold, 0);
+    config->subtitle.packet_buffer_size = Kit_max(config->subtitle.packet_buffer_size, 1);
+    config->subtitle.frame_buffer_size = Kit_max(config->subtitle.frame_buffer_size, 1);
+    config->subtitle.font_hinting = Kit_clamp(config->subtitle.font_hinting, 0, KIT_FONT_HINTING_COUNT - 1);
+    config->demuxer.read_attempts = Kit_max(config->demuxer.read_attempts, 1);
+    config->demuxer.read_retry_delay = Kit_max(config->demuxer.read_retry_delay, 0);
+}
+
 Kit_Player *Kit_CreatePlayer(
     const Kit_Source *src,
     const int video_stream_index,
@@ -154,12 +196,16 @@ Kit_Player *Kit_CreatePlayer(
     const Kit_VideoFormatRequest *video_format_request,
     const Kit_AudioFormatRequest *audio_format_request,
     const int screen_w,
-    const int screen_h
+    const int screen_h,
+    const Kit_PlayerConfig *input_config
 ) {
     assert(src != NULL);
     assert(screen_w >= 0);
     assert(screen_h >= 0);
 
+    Kit_PlayerConfig config;
+    Kit_VideoFormatRequest video_req;
+    Kit_AudioFormatRequest audio_req;
     Kit_Player *player = NULL;
     Kit_Decoder *video_decoder = NULL;
     Kit_Decoder *audio_decoder = NULL;
@@ -170,20 +216,24 @@ Kit_Player *Kit_CreatePlayer(
     Kit_DecoderThread *subtitle_thread = NULL;
     Kit_DemuxerThread *demux_thread = NULL;
     Kit_Timer *timer = NULL;
-    Kit_VideoFormatRequest tmp_video_format_request;
-    Kit_AudioFormatRequest tmp_audio_format_request;
     const bool video_primary = video_stream_index > -1;
     const bool audio_primary = !video_primary && audio_stream_index > -1;
 
-    if(video_format_request == NULL) {
-        Kit_ResetVideoFormatRequest(&tmp_video_format_request);
+    if(input_config == NULL) {
+        Kit_ResetPlayerConfig(&config);
     } else {
-        tmp_video_format_request = *video_format_request;
+        config = *input_config;
+        Kit_ClampPlayerConfig(&config);
+    }
+    if(video_format_request == NULL) {
+        Kit_ResetVideoFormatRequest(&video_req);
+    } else {
+        video_req = *video_format_request;
     }
     if(audio_format_request == NULL) {
-        Kit_ResetAudioFormatRequest(&tmp_audio_format_request);
+        Kit_ResetAudioFormatRequest(&audio_req);
     } else {
-        tmp_audio_format_request = *audio_format_request;
+        audio_req = *audio_format_request;
     }
     if(video_stream_index < 0 && subtitle_stream_index >= 0) {
         Kit_SetError("Subtitle stream selected without video stream");
@@ -205,7 +255,8 @@ Kit_Player *Kit_CreatePlayer(
     }
     if((timer = Kit_CreateTimer()) == NULL)
         goto exit_1;
-    if((demuxer = Kit_CreateDemuxer(src, video_stream_index, audio_stream_index, subtitle_stream_index)) == NULL)
+    if((demuxer = Kit_CreateDemuxer(src, video_stream_index, audio_stream_index, subtitle_stream_index, &config)) ==
+       NULL)
         goto exit_2;
     if((demux_thread = Kit_CreateDemuxerThread(demuxer, timer)) == NULL)
         goto exit_3;
@@ -214,7 +265,9 @@ Kit_Player *Kit_CreatePlayer(
                src,
                timer,
                demux_thread,
-               &tmp_audio_format_request,
+               &audio_req,
+               &config.audio,
+               config.thread_count,
                audio_primary,
                audio_stream_index,
                &audio_decoder,
@@ -228,7 +281,9 @@ Kit_Player *Kit_CreatePlayer(
                src,
                timer,
                demux_thread,
-               &tmp_video_format_request,
+               &video_req,
+               &config.video,
+               config.thread_count,
                video_primary,
                video_stream_index,
                &video_decoder,
@@ -243,6 +298,8 @@ Kit_Player *Kit_CreatePlayer(
                timer,
                demux_thread,
                video_decoder,
+               &config.subtitle,
+               config.thread_count,
                subtitle_stream_index,
                screen_w,
                screen_h,
@@ -263,10 +320,11 @@ Kit_Player *Kit_CreatePlayer(
     player->demux_thread = demux_thread;
     player->src = src;
     player->sync_timer = timer;
+    player->config = config;
+    player->video_req = video_req;
+    player->audio_req = audio_req;
     player->screen_w = screen_w;
     player->screen_h = screen_h;
-    player->video_req = tmp_video_format_request;
-    player->audio_req = tmp_audio_format_request;
     return player;
 
 exit_6:
@@ -985,6 +1043,8 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
                    player->sync_timer,
                    player->demux_thread,
                    &player->audio_req,
+                   &player->config.audio,
+                   player->config.thread_count,
                    audio_primary,
                    index,
                    &new_decoder,
@@ -999,6 +1059,8 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
                    player->sync_timer,
                    player->demux_thread,
                    &player->video_req,
+                   &player->config.video,
+                   player->config.thread_count,
                    video_primary,
                    index,
                    &new_decoder,
@@ -1013,6 +1075,8 @@ int Kit_SetPlayerStream(Kit_Player *player, const Kit_StreamType type, int index
                    player->sync_timer,
                    player->demux_thread,
                    player->decoders[KIT_VIDEO_INDEX],
+                   &player->config.subtitle,
+                   player->config.thread_count,
                    index,
                    player->screen_w,
                    player->screen_h,

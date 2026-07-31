@@ -13,6 +13,7 @@
 #include "kitchensink2/kitcodec.h"
 #include "kitchensink2/kitconfig.h"
 #include "kitchensink2/kitformat.h"
+#include "kitchensink2/kitlib.h"
 #include "kitchensink2/kitsource.h"
 
 #include <SDL_render.h>
@@ -50,12 +51,81 @@ typedef struct Kit_PlayerInfo {
 } Kit_PlayerInfo;
 
 /**
+ * @brief Video stream configuration, see Kit_PlayerConfig.
+ */
+typedef struct Kit_PlayerVideoConfig {
+    int packet_buffer_size; ///< Input buffer, packets (default 16)
+    int frame_buffer_size;  ///< Output buffer, frames (default 2)
+    int early_threshold;    ///< Early sync threshold, ms (default 5)
+    int late_threshold;     ///< Late sync threshold, ms (default 50)
+} Kit_PlayerVideoConfig;
+
+/**
+ * @brief Audio stream configuration, see Kit_PlayerConfig.
+ */
+typedef struct Kit_PlayerAudioConfig {
+    int packet_buffer_size; ///< Input buffer, packets (default 64)
+    int frame_buffer_size;  ///< Output buffer, frames (default 64)
+    int early_threshold;    ///< Early sync threshold, ms (default 30)
+    int late_threshold;     ///< Late sync threshold, ms (default 50)
+} Kit_PlayerAudioConfig;
+
+/**
+ * @brief Subtitle stream configuration, see Kit_PlayerConfig.
+ */
+typedef struct Kit_PlayerSubtitleConfig {
+    int packet_buffer_size;       ///< Input buffer, packets (default 64)
+    int frame_buffer_size;        ///< Output buffer, frames (default 64; bitmap subtitles only)
+    Kit_FontHinting font_hinting; ///< Font hinting mode for libass (default KIT_FONT_HINTING_NONE)
+} Kit_PlayerSubtitleConfig;
+
+/**
+ * @brief Demuxer configuration, see Kit_PlayerConfig.
+ */
+typedef struct Kit_PlayerDemuxerConfig {
+    int read_attempts;    ///< Read attempts before treating a failure as EOF (default 3)
+    int read_retry_delay; ///< Delay between read attempts, ms (default 10)
+} Kit_PlayerDemuxerConfig;
+
+/**
+ * @brief Per-player configuration for Kit_CreatePlayer().
+ *
+ * Initialize with Kit_ResetPlayerConfig(), then override the fields you need.
+ * All values are fixed at player creation; out-of-range values are clamped.
+ *
+ * CAUTION on the buffer sizes: the defaults are chosen so that the pipeline can re-prime
+ * itself after a seek. Very small audio buffer sizes (a few packets/frames) can deadlock
+ * post-seek playback: the audio side holds data until the video stream re-bases the shared
+ * clock, and with too little audio buffer slack that backpressure stalls the shared demuxer
+ * thread before video can decode its first frame. Prefer the defaults; if you must shrink,
+ * keep the audio buffers at a couple dozen packets/frames or more.
+ */
+typedef struct Kit_PlayerConfig {
+    int thread_count;            ///< FFmpeg threads per codec; 0 = autodetect (default 0). Applies to all decoders.
+    Kit_PlayerVideoConfig video; ///< Video stream configuration
+    Kit_PlayerAudioConfig audio; ///< Audio stream configuration
+    Kit_PlayerSubtitleConfig subtitle; ///< Subtitle stream configuration
+    Kit_PlayerDemuxerConfig demuxer;   ///< Demuxer configuration
+} Kit_PlayerConfig;
+
+/**
+ * @brief Resets a player configuration to library defaults.
+ *
+ * @param config Configuration to reset. Must not be NULL.
+ */
+KIT_API void Kit_ResetPlayerConfig(Kit_PlayerConfig *config);
+
+/**
  * @brief Creates a new player from a source.
  *
  * Creates a new player from the given source. The source must be previously successfully
  * initialized by calling either Kit_CreateSourceFromUrl() or Kit_CreateSourceFromCustom(),
  * and it must not be used by any other player. Source must stay valid during the whole
  * playback (as in, don't close it while stuff is playing).
+ *
+ * All tuning is passed via the config argument; see Kit_PlayerConfig for the available fields
+ * and their defaults. Pass NULL to use defaults for everything. The config is copied at creation
+ * (with out-of-range values clamped), so the same config object can be reused or discarded.
  *
  * It is possible to request for audio and video format conversions to be done automatically by
  * supplying requests via video_format_request and audio_format_request arguments. Conversions
@@ -67,7 +137,8 @@ typedef struct Kit_PlayerInfo {
  * Ideally this should be precisely the size of your screen surface (in pixels).
  * Higher resolution leads to higher resolution text rendering. This MUST be set precisely
  * if you plan to use font hinting! If you don't care or don't have subtitles at all,
- * set both to video surface size or 0.
+ * set both to video surface size or 0. Unlike the config, the screen size is not fixed at
+ * creation: it can be changed later with Kit_SetPlayerScreenSize().
  *
  * Stream indexes can be set manually, or picked automatically by using Kit_GetBestSourceStream().
  * Any stream can be left out with -1. Normally you want at least a video and/or an audio stream;
@@ -89,13 +160,18 @@ typedef struct Kit_PlayerInfo {
  * Kit_ResetVideoFormatRequest(&v_req);
  * v_req.hw_device_types = KIT_HWDEVICE_TYPE_VAAPI | KIT_HWDEVICE_TYPE_VDPAU;
  *
+ * Kit_PlayerConfig config;
+ * Kit_ResetPlayerConfig(&config);
+ * config.video.frame_buffer_size = 1;
+ *
  * Kit_Player *player = Kit_CreatePlayer(
  *     src,
  *     Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
  *     Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
  *     Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
  *     &v_req, NULL,
- *     1280, 720);
+ *     1280, 720,
+ *     &config);
  * if(player == NULL) {
  *     fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
  *     return 1;
@@ -110,6 +186,7 @@ typedef struct Kit_PlayerInfo {
  * @param audio_format_request Audio format request object or NULL.
  * @param screen_w Screen width in pixels
  * @param screen_h Screen height in pixels
+ * @param config Player configuration or NULL for defaults.
  * @return Initialized Kit_Player or NULL
  */
 KIT_API Kit_Player *Kit_CreatePlayer(
@@ -120,7 +197,8 @@ KIT_API Kit_Player *Kit_CreatePlayer(
     const Kit_VideoFormatRequest *video_format_request,
     const Kit_AudioFormatRequest *audio_format_request,
     int screen_w,
-    int screen_h
+    int screen_h,
+    const Kit_PlayerConfig *config
 );
 
 /**

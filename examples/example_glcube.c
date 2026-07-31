@@ -142,11 +142,15 @@ int main(int argc, char *argv[]) {
     Kit_ResetVideoFormatRequest(&video_request);
     video_request.format = SDL_PIXELFORMAT_RGBA32;
 
+    // Set up default configs for the player
+    Kit_PlayerConfig config;
+    Kit_ResetPlayerConfig(&config);
+
     // Create the player with the best video stream. Audio and subtitle streams
     // are disabled by passing -1. The player clock still runs normally, so
     // video frames come out in sync even without an audio device.
     Kit_Player *player = Kit_CreatePlayer(
-        src, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO), -1, -1, &video_request, NULL, screen_w, screen_h
+        src, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO), -1, -1, &video_request, NULL, 0, 0, &config
     );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());

@@ -5,7 +5,6 @@
 #include <libswscale/swscale.h>
 
 #include "kitchensink2/internal/kitdecoder.h"
-#include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kitlog.h"
@@ -24,6 +23,8 @@ typedef struct Kit_VideoDecoder {
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded video packets
     Kit_VideoOutputFormat output; ///< Output video format description
     AVFrame *current;             ///< video frame we are currently reading from
+    int early_threshold;          ///< Early sync threshold, in milliseconds
+    int late_threshold;           ///< Late sync threshold, in milliseconds
 } Kit_VideoDecoder;
 
 static struct SwsContext *Kit_GetSwsContext(
@@ -152,11 +153,15 @@ static void dec_close_video_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateVideoDecoder(
-    const Kit_Source *src, const Kit_VideoFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
+    const Kit_Source *src,
+    const Kit_VideoFormatRequest *format_request,
+    const Kit_PlayerVideoConfig *config,
+    const int thread_count,
+    Kit_Timer *sync_timer,
+    const int stream_index
 ) {
     assert(src != NULL);
 
-    const Kit_LibraryState *state = Kit_GetLibraryState();
     const AVFormatContext *format_ctx = src->format_ctx;
     AVStream *stream = NULL;
     Kit_VideoDecoder *video_decoder = NULL;
@@ -183,7 +188,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     if((decoder = Kit_CreateDecoder(
             stream,
             sync_timer,
-            state->thread_count,
+            thread_count,
             format_request->hw_device_types,
             dec_input_video_cb,
             dec_decode_video_cb,
@@ -213,7 +218,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
         goto exit_5;
     }
     if((buffer = Kit_CreatePacketBuffer(
-            state->video_frame_buffer_size,
+            config->frame_buffer_size,
             (buf_obj_alloc)av_frame_alloc,
             (buf_obj_unref)av_frame_unref,
             (buf_obj_free)av_frame_free,
@@ -254,6 +259,8 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     video_decoder->sws = NULL; // Created when needed.
     video_decoder->buffer = buffer;
     video_decoder->output = output;
+    video_decoder->early_threshold = config->early_threshold;
+    video_decoder->late_threshold = config->late_threshold;
     return decoder;
 
 exit_7:
@@ -318,8 +325,8 @@ bool Kit_BeginReadFrame(const Kit_Decoder *decoder) {
 
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
-    const double early_threshold = Kit_GetLibraryState()->video_early_threshold / 1000.0;
-    const double late_threshold = Kit_GetLibraryState()->video_late_threshold / 1000.0;
+    const double early_threshold = video_decoder->early_threshold / 1000.0;
+    const double late_threshold = video_decoder->late_threshold / 1000.0;
 
     // If packet is far too early, the stream jumped or was seeked.
     if(Kit_IsTimerPrimary(decoder->sync_timer)) {

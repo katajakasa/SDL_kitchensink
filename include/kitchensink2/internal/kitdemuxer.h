@@ -14,6 +14,7 @@
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitplayer.h"
 #include "kitchensink2/kitsource.h"
 
 #include <SDL_atomic.h>
@@ -24,11 +25,13 @@
  * @brief Demuxer state: source, one packet buffer and stream index per stream type, and a scratch packet.
  */
 typedef struct Kit_Demuxer {
-    const Kit_Source *src;                          ///< Source being demuxed; not owned.
-    Kit_PacketBuffer *buffers[KIT_INDEX_COUNT];      ///< Per-stream-type output packet buffers; NULL if unused.
-    SDL_atomic_t stream_indexes[KIT_INDEX_COUNT];    ///< Per-stream-type source stream index; -1 if unused.
-    SDL_atomic_t abort_requested;                    ///< Breaks the read-retry delay in Kit_RunDemuxer() on abort.
-    AVPacket *scratch_packet;                        ///< Reusable packet used for reading/writing.
+    const Kit_Source *src;                        ///< Source being demuxed; not owned.
+    Kit_PacketBuffer *buffers[KIT_INDEX_COUNT];   ///< Per-stream-type output packet buffers; NULL if unused.
+    SDL_atomic_t stream_indexes[KIT_INDEX_COUNT]; ///< Per-stream-type source stream index; -1 if unused.
+    SDL_atomic_t abort_requested;                 ///< Breaks the read-retry delay in Kit_RunDemuxer() on abort.
+    AVPacket *scratch_packet;                     ///< Reusable packet used for reading/writing.
+    int read_attempts;                            ///< Read attempts before a failure is treated as EOF.
+    int read_retry_delay;                         ///< Delay between read attempts, in milliseconds.
 } Kit_Demuxer;
 
 /**
@@ -38,9 +41,12 @@ typedef struct Kit_Demuxer {
  * @param video_index Video stream index to demux, or -1 to skip video.
  * @param audio_index Audio stream index to demux, or -1 to skip audio.
  * @param subtitle_index Subtitle stream index to demux, or -1 to skip subtitles.
+ * @param config Player configuration to copy buffer sizes and read-retry settings from; not retained.
  * @return New demuxer, or NULL on allocation failure (Kit_SetError() is called).
  */
-KIT_LOCAL Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio_index, int subtitle_index);
+KIT_LOCAL Kit_Demuxer *Kit_CreateDemuxer(
+    const Kit_Source *src, int video_index, int audio_index, int subtitle_index, const Kit_PlayerConfig *config
+);
 
 /**
  * @brief Frees a demuxer's packet buffers, scratch packet and the struct itself.
@@ -53,7 +59,7 @@ KIT_LOCAL void Kit_CloseDemuxer(Kit_Demuxer **demuxer);
  * @brief Reads and routes one packet from the source into the matching stream-type buffer.
  *
  * Transient read errors are retried (with a delay) up to the configured attempt limit, per the
- * KIT_HINT_DEMUXER_READ_* library hints. A genuine AVERROR_EOF is never retried. Packets for streams that
+ * demuxer_read_* fields of Kit_PlayerConfig. A genuine AVERROR_EOF is never retried. Packets for streams that
  * are not selected are dropped. Writing into a buffer may block if that buffer is currently full.
  *
  * @param demuxer Demuxer to run.

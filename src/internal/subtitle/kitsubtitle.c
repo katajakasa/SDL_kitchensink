@@ -110,6 +110,8 @@ int Kit_GetSubtitleDecoderOutputFormat(const Kit_Decoder *decoder, Kit_SubtitleO
 
 Kit_Decoder *Kit_CreateSubtitleDecoder(
     const Kit_Source *src,
+    const Kit_PlayerSubtitleConfig *config,
+    const int thread_count,
     Kit_Timer *sync_timer,
     int stream_index,
     int video_w,
@@ -146,7 +148,7 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
     if((decoder = Kit_CreateDecoder(
             stream,
             sync_timer,
-            state->thread_count,
+            thread_count,
             KIT_HWDEVICE_TYPE_ALL,
             dec_input_subtitle_cb,
             dec_decode_subtitle_cb,
@@ -177,13 +179,17 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
         case AV_CODEC_ID_SSA:
         case AV_CODEC_ID_ASS:
             if(state->init_flags & KIT_INIT_ASS) {
-                renderer = Kit_CreateASSSubtitleRenderer(format_ctx, decoder, video_w, video_h, screen_w, screen_h);
+                renderer = Kit_CreateASSSubtitleRenderer(
+                    format_ctx, decoder, video_w, video_h, screen_w, screen_h, config->font_hinting
+                );
             }
             break;
         case AV_CODEC_ID_DVD_SUBTITLE:
         case AV_CODEC_ID_DVB_SUBTITLE:
         case AV_CODEC_ID_HDMV_PGS_SUBTITLE:
-            renderer = Kit_CreateImageSubtitleRenderer(decoder, video_w, video_h, screen_w, screen_h);
+            renderer = Kit_CreateImageSubtitleRenderer(
+                decoder, video_w, video_h, screen_w, screen_h, config->frame_buffer_size
+            );
             break;
         default:
             Kit_SetError("Unrecognized subtitle format for stream %d", stream_index);

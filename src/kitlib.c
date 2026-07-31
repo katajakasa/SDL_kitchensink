@@ -7,7 +7,6 @@
 #include <libavformat/avformat.h>
 
 #include "kitchensink2/internal/kitlibstate.h"
-#include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/kitchensink.h"
 
 static void _libass_msg_callback(int level, const char *fmt, va_list va, void *data) {
@@ -89,90 +88,6 @@ void Kit_Quit() {
         Kit_CloseASS(state);
     }
     state->init_flags = 0;
-}
-
-void Kit_SetHint(Kit_HintType type, int value) {
-    Kit_LibraryState *state = Kit_GetLibraryState();
-    switch(type) {
-        case KIT_HINT_THREAD_COUNT:
-            state->thread_count = Kit_max(value, 0);
-            break;
-        case KIT_HINT_FONT_HINTING:
-            state->font_hinting = Kit_max(Kit_min(value, KIT_FONT_HINTING_COUNT - 1), 0);
-            break;
-        case KIT_HINT_VIDEO_BUFFER_PACKETS:
-            state->video_packet_buffer_size = Kit_max(value, 1);
-            break;
-        case KIT_HINT_AUDIO_BUFFER_PACKETS:
-            state->audio_packet_buffer_size = Kit_max(value, 1);
-            break;
-        case KIT_HINT_SUBTITLE_BUFFER_PACKETS:
-            state->subtitle_packet_buffer_size = Kit_max(value, 1);
-            break;
-        case KIT_HINT_VIDEO_BUFFER_FRAMES:
-            state->video_frame_buffer_size = Kit_max(value, 1);
-            break;
-        case KIT_HINT_AUDIO_BUFFER_FRAMES:
-            state->audio_frame_buffer_size = Kit_max(value, 1);
-            break;
-        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
-            state->subtitle_frame_buffer_size = Kit_max(value, 1);
-            break;
-        case KIT_HINT_AUDIO_EARLY_THRESHOLD:
-            state->audio_early_threshold = Kit_max(value, 0);
-            break;
-        case KIT_HINT_AUDIO_LATE_THRESHOLD:
-            state->audio_late_threshold = Kit_max(value, 0);
-            break;
-        case KIT_HINT_VIDEO_EARLY_THRESHOLD:
-            state->video_early_threshold = Kit_max(value, 0);
-            break;
-        case KIT_HINT_VIDEO_LATE_THRESHOLD:
-            state->video_late_threshold = Kit_max(value, 0);
-            break;
-        case KIT_HINT_DEMUXER_READ_ATTEMPTS:
-            state->demuxer_read_attempts = Kit_max(value, 1);
-            break;
-        case KIT_HINT_DEMUXER_READ_RETRY_DELAY:
-            state->demuxer_read_retry_delay = Kit_max(value, 0);
-            break;
-    }
-}
-
-int Kit_GetHint(Kit_HintType type) {
-    const Kit_LibraryState *state = Kit_GetLibraryState();
-    switch(type) {
-        case KIT_HINT_THREAD_COUNT:
-            return state->thread_count;
-        case KIT_HINT_FONT_HINTING:
-            return state->font_hinting;
-        case KIT_HINT_VIDEO_BUFFER_PACKETS:
-            return state->video_packet_buffer_size;
-        case KIT_HINT_AUDIO_BUFFER_PACKETS:
-            return state->audio_packet_buffer_size;
-        case KIT_HINT_SUBTITLE_BUFFER_PACKETS:
-            return state->subtitle_packet_buffer_size;
-        case KIT_HINT_VIDEO_BUFFER_FRAMES:
-            return state->video_frame_buffer_size;
-        case KIT_HINT_AUDIO_BUFFER_FRAMES:
-            return state->audio_frame_buffer_size;
-        case KIT_HINT_SUBTITLE_BUFFER_FRAMES:
-            return state->subtitle_frame_buffer_size;
-        case KIT_HINT_AUDIO_EARLY_THRESHOLD:
-            return state->audio_early_threshold;
-        case KIT_HINT_AUDIO_LATE_THRESHOLD:
-            return state->audio_late_threshold;
-        case KIT_HINT_VIDEO_EARLY_THRESHOLD:
-            return state->video_early_threshold;
-        case KIT_HINT_VIDEO_LATE_THRESHOLD:
-            return state->video_late_threshold;
-        case KIT_HINT_DEMUXER_READ_ATTEMPTS:
-            return state->demuxer_read_attempts;
-        case KIT_HINT_DEMUXER_READ_RETRY_DELAY:
-            return state->demuxer_read_retry_delay;
-        default:
-            return 0;
-    }
 }
 
 void Kit_GetVersion(Kit_Version *version) {

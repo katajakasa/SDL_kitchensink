@@ -13,6 +13,7 @@
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubrenderer.h"
 #include "kitchensink2/kitconfig.h"
+#include "kitchensink2/kitlib.h"
 
 /**
  * @brief Creates a subtitle renderer that decodes text subtitles (SRT/SSA/ASS/...) via libass.
@@ -27,10 +28,17 @@
  * @param video_h video frame height, used as libass storage size for coordinate scaling
  * @param screen_w initial libass frame (render target) width
  * @param screen_h initial libass frame (render target) height
+ * @param font_hinting libass font hinting mode
  * @return newly created renderer, or NULL on failure
  */
 KIT_LOCAL Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
-    const AVFormatContext *format_ctx, Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h
+    const AVFormatContext *format_ctx,
+    Kit_Decoder *dec,
+    int video_w,
+    int video_h,
+    int screen_w,
+    int screen_h,
+    Kit_FontHinting font_hinting
 );
 
 #endif // KITSUBASS_H

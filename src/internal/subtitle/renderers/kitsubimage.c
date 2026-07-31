@@ -3,7 +3,6 @@
 
 #include <SDL_surface.h>
 
-#include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/subtitle/kitatlas.h"
 #include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
@@ -221,15 +220,16 @@ static void ren_close_img_cb(Kit_SubtitleRenderer *renderer) {
     free(image_renderer);
 }
 
-Kit_SubtitleRenderer *
-Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h) {
+Kit_SubtitleRenderer *Kit_CreateImageSubtitleRenderer(
+    Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h, int frame_buffer_size
+) {
     assert(dec != NULL);
     assert(video_w >= 0);
     assert(video_h >= 0);
     assert(screen_w >= 0);
     assert(screen_h >= 0);
+    assert(frame_buffer_size >= 1);
 
-    Kit_LibraryState *state = Kit_GetLibraryState();
     Kit_SubtitleRenderer *renderer;
     Kit_ImageSubtitleRenderer *image_renderer;
     Kit_PacketBuffer *buffer;
@@ -254,7 +254,7 @@ Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int 
         goto exit_1;
     }
     if((buffer = Kit_CreatePacketBuffer(
-            state->subtitle_frame_buffer_size,
+            frame_buffer_size,
             (buf_obj_alloc)Kit_CreateSubtitlePacket,
             (buf_obj_unref)Kit_DelSubtitlePacketRefs,
             (buf_obj_free)Kit_FreeSubtitlePacket,

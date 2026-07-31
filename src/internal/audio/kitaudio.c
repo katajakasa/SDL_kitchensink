@@ -8,7 +8,6 @@
 
 #include "kitchensink2/internal/audio/kitaudio.h"
 #include "kitchensink2/internal/audio/kitaudioutils.h"
-#include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
@@ -30,6 +29,8 @@ typedef struct Kit_AudioDecoder {
     int64_t fifo_start_pts;       ///< Audio fifo start PTS
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded audio packets
     Kit_AudioOutputFormat output; ///< Output audio format description
+    int early_threshold;          ///< Early sync threshold, in milliseconds
+    int late_threshold;           ///< Late sync threshold, in milliseconds
     SDL_atomic_t eof_seen;        ///< Codec fully drained at end of stream (decoder thread writes, getter reads)
 } Kit_AudioDecoder;
 
@@ -198,11 +199,15 @@ static void dec_close_audio_cb(Kit_Decoder *ref) {
 }
 
 Kit_Decoder *Kit_CreateAudioDecoder(
-    const Kit_Source *src, const Kit_AudioFormatRequest *format_request, Kit_Timer *sync_timer, const int stream_index
+    const Kit_Source *src,
+    const Kit_AudioFormatRequest *format_request,
+    const Kit_PlayerAudioConfig *config,
+    const int thread_count,
+    Kit_Timer *sync_timer,
+    const int stream_index
 ) {
     assert(src != NULL);
 
-    const Kit_LibraryState *state = Kit_GetLibraryState();
     const AVFormatContext *format_ctx = src->format_ctx;
     Kit_Decoder *decoder = NULL;
     Kit_AudioDecoder *audio_decoder = NULL;
@@ -234,7 +239,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     if((decoder = Kit_CreateDecoder(
             stream,
             sync_timer,
-            state->thread_count,
+            thread_count,
             KIT_HWDEVICE_TYPE_ALL,
             dec_input_audio_cb,
             dec_decode_audio_cb,
@@ -270,7 +275,7 @@ Kit_Decoder *Kit_CreateAudioDecoder(
         goto exit_out_frame;
     }
     if((buffer = Kit_CreatePacketBuffer(
-            state->audio_frame_buffer_size,
+            config->frame_buffer_size,
             (buf_obj_alloc)av_frame_alloc,
             (buf_obj_unref)av_frame_unref,
             (buf_obj_free)av_frame_free,
@@ -326,6 +331,8 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     audio_decoder->buffer = buffer;
     audio_decoder->output = output;
     audio_decoder->fifo = fifo;
+    audio_decoder->early_threshold = config->early_threshold;
+    audio_decoder->late_threshold = config->late_threshold;
     audio_decoder->fifo_start_pts = -1;
     return decoder;
 
@@ -402,8 +409,8 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     double pts = Kit_GetCurrentPTS(decoder);
     double sync_ts = Kit_GetTimerElapsed(decoder->sync_timer);
-    const double early_threshold = Kit_GetLibraryState()->audio_early_threshold / 1000.0;
-    const double late_threshold = Kit_GetLibraryState()->audio_late_threshold / 1000.0;
+    const double early_threshold = audio_decoder->early_threshold / 1000.0;
+    const double late_threshold = audio_decoder->late_threshold / 1000.0;
 
     // If packet is far too early, the stream jumped or was seeked.
     if(Kit_IsTimerPrimary(decoder->sync_timer)) {
