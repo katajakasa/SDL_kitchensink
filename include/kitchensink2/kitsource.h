@@ -67,7 +67,9 @@ typedef struct Kit_SourceStreamInfo {
  * - buf, a buffer the data must be copied into
  * - size, how much data you are expected to provide at maximum.
  *
- * The function must return the amount of bytes copied to the buffer or <0 on error.
+ * The function must return the amount of bytes copied to the buffer, AVERROR_EOF at the end
+ * of the stream, or <0 on error. Note that returning 0 is not a valid way to signal end of
+ * stream; ffmpeg requires AVERROR_EOF.
  *
  * Note that this callback is passed directly to ffmpeg avio, so please refer to ffmpeg documentation
  * for any further details.
@@ -143,8 +145,8 @@ KIT_API Kit_Source *Kit_CreateSourceFromUrl(const char *url);
  * }
  * ```
  *
- * @param read_cb Read function callback
- * @param seek_cb Seek function callback
+ * @param read_cb Read function callback. Must not be NULL.
+ * @param seek_cb Seek function callback, or NULL if the source does not support seeking.
  * @param userdata Any data (or NULL). Will be passed to read_cb and/or seek_cb functions as-is.
  * @return Returns an initialized Kit_Source* on success or NULL on failure
  */
@@ -240,7 +242,7 @@ KIT_API int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType 
  * open the source using the player, and use Kit_GetPlayerDuration() instead.
  *
  * @param src Source to query from
- * @return Duration of the source in seconds
+ * @return Duration of the source in seconds. May be negative if the duration is unknown.
  */
 KIT_API double Kit_GetSourceDuration(const Kit_Source *src);
 
@@ -253,7 +255,7 @@ KIT_API double Kit_GetSourceDuration(const Kit_Source *src);
  * @param type Stream type to search
  * @param list Integer list to insert into
  * @param size Maximum size of the list
- * @return Number of elements found
+ * @return Number of stream indexes written to the list (at most size)
  */
 KIT_API int Kit_GetSourceStreamList(const Kit_Source *src, const Kit_StreamType type, int *list, int size);
 
@@ -264,8 +266,9 @@ KIT_API int Kit_GetSourceStreamList(const Kit_Source *src, const Kit_StreamType 
  *
  * @param src Source to query from
  * @param type Stream type to search
- * @param current_index Index to start iterating from
- * @param loop Start looping from the start of the stream list if we go past the end.
+ * @param current_index Index to start iterating from (exclusive); use -1 to start from the beginning
+ * @param loop Start looping from the start of the stream list if we go past the end. Note that
+ *             current_index itself is never returned again.
  * @return Index number if found, -1 if no more streams of given type were found.
  */
 KIT_API int Kit_GetNextSourceStream(const Kit_Source *src, const Kit_StreamType type, int current_index, int loop);

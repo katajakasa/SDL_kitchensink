@@ -1,5 +1,7 @@
 #include <SDL.h>
 #include <kitchensink2/kitchensink.h>
+
+#include "example_common.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -13,7 +15,13 @@
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
 
-void dump_audio_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
+/**
+ * @brief Prints the codec and format details of the player audio stream, if one is selected.
+ *
+ * @param player Player to query for the selected stream
+ * @param player_info Player info to print
+ */
+void dump_audio_stream_info(const Kit_Player *player, const Kit_PlayerInfo *player_info) {
     if(Kit_GetPlayerAudioStream(player) >= 0) {
         fprintf(
             stderr,
@@ -29,7 +37,13 @@ void dump_audio_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_inf
     }
 }
 
-void dump_video_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
+/**
+ * @brief Prints the codec and format details of the player video stream, if one is selected.
+ *
+ * @param player Player to query for the selected stream
+ * @param player_info Player info to print
+ */
+void dump_video_stream_info(const Kit_Player *player, const Kit_PlayerInfo *player_info) {
     if(Kit_GetPlayerVideoStream(player) >= 0) {
         fprintf(
             stderr,
@@ -44,7 +58,13 @@ void dump_video_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_inf
     }
 }
 
-void dump_subtitle_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_info) {
+/**
+ * @brief Prints the codec details of the player subtitle stream, if one is selected.
+ *
+ * @param player Player to query for the selected stream
+ * @param player_info Player info to print
+ */
+void dump_subtitle_stream_info(const Kit_Player *player, const Kit_PlayerInfo *player_info) {
     if(Kit_GetPlayerSubtitleStream(player) >= 0) {
         fprintf(
             stderr,
@@ -56,6 +76,12 @@ void dump_subtitle_stream_info(const Kit_Player *player, Kit_PlayerInfo *player_
     }
 }
 
+/**
+ * @brief Prints the player buffer states as a status line to the console.
+ *
+ * @param player Player to query for buffer states
+ * @param tick Frame counter; the status line is only refreshed every 30th tick
+ */
 void render_buffer_bar(const Kit_Player *player, int tick) {
     if(tick % 30 != 0) // Restrict refresh rate
         return;
@@ -84,6 +110,12 @@ void render_buffer_bar(const Kit_Player *player, int tick) {
     fflush(stderr);
 }
 
+/**
+ * @brief Renders a simple progress bar to the bottom of the screen.
+ *
+ * @param renderer Renderer to draw with
+ * @param percent Playback progress in range 0 .. 1
+ */
 void render_gui(SDL_Renderer *renderer, double percent) {
     // Get window size
     int size_w, size_h;
@@ -115,65 +147,37 @@ void render_gui(SDL_Renderer *renderer, double percent) {
     SDL_RenderFillRect(renderer, &progress_top);
 }
 
+/**
+ * @brief Finds the largest size that fits inside the screen while keeping video aspect ratio.
+ *
+ * @param sw Screen width in pixels
+ * @param sh Screen height in pixels
+ * @param vw Video width in pixels
+ * @param vh Video height in pixels
+ * @param rw Filled with the resulting width
+ * @param rh Filled with the resulting height
+ */
 void find_viewport_size(int sw, int sh, int vw, int vh, int *rw, int *rh) {
-    float r_x = (float)sw / (float)vw;
-    float r_y = (float)sh / (float)vh;
-    float r_t = r_x < r_y ? r_x : r_y;
+    const float r_x = (float)sw / (float)vw;
+    const float r_y = (float)sh / (float)vh;
+    const float r_t = r_x < r_y ? r_x : r_y;
     *rw = vw * r_t;
     *rh = vh * r_t;
 }
 
 int main(int argc, char *argv[]) {
-    int err = 0, ret = 0;
-    const char *filename = NULL;
-
-    // Video
-    SDL_Window *window = NULL;
-    SDL_Renderer *renderer = NULL;
-
-    // Events
-    SDL_Event event;
-    bool run = true;
-
-    // Kitchensink
-    Kit_Source *src = NULL;
-    Kit_Player *player = NULL;
-
-    // Audio playback
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_AudioDeviceID audio_dev;
-
     // Get filename to open
-    if(argc != 2) {
-        fprintf(stderr, "Usage: complex <filename>\n");
-        return 0;
-    }
-    filename = argv[1];
+    const char *filename = get_filename_arg(argc, argv, "complex");
 
     // Init SDL
-    err = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-    if(err != 0) {
-        fprintf(stderr, "Unable to initialize SDL2!\n");
-        return 1;
-    }
+    initialize_sdl(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
-    // Create a resizable window.
-    window =
-        SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
-    if(window == NULL) {
-        fprintf(stderr, "Unable to create a new window!\n");
-        return 1;
-    }
-
-    // Create an accelerated renderer. Enable vsync, so we don't need to play around with SDL_Delay.
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if(renderer == NULL) {
-        fprintf(stderr, "Unable to create a renderer!\n");
-        return 1;
-    }
+    // Create a resizable window and an accelerated, vsynced renderer.
+    SDL_Window *window = create_window(filename, 1280, 720, 0);
+    SDL_Renderer *renderer = create_renderer(window);
 
     // Initialize Kitchensink with network and libass support.
-    err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS | KIT_INIT_HW_DECODE);
+    const int err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS | KIT_INIT_HW_DECODE);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -185,7 +189,7 @@ int main(int argc, char *argv[]) {
 
     // Open up the sourcefile.
     // This can be a local file, network url, ...
-    src = Kit_CreateSourceFromUrl(filename);
+    Kit_Source *src = Kit_CreateSourceFromUrl(filename);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -195,22 +199,30 @@ int main(int argc, char *argv[]) {
     Kit_SourceStreamInfo source_info;
     fprintf(stderr, "Source streams:\n");
     for(int i = 0; i < Kit_GetSourceStreamCount(src); i++) {
-        err = Kit_GetSourceStreamInfo(src, &source_info, i);
-        if(err) {
+        if(Kit_GetSourceStreamInfo(src, &source_info, i)) {
             fprintf(stderr, "Unable to fetch stream #%d information: %s.\n", i, Kit_GetError());
             return 1;
         }
         fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(source_info.type));
     }
 
+    // Select which hardware decoders the player may use; this only matters since we
+    // initialized Kitchensink with KIT_INIT_HW_DECODE. KIT_HWDEVICE_TYPE_ALL is the
+    // default and allows any of them. To force pure software decoding, use
+    // KIT_HWDEVICE_TYPE_NONE, and to allow only specific backends, combine them,
+    // e.g. KIT_HWDEVICE_TYPE_VAAPI | KIT_HWDEVICE_TYPE_VDPAU.
+    Kit_VideoFormatRequest video_request;
+    Kit_ResetVideoFormatRequest(&video_request);
+    video_request.hw_device_types = KIT_HWDEVICE_TYPE_ALL;
+
     // Create the player. Pick best video, audio and subtitle streams, and set subtitle
     // rendering resolution to screen resolution.
-    player = Kit_CreatePlayer(
+    Kit_Player *player = Kit_CreatePlayer(
         src,
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
-        NULL,
+        &video_request,
         NULL,
         1280,
         720
@@ -241,12 +253,14 @@ int main(int argc, char *argv[]) {
     }
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
-    // Init audio
+    // Init audio. Note that audio_dev is reopened later if the user switches audio streams,
+    // so it cannot be const here.
+    SDL_AudioSpec wanted_spec, audio_spec;
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = player_info.audio_format.sample_rate;
     wanted_spec.format = player_info.audio_format.format;
     wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-    audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
+    SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
     // Print some format info
@@ -287,8 +301,6 @@ int main(int argc, char *argv[]) {
     int size_h = 0;
     int screen_w = 0;
     int screen_h = 0;
-    int current_index = 0;
-    int next_index = 0;
     int tick = 0;
     bool fullscreen = false;
     SDL_Rect video_area = {0, 0, 0, 0};
@@ -306,19 +318,20 @@ int main(int argc, char *argv[]) {
 
     // Run until the user quits. When playback ends, the window goes black but stays open --
     // clicking the progress bar seeks, which restarts playback from the clicked position.
+    bool run = true;
     while(run) {
         const bool stopped = Kit_GetPlayerState(player) == KIT_STOPPED;
 
         // Check for events
-        const Uint8 *state;
+        SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
                 case SDL_KEYUP:
                     if(event.key.keysym.sym == SDLK_ESCAPE) {
                         run = false;
                     } else if(event.key.keysym.sym == SDLK_s) {
-                        current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE);
-                        next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_SUBTITLE, current_index, 1);
+                        const int current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE);
+                        const int next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_SUBTITLE, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE, next_index) != 0) {
                             fprintf(
                                 stderr, "\33[2K\rFailed to set subtitle stream %d: %s\n", next_index, Kit_GetError()
@@ -328,8 +341,8 @@ int main(int argc, char *argv[]) {
                         }
                         fflush(stderr);
                     } else if(event.key.keysym.sym == SDLK_v) {
-                        current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_VIDEO);
-                        next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_VIDEO, current_index, 1);
+                        const int current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_VIDEO);
+                        const int next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_VIDEO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_VIDEO, next_index) != 0) {
                             fprintf(stderr, "\33[2K\rFailed to set video stream %d: %s\n", next_index, Kit_GetError());
                         } else {
@@ -337,8 +350,8 @@ int main(int argc, char *argv[]) {
                         }
                         fflush(stderr);
                     } else if(event.key.keysym.sym == SDLK_a) {
-                        current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_AUDIO);
-                        next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_AUDIO, current_index, 1);
+                        const int current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_AUDIO);
+                        const int next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_AUDIO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_AUDIO, next_index) != 0) {
                             fprintf(stderr, "\33[2K\rFailed to set audio stream %d: %s\n", next_index, Kit_GetError());
                         } else {
@@ -357,9 +370,9 @@ int main(int argc, char *argv[]) {
                     }
                     break;
 
-                case SDL_KEYDOWN:
+                case SDL_KEYDOWN: {
                     // Find alt+enter
-                    state = SDL_GetKeyboardState(NULL);
+                    const Uint8 *state = SDL_GetKeyboardState(NULL);
                     if(state[SDL_SCANCODE_RETURN] && state[SDL_SCANCODE_LALT]) {
                         if(!fullscreen) {
                             SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -369,6 +382,7 @@ int main(int argc, char *argv[]) {
                         fullscreen = !fullscreen;
                     }
                     break;
+                }
 
                 case SDL_MOUSEMOTION:
                     mouse_x = event.motion.x;
@@ -396,8 +410,8 @@ int main(int argc, char *argv[]) {
                 case SDL_MOUSEBUTTONUP:
                     // Handle user clicking the progress bar
                     if(mouse_x >= 30 && mouse_x <= size_w - 30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
-                        double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
-                        double m_time = Kit_GetPlayerDuration(player) * pos;
+                        const double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
+                        const double m_time = Kit_GetPlayerDuration(player) * pos;
                         if(Kit_PlayerSeek(player, m_time) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
@@ -419,12 +433,12 @@ int main(int argc, char *argv[]) {
         }
 
         // Refresh audio
-        int queued = SDL_GetQueuedAudioSize(audio_dev);
+        const int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIO_BUFFER_SIZE) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
             while(need > 0) {
-                ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
+                const int ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
                     SDL_QueueAudio(audio_dev, audio_buf, ret);
@@ -452,7 +466,7 @@ int main(int argc, char *argv[]) {
             // Refresh subtitle texture atlas and render subtitle frames from it
             // For subtitles, use screen size instead of video size for best quality
             if(subtitle_tex != NULL) {
-                int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
+                const int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
                 for(int i = 0; i < got; i++) {
                     SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
                 }
@@ -461,7 +475,7 @@ int main(int argc, char *argv[]) {
 
         // Enable GUI if mouse is hovering over the bottom third of the screen
         if(mouse_y >= ((size_h / 3) * 2)) {
-            double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);
+            const double percent = Kit_GetPlayerPosition(player) / Kit_GetPlayerDuration(player);
             render_gui(renderer, percent);
         }
 

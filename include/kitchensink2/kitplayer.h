@@ -190,7 +190,7 @@ KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
  *
  * @param player Player instance
  * @param audio_input Audio input packet buffer fill rate (0-100) or -1
- * @param audio_output Audio output sample buffer fill rate (0-100) or -1
+ * @param audio_output Audio output frame buffer fill rate (0-100) or -1
  * @param video_input Video input packet buffer fill rate (0-100) or -1
  * @param video_output Video output frame buffer fill rate (0-100) or -1
  * @return 0 for false, 1 for true.
@@ -209,7 +209,7 @@ Kit_HasBufferFillRate(const Kit_Player *player, int audio_input, int audio_outpu
  *
  * @param player Player instance
  * @param audio_input Audio input packet buffer fill rate (0-100) or -1
- * @param audio_output Audio output sample buffer fill rate (0-100) or -1
+ * @param audio_output Audio output frame buffer fill rate (0-100) or -1
  * @param video_input Video input packet buffer fill rate (0-100) or -1
  * @param video_output Video output frame buffer fill rate (0-100) or -1
  * @param timeout Operation timeout, in seconds.
@@ -221,57 +221,57 @@ KIT_API int Kit_WaitBufferFillRate(
 
 /** @brief Gets the player video buffering state
  *
- * Fetch buffering state for video stream (if a stream is selected). It is safe to pass NULL as an argument.
- * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
+ * Fetch buffering state for video stream (if a stream is selected). Any of the output pointers may be NULL.
+ * Note that if fetch fails (stream is not set, etc.), the corresponding arguments will not be written to.
  *
  * @param player Player instance
- * @param frames_length Current size of the output buffer in frames
- * @param frames_size Current maximum size of the output buffer in frames
+ * @param frames_length Current size of the output buffer in decoded frames
+ * @param frames_capacity Current maximum size of the output buffer in decoded frames
  * @param packets_length Current size of the input buffer in raw packets
  * @param packets_capacity Current maximum size of the input buffer in raw packets
  */
 KIT_API void Kit_GetPlayerVideoBufferState(
     const Kit_Player *player,
     unsigned int *frames_length,
-    unsigned int *frames_size,
+    unsigned int *frames_capacity,
     unsigned int *packets_length,
     unsigned int *packets_capacity
 );
 
 /** @brief Gets the player audio buffering state
  *
- * Fetch buffering state for audio stream (if a stream is selected). It is safe to pass NULL as an argument.
- * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
+ * Fetch buffering state for audio stream (if a stream is selected). Any of the output pointers may be NULL.
+ * Note that if fetch fails (stream is not set, etc.), the corresponding arguments will not be written to.
  *
  * @param player Player instance
- * @param samples_length Current size of the output buffer in samples
- * @param samples_size Current maximum size of the output buffer in samples
+ * @param frames_length Current size of the output buffer in decoded audio frames
+ * @param frames_capacity Current maximum size of the output buffer in decoded audio frames
  * @param packets_length Current size of the input buffer in raw packets
  * @param packets_capacity Current maximum size of the input buffer in raw packets
  */
 KIT_API void Kit_GetPlayerAudioBufferState(
     const Kit_Player *player,
-    unsigned int *samples_length,
-    unsigned int *samples_size,
+    unsigned int *frames_length,
+    unsigned int *frames_capacity,
     unsigned int *packets_length,
     unsigned int *packets_capacity
 );
 
 /** @brief Gets the player subtitle buffering state
  *
- * Fetch buffering state for subtitle stream (if a stream is selected). It is safe to pass NULL as an argument.
- * Note that if fetch fails (stream is not set, etc.), the arguments will not be written to.
+ * Fetch buffering state for subtitle stream (if a stream is selected). Any of the output pointers may be NULL.
+ * Note that if fetch fails (stream is not set, etc.), the corresponding arguments will not be written to.
  *
  * @param player Player instance
  * @param items_length Current size of the output buffer in subtitle elements
- * @param items_size Current maximum size of the output buffer in subtitle elements
+ * @param items_capacity Current maximum size of the output buffer in subtitle elements
  * @param packets_length Current size of the input buffer in raw packets
  * @param packets_capacity Current maximum size of the input buffer in raw packets
  */
 KIT_API void Kit_GetPlayerSubtitleBufferState(
     const Kit_Player *player,
     unsigned int *items_length,
-    unsigned int *items_size,
+    unsigned int *items_capacity,
     unsigned int *packets_length,
     unsigned int *packets_capacity
 );
@@ -314,8 +314,8 @@ KIT_API SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, S
  * @param player Player instance
  * @param texture A previously allocated texture
  * @param area Rendered video surface area or NULL.
- * @return 0 if the texture was updated and 1 if no new frame was available, when playback
- *         is stopped or paused, or no video stream is selected.
+ * @return 0 if the texture was updated; 1 if no new frame was available, playback is
+ *         stopped or paused, or no video stream is selected.
  */
 KIT_API int Kit_GetPlayerVideoSDLTexture(const Kit_Player *player, SDL_Texture *texture, SDL_Rect *area);
 
@@ -410,7 +410,9 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  * rendering. Using any other format will lead to undefined behaviour. The easiest way to get a correct
  * texture is to create it with Kit_CreatePlayerSubtitleSDLTexture().
  *
- * This function will do nothing if player playback has not been started.
+ * This function will do nothing if player playback has not been started. If the player is
+ * paused, the atlas texture is not updated, but the currently visible rectangles are still
+ * returned.
  *
  * For example:
  * ```
@@ -511,6 +513,10 @@ KIT_API void Kit_GetPlayerInfo(const Kit_Player *player, Kit_PlayerInfo *info);
 
 /**
  * @brief Returns the current state of the player
+ *
+ * Note that this is not a plain read: when playback has reached the end of the source, this
+ * call also settles the player into the KIT_STOPPED state (joining the finished background
+ * threads). Poll it during playback to detect end of media.
  *
  * @param player Player instance
  * @return Current state of the player, see Kit_PlayerState

@@ -21,7 +21,7 @@ extern "C" {
  * @brief Returns a descriptive string for SDL audio format types
  *
  * @param type SDL_AudioFormat
- * @return Format string, eg. "AUDIO_S8".
+ * @return Format string, eg. "AUDIO_S8", or NULL for unknown values
  */
 KIT_API const char *Kit_GetSDLAudioFormatString(unsigned int type);
 
@@ -29,7 +29,7 @@ KIT_API const char *Kit_GetSDLAudioFormatString(unsigned int type);
  * @brief Returns a descriptive string for SDL pixel format types
  *
  * @param type SDL_PixelFormat
- * @return Format string, eg. "SDL_PIXELFORMAT_YV12"
+ * @return Format string, eg. "SDL_PIXELFORMAT_YV12", or NULL for unknown values
  */
 KIT_API const char *Kit_GetSDLPixelFormatString(unsigned int type);
 
@@ -45,7 +45,7 @@ KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
  * @brief Returns a descriptive string for Kitchensink hardware video decoder type
  *
  * @param type Kit_HardwareDeviceType
- * @return Format string, eg. "KIT_HWDEVICE_TYPE_VDPAU"
+ * @return Format string, eg. "VDPAU", or NULL for unknown values
  */
 KIT_API const char *Kit_GetHardwareDecoderTypeString(unsigned int type);
 

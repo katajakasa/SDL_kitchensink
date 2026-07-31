@@ -57,8 +57,8 @@ typedef enum Kit_HintType
     KIT_HINT_AUDIO_BUFFER_PACKETS,    ///< Audio input buffer packets (default: 64)
     KIT_HINT_SUBTITLE_BUFFER_PACKETS, ///< Subtitle input buffer packets (default: 64)
     KIT_HINT_VIDEO_BUFFER_FRAMES,     ///< Video output buffer frames (default: 2)
-    KIT_HINT_AUDIO_BUFFER_FRAMES,     ///< Audio output buffers (default: 64)
-    KIT_HINT_SUBTITLE_BUFFER_FRAMES,  ///< Subtitle output buffers (default: 64)
+    KIT_HINT_AUDIO_BUFFER_FRAMES,     ///< Audio output buffer frames (default: 64)
+    KIT_HINT_SUBTITLE_BUFFER_FRAMES,  ///< Subtitle output buffer size (default: 64; bitmap subtitles only)
     KIT_HINT_VIDEO_LATE_THRESHOLD,    ///< Late threshold for video frames in milliseconds (default: 50ms)
     KIT_HINT_VIDEO_EARLY_THRESHOLD,   ///< Early threshold for video frames in milliseconds (default: 5ms)
     KIT_HINT_AUDIO_LATE_THRESHOLD,    ///< Late threshold for audio frames in milliseconds (default: 50ms)
@@ -118,6 +118,9 @@ KIT_API void Kit_Quit();
  * This can be used to set hints on how the library should behave. See Kit_HintType
  * for all the options.
  *
+ * Out-of-range values are silently clamped to the valid range (e.g. buffer sizes have a
+ * minimum of 1). Unknown hint types are ignored.
+ *
  * @param type Hint type (refer to Kit_HintType for options)
  * @param value Value for the hint
  */
@@ -127,7 +130,7 @@ KIT_API void Kit_SetHint(Kit_HintType type, int value);
  * @brief Gets a previously set or default hint value
  *
  * @param type Hint type (refer to Kit_HintType for options)
- * @return Hint value
+ * @return Hint value, or 0 for unknown hint types
  */
 KIT_API int Kit_GetHint(Kit_HintType type);
 

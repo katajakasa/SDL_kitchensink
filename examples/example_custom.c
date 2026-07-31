@@ -1,5 +1,7 @@
 #include <SDL.h>
 #include <kitchensink2/kitchensink.h>
+
+#include "example_common.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -13,6 +15,19 @@
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
 
+// Optional whence flags for the seek callback. These are passed through from ffmpeg avio;
+// defined here so that the example does not need the ffmpeg headers.
+#define AVSEEK_SIZE 0x10000
+#define AVSEEK_FORCE 0x20000
+
+/**
+ * @brief Read callback for the custom kitchensink source.
+ *
+ * @param userdata FILE handle to read from, as given to Kit_CreateSourceFromCustom()
+ * @param buf Buffer to read data into
+ * @param buf_size Maximum amount of bytes to read
+ * @return Number of bytes read, or -1 on end of file
+ */
 int read_callback(void *userdata, uint8_t *buf, int buf_size) {
     FILE *fd = (FILE *)userdata;
     if(!feof(fd)) {
@@ -21,48 +36,49 @@ int read_callback(void *userdata, uint8_t *buf, int buf_size) {
     return -1;
 }
 
-int main(int argc, char *argv[]) {
-    int err = 0, ret = 0;
-    const char *filename = NULL;
-    SDL_Window *window = NULL;
-    SDL_Renderer *renderer = NULL;
-    bool run = true;
-    Kit_Source *src = NULL;
-    Kit_Player *player = NULL;
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_AudioDeviceID audio_dev;
+/**
+ * @brief Seek callback for the custom kitchensink source.
+ *
+ * Setting this makes the source seekable, so that e.g. Kit_PlayerSeek() works.
+ *
+ * @param userdata FILE handle to seek, as given to Kit_CreateSourceFromCustom()
+ * @param offset Byte offset, relative to whence
+ * @param whence SEEK_SET, SEEK_CUR or SEEK_END, possibly with AVSEEK_* flags set
+ * @return New file position in bytes (or the file size for AVSEEK_SIZE), or -1 on error
+ */
+int64_t seek_callback(void *userdata, int64_t offset, int whence) {
+    FILE *fd = (FILE *)userdata;
 
-    // Get filename to open
-    if(argc != 2) {
-        fprintf(stderr, "Usage: custom <filename>\n");
-        return 0;
+    // AVSEEK_SIZE asks for the total size of the file instead of seeking.
+    if(whence & AVSEEK_SIZE) {
+        const long current = ftell(fd);
+        if(current < 0 || fseek(fd, 0, SEEK_END) != 0)
+            return -1;
+        const long size = ftell(fd);
+        fseek(fd, current, SEEK_SET);
+        return size;
     }
-    filename = argv[1];
+
+    // AVSEEK_FORCE only suggests that seeking is worth doing even if it is expensive;
+    // for a local file it makes no difference, so just mask it off.
+    if(fseek(fd, offset, whence & ~AVSEEK_FORCE) != 0)
+        return -1;
+    return ftell(fd);
+}
+
+int main(int argc, char *argv[]) {
+    // Get filename to open
+    const char *filename = get_filename_arg(argc, argv, "custom");
 
     // Init SDL
-    err = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-    if(err != 0) {
-        fprintf(stderr, "Unable to initialize SDL2!\n");
-        return 1;
-    }
+    initialize_sdl(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
 
-    // Create a resizable window.
-    window =
-        SDL_CreateWindow(filename, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE);
-    if(window == NULL) {
-        fprintf(stderr, "Unable to create a new window!\n");
-        return 1;
-    }
-
-    // Create an accelerated renderer. Enable vsync, so we don't need to play around with SDL_Delay.
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if(renderer == NULL) {
-        fprintf(stderr, "Unable to create a renderer!\n");
-        return 1;
-    }
+    // Create a resizable window and an accelerated, vsynced renderer.
+    SDL_Window *window = create_window(filename, 1280, 720, 0);
+    SDL_Renderer *renderer = create_renderer(window);
 
     // Initialize Kitchensink with network and libass support.
-    err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS);
+    const int err = Kit_Init(KIT_INIT_NETWORK | KIT_INIT_ASS);
     if(err != 0) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
@@ -75,8 +91,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open up the custom source. Declare read callback, and transport FD in userdata.
-    src = Kit_CreateSourceFromCustom(read_callback, NULL, fd);
+    // Open up the custom source. Declare read and seek callbacks, and transport FD in userdata.
+    Kit_Source *src = Kit_CreateSourceFromCustom(read_callback, seek_callback, fd);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -84,7 +100,7 @@ int main(int argc, char *argv[]) {
 
     // Create the player. Pick best video, audio and subtitle streams, and set subtitle
     // rendering resolution to screen resolution.
-    player = Kit_CreatePlayer(
+    Kit_Player *player = Kit_CreatePlayer(
         src,
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
@@ -110,11 +126,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Init audio
+    SDL_AudioSpec wanted_spec, audio_spec;
     SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
     wanted_spec.freq = player_info.audio_format.sample_rate;
     wanted_spec.format = player_info.audio_format.format;
     wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-    audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
+    const SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
     SDL_PauseAudioDevice(audio_dev, 0);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
@@ -158,6 +175,7 @@ int main(int argc, char *argv[]) {
 
     // Get movie area size
     SDL_RenderSetLogicalSize(renderer, player_info.video_format.width, player_info.video_format.height);
+    bool run = true;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
             run = false;
@@ -180,12 +198,12 @@ int main(int argc, char *argv[]) {
         }
 
         // Refresh audio
-        int queued = SDL_GetQueuedAudioSize(audio_dev);
+        const int queued = SDL_GetQueuedAudioSize(audio_dev);
         if(queued < AUDIO_BUFFER_SIZE) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
             while(need > 0) {
-                ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
+                const int ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
                     SDL_QueueAudio(audio_dev, audio_buf, ret);
@@ -205,7 +223,7 @@ int main(int argc, char *argv[]) {
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
-        int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
+        const int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
             SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
         }

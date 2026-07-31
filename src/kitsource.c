@@ -258,7 +258,7 @@ int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType type) {
     }
     if(ret == AVERROR_DECODER_NOT_FOUND) {
         Kit_SetError("Unable to find a decoder for the stream");
-        return 1;
+        return -1;
     }
     return ret;
 }
