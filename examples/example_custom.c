@@ -15,6 +15,11 @@
 #define ATLAS_HEIGHT 4096
 #define ATLAS_MAX 1024
 
+// Optional whence flags for the seek callback. These are passed through from ffmpeg avio;
+// defined here so that the example does not need the ffmpeg headers.
+#define AVSEEK_SIZE 0x10000
+#define AVSEEK_FORCE 0x20000
+
 /**
  * @brief Read callback for the custom kitchensink source.
  *
@@ -29,6 +34,36 @@ int read_callback(void *userdata, uint8_t *buf, int buf_size) {
         return fread(buf, 1, buf_size, fd);
     }
     return -1;
+}
+
+/**
+ * @brief Seek callback for the custom kitchensink source.
+ *
+ * Setting this makes the source seekable, so that e.g. Kit_PlayerSeek() works.
+ *
+ * @param userdata FILE handle to seek, as given to Kit_CreateSourceFromCustom()
+ * @param offset Byte offset, relative to whence
+ * @param whence SEEK_SET, SEEK_CUR or SEEK_END, possibly with AVSEEK_* flags set
+ * @return New file position in bytes (or the file size for AVSEEK_SIZE), or -1 on error
+ */
+int64_t seek_callback(void *userdata, int64_t offset, int whence) {
+    FILE *fd = (FILE *)userdata;
+
+    // AVSEEK_SIZE asks for the total size of the file instead of seeking.
+    if(whence & AVSEEK_SIZE) {
+        const long current = ftell(fd);
+        if(current < 0 || fseek(fd, 0, SEEK_END) != 0)
+            return -1;
+        const long size = ftell(fd);
+        fseek(fd, current, SEEK_SET);
+        return size;
+    }
+
+    // AVSEEK_FORCE only suggests that seeking is worth doing even if it is expensive;
+    // for a local file it makes no difference, so just mask it off.
+    if(fseek(fd, offset, whence & ~AVSEEK_FORCE) != 0)
+        return -1;
+    return ftell(fd);
 }
 
 int main(int argc, char *argv[]) {
@@ -56,8 +91,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Open up the custom source. Declare read callback, and transport FD in userdata.
-    Kit_Source *src = Kit_CreateSourceFromCustom(read_callback, NULL, fd);
+    // Open up the custom source. Declare read and seek callbacks, and transport FD in userdata.
+    Kit_Source *src = Kit_CreateSourceFromCustom(read_callback, seek_callback, fd);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
