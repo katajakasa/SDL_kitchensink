@@ -206,6 +206,15 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, " * Stream #%d: %s\n", i, Kit_GetKitStreamTypeString(source_info.type));
     }
 
+    // Select which hardware decoders the player may use; this only matters since we
+    // initialized Kitchensink with KIT_INIT_HW_DECODE. KIT_HWDEVICE_TYPE_ALL is the
+    // default and allows any of them. To force pure software decoding, use
+    // KIT_HWDEVICE_TYPE_NONE, and to allow only specific backends, combine them,
+    // e.g. KIT_HWDEVICE_TYPE_VAAPI | KIT_HWDEVICE_TYPE_VDPAU.
+    Kit_VideoFormatRequest video_request;
+    Kit_ResetVideoFormatRequest(&video_request);
+    video_request.hw_device_types = KIT_HWDEVICE_TYPE_ALL;
+
     // Create the player. Pick best video, audio and subtitle streams, and set subtitle
     // rendering resolution to screen resolution.
     Kit_Player *player = Kit_CreatePlayer(
@@ -213,7 +222,7 @@ int main(int argc, char *argv[]) {
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO),
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_SUBTITLE),
-        NULL,
+        &video_request,
         NULL,
         1280,
         720
