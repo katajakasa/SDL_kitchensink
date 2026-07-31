@@ -4,7 +4,6 @@
 #include <libavformat/avformat.h>
 
 #include "kitchensink2/internal/kitdemuxer.h"
-#include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
 #include "kitchensink2/kiterror.h"
@@ -45,11 +44,11 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
             break;
         if(ret == AVERROR_EOF)
             return false;
-        if(attempt >= Kit_GetLibraryState()->demuxer_read_attempts - 1)
+        if(attempt >= (unsigned int)demuxer->read_attempts - 1)
             return false;
         // On abort, bail out through the EOF path. The EOF packets written by the demuxer thread
         // then land in already-aborted buffers and are simply dropped.
-        if(!Kit_DemuxerRetryDelay(demuxer, Kit_GetLibraryState()->demuxer_read_retry_delay))
+        if(!Kit_DemuxerRetryDelay(demuxer, demuxer->read_retry_delay))
             return false;
     }
 
@@ -69,8 +68,9 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     return true;
 }
 
-Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio_index, int subtitle_index) {
-    Kit_LibraryState *state = Kit_GetLibraryState();
+Kit_Demuxer *Kit_CreateDemuxer(
+    const Kit_Source *src, int video_index, int audio_index, int subtitle_index, const Kit_PlayerConfig *config
+) {
     Kit_Demuxer *demuxer = NULL;
     Kit_PacketBuffer *video_buf = NULL;
     Kit_PacketBuffer *audio_buf = NULL;
@@ -86,7 +86,7 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
     }
     if(video_index >= 0) {
         video_buf = Kit_CreatePacketBuffer(
-            state->video_packet_buffer_size,
+            config->video.packet_buffer_size,
             (buf_obj_alloc)av_packet_alloc,
             (buf_obj_unref)av_packet_unref,
             (buf_obj_free)av_packet_free,
@@ -100,7 +100,7 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
     }
     if(audio_index >= 0) {
         audio_buf = Kit_CreatePacketBuffer(
-            state->audio_packet_buffer_size,
+            config->audio.packet_buffer_size,
             (buf_obj_alloc)av_packet_alloc,
             (buf_obj_unref)av_packet_unref,
             (buf_obj_free)av_packet_free,
@@ -114,7 +114,7 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
     }
     if(subtitle_index >= 0) {
         subtitle_buf = Kit_CreatePacketBuffer(
-            state->subtitle_packet_buffer_size,
+            config->subtitle.packet_buffer_size,
             (buf_obj_alloc)av_packet_alloc,
             (buf_obj_unref)av_packet_unref,
             (buf_obj_free)av_packet_free,
@@ -129,6 +129,8 @@ Kit_Demuxer *Kit_CreateDemuxer(const Kit_Source *src, int video_index, int audio
 
     demuxer->src = src;
     demuxer->scratch_packet = scratch_packet;
+    demuxer->read_attempts = config->demuxer.read_attempts;
+    demuxer->read_retry_delay = config->demuxer.read_retry_delay;
     demuxer->buffers[KIT_VIDEO_INDEX] = video_buf;
     demuxer->buffers[KIT_AUDIO_INDEX] = audio_buf;
     demuxer->buffers[KIT_SUBTITLE_INDEX] = subtitle_buf;

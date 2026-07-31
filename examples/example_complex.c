@@ -183,10 +183,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Reduce buffering to use less memory
-    // Note! Some video files may require larger buffers!
-    Kit_SetHint(KIT_HINT_VIDEO_BUFFER_FRAMES, 1);
-
     // Open up the sourcefile.
     // This can be a local file, network url, ...
     Kit_Source *src = Kit_CreateSourceFromUrl(filename);
@@ -215,7 +211,15 @@ int main(int argc, char *argv[]) {
     Kit_ResetVideoFormatRequest(&video_request);
     video_request.hw_device_types = KIT_HWDEVICE_TYPE_ALL;
 
-    // Create the player. Pick best video, audio and subtitle streams, and set subtitle
+    // Set up the player configuration.
+    Kit_PlayerConfig config;
+    Kit_ResetPlayerConfig(&config);
+
+    // Reduce buffering to use less memory
+    // Note! Some video files may require larger buffers!
+    config.video.frame_buffer_size = 1;
+
+    // Create the player. Pick best streams available, and set subtitle
     // rendering resolution to screen resolution.
     Kit_Player *player = Kit_CreatePlayer(
         src,
@@ -225,7 +229,8 @@ int main(int argc, char *argv[]) {
         &video_request,
         NULL,
         1280,
-        720
+        720,
+        &config
     );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());

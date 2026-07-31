@@ -1,6 +1,6 @@
 #include <SDL.h>
-#include <limits.h>
 #include <kitchensink2/kitchensink.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -12,8 +12,6 @@
  */
 
 #define AUDIO_BUFFER_SIZE (1024 * 64)
-#define AUDIO_BUFFER_PACKETS 24
-#define AUDIO_BUFFER_FRAMES 32
 
 int main(int argc, char *argv[]) {
     // Get filename to open
@@ -27,14 +25,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Unable to initialize Kitchensink: %s", Kit_GetError());
         return 1;
     }
-
-    // Set input and output buffering to reduce latency
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_FRAMES, AUDIO_BUFFER_PACKETS);
-    Kit_SetHint(KIT_HINT_AUDIO_BUFFER_PACKETS, AUDIO_BUFFER_FRAMES);
-
-    // Loosen up sync thresholds -- this should help with stuttering in network streams.
-    Kit_SetHint(KIT_HINT_AUDIO_EARLY_THRESHOLD, 30);
-    Kit_SetHint(KIT_HINT_AUDIO_LATE_THRESHOLD, 100);
 
     // Open up the sourcefile.
     Kit_Source *src = Kit_CreateSourceFromUrl(filename);
@@ -67,9 +57,22 @@ int main(int argc, char *argv[]) {
     audio_request.sample_rate = 48000;
     audio_request.layout = KIT_LAYOUT_STEREO;
 
+    // Set up the player configuration.
+    Kit_PlayerConfig config;
+    Kit_ResetPlayerConfig(&config);
+
+    // Set input and output buffering to reduce latency
+    config.audio.frame_buffer_size = 24;
+    config.audio.packet_buffer_size = 32;
+
+    // Loosen up sync thresholds -- this should help with stuttering in network streams.
+    config.audio.early_threshold = 30;
+    config.audio.late_threshold = 100;
+
     // Create the player. No video, pick best audio stream, no subtitles, no screen
-    Kit_Player *player =
-        Kit_CreatePlayer(src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, &audio_request, 0, 0);
+    Kit_Player *player = Kit_CreatePlayer(
+        src, -1, Kit_GetBestSourceStream(src, KIT_STREAMTYPE_AUDIO), -1, NULL, &audio_request, 0, 0, &config
+    );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
         return 1;

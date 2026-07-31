@@ -41,8 +41,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Create the player. Pick best video, audio and subtitle streams, and set subtitle
-    // rendering resolution to screen resolution.
+    // Set up default configs for the player.
+    Kit_PlayerConfig config;
+    Kit_ResetPlayerConfig(&config);
+
+    // Create the player. Pick best streams available.
     Kit_Player *player = Kit_CreatePlayer(
         src,
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
@@ -51,7 +54,8 @@ int main(int argc, char *argv[]) {
         NULL,
         NULL,
         1280,
-        720
+        720,
+        &config
     );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());

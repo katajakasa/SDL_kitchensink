@@ -29,9 +29,9 @@ typedef struct Kit_Decoder Kit_Decoder;
  */
 typedef enum Kit_DecoderInputResult
 {
-    KIT_DEC_INPUT_OK = 0,   ///< Packet was accepted.
-    KIT_DEC_INPUT_RETRY,    ///< Decoder's internal queue is full; caller should retry the same packet later.
-    KIT_DEC_INPUT_EOF,      ///< Decoder has reached end of stream (e.g. avcodec_send_packet returned EOF).
+    KIT_DEC_INPUT_OK = 0, ///< Packet was accepted.
+    KIT_DEC_INPUT_RETRY,  ///< Decoder's internal queue is full; caller should retry the same packet later.
+    KIT_DEC_INPUT_EOF,    ///< Decoder has reached end of stream (e.g. avcodec_send_packet returned EOF).
 } Kit_DecoderInputResult;
 
 /** @brief Feeds one packet (or NULL to flush/drain) into the underlying codec. */

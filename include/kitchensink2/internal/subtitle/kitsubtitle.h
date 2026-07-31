@@ -17,6 +17,7 @@
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/kitconfig.h"
 #include "kitchensink2/kitformat.h"
+#include "kitchensink2/kitplayer.h"
 #include "kitchensink2/kitsource.h"
 
 /**
@@ -28,6 +29,9 @@
  * format is always SDL_PIXELFORMAT_RGBA32. On failure, this function also closes @p sync_timer.
  *
  * @param src source the subtitle stream belongs to
+ * @param config subtitle stream configuration; the buffer size and font hinting mode are
+ * copied from it (the pointer is not retained)
+ * @param thread_count FFmpeg codec thread count, 0 for autodetect
  * @param sync_timer sync timer for the decoder; ownership is transferred to the created decoder,
  * or closed by this function if creation fails
  *
@@ -40,6 +44,8 @@
  */
 KIT_LOCAL Kit_Decoder *Kit_CreateSubtitleDecoder(
     const Kit_Source *src,
+    const Kit_PlayerSubtitleConfig *config,
+    int thread_count,
     Kit_Timer *sync_timer,
     int stream_index,
     int video_w,

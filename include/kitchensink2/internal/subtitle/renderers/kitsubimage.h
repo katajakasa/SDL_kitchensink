@@ -28,9 +28,11 @@
  * @param video_h video frame height, used to compute the x/y scale factor for subtitle positions
  * @param screen_w target output width subtitle coordinates are scaled to
  * @param screen_h target output height subtitle coordinates are scaled to
+ * @param frame_buffer_size subtitle output packet buffer size, in frames
  * @return newly created renderer, or NULL on failure
  */
-KIT_LOCAL Kit_SubtitleRenderer *
-Kit_CreateImageSubtitleRenderer(Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h);
+KIT_LOCAL Kit_SubtitleRenderer *Kit_CreateImageSubtitleRenderer(
+    Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h, int frame_buffer_size
+);
 
 #endif // KITSUBIMAGE_H

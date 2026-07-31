@@ -99,7 +99,11 @@ int main(int argc, char *argv[]) {
     Kit_ResetVideoFormatRequest(&v_req);
     v_req.format = SDL_PIXELFORMAT_RGB24;
 
-    // Create the player. Pick best video and subtitle streams, and set subtitle rendering resolution.
+    // Set up the player configuration.
+    Kit_PlayerConfig config;
+    Kit_ResetPlayerConfig(&config);
+
+    // Create the player. Pick best streams available.
     Kit_Player *player = Kit_CreatePlayer(
         src,
         Kit_GetBestSourceStream(src, KIT_STREAMTYPE_VIDEO),
@@ -108,7 +112,8 @@ int main(int argc, char *argv[]) {
         &v_req,
         NULL,
         1280,
-        720
+        720,
+        &config
     );
     if(player == NULL) {
         fprintf(stderr, "Unable to create player: %s\n", Kit_GetError());
@@ -137,8 +142,8 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // Lock the video output and fetch the frame data pointers. Data contains the video data, and line_size contains
-        // the raw byte sizes of the buffers. When reading RGBA data,
+        // Lock the video output and fetch the frame data pointers. Data contains the video data, and line_size
+        // contains the raw byte sizes of the buffers. When reading RGBA data,
         unsigned char **frame_data;
         unsigned char **subtitle_data;
         int *frame_line_size;
@@ -151,17 +156,20 @@ int main(int argc, char *argv[]) {
 
             // Use SDL_Surfaces for simple blitting. Since we know that the source data is RGB24 - as we told Kit
             // to convert it - we can just declare the data as RGB24 here.
-            SDL_Surface *pic = SDL_CreateRGBSurfaceWithFormatFrom(frame_data[0], area.w, area.h, 24, frame_line_size[0], SDL_PIXELFORMAT_RGB24);
+            SDL_Surface *pic = SDL_CreateRGBSurfaceWithFormatFrom(
+                frame_data[0], area.w, area.h, 24, frame_line_size[0], SDL_PIXELFORMAT_RGB24
+            );
 
             // Fetch and render subtitles on top of the image frame
             const int subtitle_frames =
                 Kit_GetPlayerSubtitleRawFrames(player, &subtitle_data, &source_rects, &target_rects);
             if(subtitle_frames > 0) {
-                for (int i = 0; i < subtitle_frames; i++) {
+                for(int i = 0; i < subtitle_frames; i++) {
                     const SDL_Rect *s = &source_rects[i];
                     SDL_Rect *t = &target_rects[i];
                     SDL_Surface *frame = SDL_CreateRGBSurfaceWithFormatFrom(
-                        subtitle_data[i], s->w, s->h, 32, s->w * 4, SDL_PIXELFORMAT_RGBA32);
+                        subtitle_data[i], s->w, s->h, 32, s->w * 4, SDL_PIXELFORMAT_RGBA32
+                    );
                     SDL_BlitScaled(frame, s, pic, t);
                     SDL_FreeSurface(frame);
                 }
@@ -170,7 +178,15 @@ int main(int argc, char *argv[]) {
             // Write out the frame as TGA
             snprintf(file_name, MAX_FILESIZE, "%sframe_%d.tga", output_dir, frame_index);
             write_tga(file_name, frame_data[0], area.w, area.h);
-            fprintf(stderr, "Got frame %d: %d x %d, %d subtitle frames, saved to %s\n", frame_index, area.w, area.h, subtitle_frames, file_name);
+            fprintf(
+                stderr,
+                "Got frame %d: %d x %d, %d subtitle frames, saved to %s\n",
+                frame_index,
+                area.w,
+                area.h,
+                subtitle_frames,
+                file_name
+            );
 
             // We are done with data. Unlock the video output. This invalidates the data and line_size pointers!
             SDL_FreeSurface(pic);

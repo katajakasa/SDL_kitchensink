@@ -215,8 +215,30 @@ static void ren_set_ass_size_cb(Kit_SubtitleRenderer *renderer, int w, int h) {
     SDL_UnlockMutex(ass_renderer->decoder_lock);
 }
 
+/**
+ * Maps the public Kit_FontHinting mode to the matching libass hinting mode.
+ */
+static ASS_Hinting Kit_GetASSHinting(const Kit_FontHinting font_hinting) {
+    switch(font_hinting) {
+        case KIT_FONT_HINTING_LIGHT:
+            return ASS_HINTING_LIGHT;
+        case KIT_FONT_HINTING_NORMAL:
+            return ASS_HINTING_NORMAL;
+        case KIT_FONT_HINTING_NATIVE:
+            return ASS_HINTING_NATIVE;
+        default:
+            return ASS_HINTING_NONE;
+    }
+}
+
 Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
-    const AVFormatContext *format_ctx, Kit_Decoder *dec, int video_w, int video_h, int screen_w, int screen_h
+    const AVFormatContext *format_ctx,
+    Kit_Decoder *dec,
+    int video_w,
+    int video_h,
+    int screen_w,
+    int screen_h,
+    Kit_FontHinting font_hinting
 ) {
     assert(dec != NULL);
     assert(video_w >= 0);
@@ -278,7 +300,7 @@ Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
     ass_set_fonts(render_handler, NULL, "sans-serif", ASS_FONTPROVIDER_AUTODETECT, NULL, 1);
     ass_set_storage_size(render_handler, video_w, video_h);
     ass_set_frame_size(render_handler, screen_w, screen_h);
-    ass_set_hinting(render_handler, state->font_hinting);
+    ass_set_hinting(render_handler, Kit_GetASSHinting(font_hinting));
 
     if((render_track = ass_new_track(state->libass_handle)) == NULL) {
         Kit_SetError("Unable to initialize libass track");

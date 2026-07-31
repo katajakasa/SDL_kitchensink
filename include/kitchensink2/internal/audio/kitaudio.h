@@ -13,6 +13,7 @@
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/kitconfig.h"
 #include "kitchensink2/kitformat.h"
+#include "kitchensink2/kitplayer.h"
 #include "kitchensink2/kitsource.h"
 
 /**
@@ -25,12 +26,20 @@
  *
  * @param src Source to read the stream from
  * @param format_request Requested output audio format, or defaults where fields are unset
+ * @param config Audio stream configuration; the buffer size and sync thresholds are copied
+ *        from it (the pointer is not retained)
+ * @param thread_count FFmpeg codec thread count, 0 for autodetect
  * @param sync_timer Sync timer to attach to the decoder (ownership transferred to this call)
  * @param stream_index Index of the audio stream to decode
  * @return New decoder on success, NULL on error (see Kit_GetError())
  */
 KIT_LOCAL Kit_Decoder *Kit_CreateAudioDecoder(
-    const Kit_Source *src, const Kit_AudioFormatRequest *format_request, Kit_Timer *sync_timer, int stream_index
+    const Kit_Source *src,
+    const Kit_AudioFormatRequest *format_request,
+    const Kit_PlayerAudioConfig *config,
+    int thread_count,
+    Kit_Timer *sync_timer,
+    int stream_index
 );
 
 /**
