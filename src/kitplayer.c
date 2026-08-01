@@ -771,7 +771,7 @@ int Kit_WaitBufferFillRate(
     return 1;
 }
 
-void Kit_GetPlayerVideoBufferState(
+bool Kit_GetPlayerVideoBufferState(
     const Kit_Player *player,
     unsigned int *frames_length,
     unsigned int *frames_capacity,
@@ -779,13 +779,23 @@ void Kit_GetPlayerVideoBufferState(
     unsigned int *packets_capacity
 ) {
     assert(player != NULL);
+    if(frames_length != NULL)
+        *frames_length = 0;
+    if(frames_capacity != NULL)
+        *frames_capacity = 0;
+    if(packets_length != NULL)
+        *packets_length = 0;
+    if(packets_capacity != NULL)
+        *packets_capacity = 0;
     Kit_LockDecoderCtrl(player, KIT_VIDEO_INDEX);
-    Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity);
+    const bool has_stream =
+        Kit_GetDecoderBufferState(player->decoders[KIT_VIDEO_INDEX], frames_length, frames_capacity) == 0;
     Kit_UnlockDecoderCtrl(player, KIT_VIDEO_INDEX);
     Kit_GetDemuxerBufferState(player->demuxer, KIT_VIDEO_INDEX, packets_length, packets_capacity);
+    return has_stream;
 }
 
-void Kit_GetPlayerAudioBufferState(
+bool Kit_GetPlayerAudioBufferState(
     const Kit_Player *player,
     unsigned int *frames_length,
     unsigned int *frames_capacity,
@@ -793,13 +803,23 @@ void Kit_GetPlayerAudioBufferState(
     unsigned int *packets_capacity
 ) {
     assert(player != NULL);
+    if(frames_length != NULL)
+        *frames_length = 0;
+    if(frames_capacity != NULL)
+        *frames_capacity = 0;
+    if(packets_length != NULL)
+        *packets_length = 0;
+    if(packets_capacity != NULL)
+        *packets_capacity = 0;
     Kit_LockDecoderCtrl(player, KIT_AUDIO_INDEX);
-    Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], frames_length, frames_capacity);
+    const bool has_stream =
+        Kit_GetDecoderBufferState(player->decoders[KIT_AUDIO_INDEX], frames_length, frames_capacity) == 0;
     Kit_UnlockDecoderCtrl(player, KIT_AUDIO_INDEX);
     Kit_GetDemuxerBufferState(player->demuxer, KIT_AUDIO_INDEX, packets_length, packets_capacity);
+    return has_stream;
 }
 
-void Kit_GetPlayerSubtitleBufferState(
+bool Kit_GetPlayerSubtitleBufferState(
     const Kit_Player *player,
     unsigned int *items_length,
     unsigned int *items_capacity,
@@ -807,10 +827,20 @@ void Kit_GetPlayerSubtitleBufferState(
     unsigned int *packets_capacity
 ) {
     assert(player != NULL);
+    if(items_length != NULL)
+        *items_length = 0;
+    if(items_capacity != NULL)
+        *items_capacity = 0;
+    if(packets_length != NULL)
+        *packets_length = 0;
+    if(packets_capacity != NULL)
+        *packets_capacity = 0;
     Kit_LockDecoderCtrl(player, KIT_SUBTITLE_INDEX);
-    Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity);
+    const bool has_stream =
+        Kit_GetDecoderBufferState(player->decoders[KIT_SUBTITLE_INDEX], items_length, items_capacity) == 0;
     Kit_UnlockDecoderCtrl(player, KIT_SUBTITLE_INDEX);
     Kit_GetDemuxerBufferState(player->demuxer, KIT_SUBTITLE_INDEX, packets_length, packets_capacity);
+    return has_stream;
 }
 
 Kit_PlayerState Kit_GetPlayerState(Kit_Player *player) {
