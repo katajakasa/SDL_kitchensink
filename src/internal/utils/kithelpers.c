@@ -14,7 +14,7 @@ static const char *const font_mime[] = {
 };
 
 double Kit_GetSystemTime() {
-    return (double)av_gettime() / 1000000.0;
+    return (double)av_gettime_relative() / 1000000.0;
 }
 
 bool Kit_StreamIsFontAttachment(const AVStream *stream) {

@@ -16,7 +16,7 @@
 /**
  * @brief Returns the current system time in seconds, using FFmpeg's monotonic clock source.
  *
- * @return Current time in seconds, as a fractional value derived from av_gettime()
+ * @return Current time in seconds, as a fractional value derived from av_gettime_relative()
  */
 KIT_LOCAL double Kit_GetSystemTime();
 
