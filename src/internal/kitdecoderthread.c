@@ -6,7 +6,8 @@
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 
-static bool Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *eof_received, const int timeout) {
+static bool
+Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *draining, bool *eof_received, const int timeout) {
     Kit_DecoderInputResult ret;
     bool is_eof;
     bool can_feed_more = false;
@@ -21,6 +22,7 @@ static bool Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool 
         Kit_ClearDecoderBuffers(thread->decoder);
         thread->decoder->output_serial = Kit_GetPacketSerial(thread->scratch_packet->opaque);
         *pts_jumped = true;
+        *draining = false;
         can_feed_more = true;
         goto finish;
     }
@@ -32,16 +34,32 @@ static bool Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool 
         goto finish;
     }
 
+    // The decoder reported end-of-stream while the demuxer was still mid-file: keep consuming and
+    // discarding this stream's packets so the demuxer never wedges against a full input buffer,
+    // until the EOF sentinel marks the real end of input (or a seek makes the decoder live again).
+    // This is mostly a theoretical issue, but it allows for better unit-tests.
+    if(*draining) {
+        if(is_eof)
+            *eof_received = true;
+        else
+            can_feed_more = true;
+        goto finish;
+    }
+
     // If valid packet was found and it is not a control packet, it must contain stream data.
     // Attempt to add it to the ffmpeg decoder internal queue. Note that the queue may be full, in which case
     // we try again later.
     ret = Kit_AddDecoderPacket(thread->decoder, is_eof ? NULL : thread->scratch_packet);
     if(ret == KIT_DEC_INPUT_RETRY)
         goto cancel;
-    if(ret == KIT_DEC_INPUT_EOF || is_eof)
+    if(is_eof) {
         *eof_received = true;
-    else
+    } else if(ret == KIT_DEC_INPUT_EOF) {
+        *draining = true;
         can_feed_more = true;
+    } else {
+        can_feed_more = true;
+    }
 
 finish:
     Kit_FinishPacketBufferRead(thread->input);
@@ -57,6 +75,7 @@ cancel:
 static int Kit_DecodeMain(void *ptr) {
     Kit_DecoderThread *thread = ptr;
     bool pts_jumped = false;
+    bool draining = false;
     bool eof_received = false;
     double pts;
 
@@ -64,7 +83,7 @@ static int Kit_DecodeMain(void *ptr) {
         // Feed the decoder until its internal queue is full (input callback signals retry) or input runs out.
         // Queueing multiple packets at once lets decoders keep several frames in flight.
         int timeout = 100;
-        while(SDL_AtomicGet(&thread->run) && Kit_ProcessPacket(thread, &pts_jumped, &eof_received, timeout))
+        while(SDL_AtomicGet(&thread->run) && Kit_ProcessPacket(thread, &pts_jumped, &draining, &eof_received, timeout))
             timeout = 0;
 
         // Run the decoder. This will consume packets from the ffmpeg queue. We may need to call this multiple times,
