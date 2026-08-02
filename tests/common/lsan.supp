@@ -1,0 +1,7 @@
+# Fontconfig parses its XML configuration once per process and keeps global
+# state alive until exit; LeakSanitizer flags those one-time init allocations
+# (fontconfig -> expat XML_ParseBuffer) on systems where the parse allocates
+# lazily (seen on Ubuntu 26.04, not on Arch). Not our memory -- suppress the
+# whole library, since the system .so is stripped and symbol-level entries
+# would not match.
+leak:libfontconfig
