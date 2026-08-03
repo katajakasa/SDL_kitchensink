@@ -24,7 +24,7 @@ typedef struct Kit_DecoderThread {
     Kit_Decoder *decoder;     ///< Decoder this thread drives.
     SDL_Thread *thread;       ///< Underlying SDL thread handle; NULL while not running.
     AVPacket *scratch_packet; ///< Reusable packet used to read from the input buffer.
-    SDL_AtomicInt run;         ///< Run flag; 0 requests/marks stop.
+    SDL_AtomicInt run;        ///< Run flag; 0 requests/marks stop.
 } Kit_DecoderThread;
 
 /**

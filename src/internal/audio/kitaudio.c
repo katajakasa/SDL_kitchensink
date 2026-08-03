@@ -33,7 +33,7 @@ typedef struct Kit_AudioDecoder {
     Kit_AudioOutputFormat output; ///< Output audio format description
     int early_threshold;          ///< Early sync threshold, in milliseconds
     int late_threshold;           ///< Late sync threshold, in milliseconds
-    SDL_AtomicInt eof_seen;        ///< Codec fully drained at end of stream (decoder thread writes, getter reads)
+    SDL_AtomicInt eof_seen;       ///< Codec fully drained at end of stream (decoder thread writes, getter reads)
 } Kit_AudioDecoder;
 
 int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *decoder, Kit_AudioOutputFormat *output) {

@@ -12,7 +12,7 @@ typedef struct Kit_TimerValue {
     SDL_AtomicInt count;       ///< Reference count
     SDL_AtomicInt serial;      ///< Current seek serial; bumped on every seek request
     SDL_AtomicInt base_serial; ///< Seek serial for which the timer base was last set
-    SDL_Mutex *lock;          ///< Guards the non-atomic fields below (shared by multiple threads)
+    SDL_Mutex *lock;           ///< Guards the non-atomic fields below (shared by multiple threads)
     bool initialized;
     bool paused;
     double pause_start;
