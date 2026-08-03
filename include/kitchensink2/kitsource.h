@@ -12,7 +12,7 @@
 
 #include "kitchensink2/kitconfig.h"
 #include <SDL_rwops.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
