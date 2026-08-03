@@ -11,7 +11,7 @@
  */
 
 #include "kitchensink3/kitconfig.h"
-#include <SDL_rwops.h>
+#include <SDL3/SDL_iostream.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -37,7 +37,7 @@ typedef enum Kit_StreamType
  * @brief Audio/video source.
  *
  * Should be created using Kit_CreateSourceFromUrl(), Kit_CreateSourceFromCustom() or
- * Kit_CreateSourceFromRW(), and closed with Kit_CloseSource().
+ * Kit_CreateSourceFromIO(), and closed with Kit_CloseSource().
  *
  * Source must exist for the whole duration of using a player. You must take care of closing the source
  * yourself after you are done with it!
@@ -153,7 +153,7 @@ KIT_API Kit_Source *Kit_CreateSourceFromUrl(const char *url);
 KIT_API Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata);
 
 /**
- * @brief Create a new source from SDL RWops struct
+ * @brief Create a new source from SDL IOStream struct
  *
  * Can be used to read data from SDL compatible sources.
  *
@@ -162,29 +162,29 @@ KIT_API Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_See
  *
  * On failure, this function will return NULL, and further error data is available via Kit_GetError().
  *
- * Note that the RWops struct must exist during the whole lifetime of the source, and you must take
- * care of freeing the rwops after it's no longer needed.
+ * Note that the IOStream struct must exist during the whole lifetime of the source, and you must take
+ * care of freeing the io stream after it's no longer needed.
  *
  * For example:
  * ```
- * SDL_RWops *rw = SDL_RWFromFile("myvideo.mkv", "rb");
- * Kit_Source *src = Kit_CreateSourceFromRW(rw);
- * if(src == NULL) {
+ * SDL_IOStream *io = SDL_IOFromFile("myvideo.mkv", "rb");
+ * Kit_Source *source = Kit_CreateSourceFromIO(io);
+ * if(source == NULL) {
  *     fprintf(stderr, "Error: %s\n", Kit_GetError());
  *     return 1;
  * }
  * ```
  *
- * @param rw_ops Initialized RWOps
+ * @param io_stream Initialized SDL_IOStream
  * @return Returns an initialized Kit_Source* on success or NULL on failure
  */
-KIT_API Kit_Source *Kit_CreateSourceFromRW(SDL_RWops *rw_ops);
+KIT_API Kit_Source *Kit_CreateSourceFromIO(SDL_IOStream *io_stream);
 
 /**
  * @brief Closes a previously initialized source
  *
  * Closes a Kit_Source that was previously created by Kit_CreateSourceFromUrl(), Kit_CreateSourceFromCustom()
- * or Kit_CreateSourceFromRW(), and frees up all memory and resources used by it. Using the source for
+ * or Kit_CreateSourceFromIO(), and frees up all memory and resources used by it. Using the source for
  * anything after this will lead to undefined behaviour.
  *
  * Passing NULL as argument is valid, and will do nothing.

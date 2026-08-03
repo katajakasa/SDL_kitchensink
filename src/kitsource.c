@@ -122,44 +122,28 @@ EXIT_0:
     return NULL;
 }
 
-static int _RWReadCallback(void *userdata, uint8_t *buf, int size) {
-    size_t bytes_read = SDL_RWread((SDL_RWops *)userdata, buf, 1, size);
+static int _IOReadCallback(void *userdata, uint8_t *buf, int size) {
+    const size_t bytes_read = SDL_ReadIO((SDL_IOStream *)userdata, buf, size);
     return bytes_read == 0 ? AVERROR_EOF : bytes_read;
 }
 
-static int64_t _RWGetSize(SDL_RWops *rw_ops) {
-    // First, see if tell works at all, and fail with -1 if it doesn't.
-    const int64_t current_pos = SDL_RWtell(rw_ops);
-    if(current_pos < 0) {
-        return -1;
-    }
-
-    // Seek to end, get pos (this is the size), then return.
-    if(SDL_RWseek(rw_ops, 0, RW_SEEK_END) < 0) {
-        return -1; // Seek failed, never mind then
-    }
-    const int64_t max_pos = SDL_RWtell(rw_ops);
-    SDL_RWseek(rw_ops, current_pos, RW_SEEK_SET);
-    return max_pos;
-}
-
-static int64_t _RWSeekCallback(void *userdata, int64_t offset, int whence) {
-    int rw_whence = 0;
+static int64_t _IOSeekCallback(void *userdata, int64_t offset, int whence) {
+    int io_whence = 0;
     if(whence & AVSEEK_SIZE)
-        return _RWGetSize(userdata);
+        return SDL_GetIOSize((SDL_IOStream *)userdata);
 
     if((whence & ~AVSEEK_FORCE) == SEEK_CUR)
-        rw_whence = RW_SEEK_CUR;
+        io_whence = SDL_IO_SEEK_CUR;
     else if((whence & ~AVSEEK_FORCE) == SEEK_SET)
-        rw_whence = RW_SEEK_SET;
+        io_whence = SDL_IO_SEEK_SET;
     else if((whence & ~AVSEEK_FORCE) == SEEK_END)
-        rw_whence = RW_SEEK_END;
+        io_whence = SDL_IO_SEEK_END;
 
-    return SDL_RWseek((SDL_RWops *)userdata, offset, rw_whence);
+    return SDL_SeekIO((SDL_IOStream *)userdata, offset, io_whence);
 }
 
-Kit_Source *Kit_CreateSourceFromRW(SDL_RWops *rw_ops) {
-    return Kit_CreateSourceFromCustom(_RWReadCallback, _RWSeekCallback, rw_ops);
+Kit_Source *Kit_CreateSourceFromIO(SDL_IOStream *io_stream) {
+    return Kit_CreateSourceFromCustom(_IOReadCallback, _IOSeekCallback, io_stream);
 }
 
 void Kit_CloseSource(Kit_Source *src) {
