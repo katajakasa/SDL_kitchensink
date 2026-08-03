@@ -17,28 +17,22 @@ Features:
 * Bitmap, text and SSA/ASS subtitle support
 * Video hardware decoding (optionally)
 
-Note! Master branch is for the development of v2.x.x series.
+Note! Master branch is for the development of v3.x.x series.
 
+* v3 is under development in master branch, and is the first version to support SDL3.
+* v2 can be found in the release/v2 branch. Bugfixes and new features are accepted / added. Note that v2 of
+  SDL_kitchensink is the last version to support SDL2.
 * v1 can be found in the release/v1 branch. Only smaller bugfixes will be accepted / added.
 * v0 is no longer in development, and no fixes of any kind will be made or accepted.
 
-| Version | Supported          | Bugfixes           | New features       | Branch     |
-|---------|--------------------|--------------------|--------------------|------------|
-| 2.x.x   | :white_check_mark: | :white_check_mark: | :white_check_mark: | master     |
-| 1.x.x   | :white_check_mark: | :white_check_mark: | :x:                | release/v1 |
-| 0.x.x   | :x:                | :x:                | :x:                | release/v0 |
+| Version | SDL   | Supported          | Bugfixes           | New features       | Branch     |
+|---------|-------|--------------------|--------------------|--------------------|------------|
+| 3.x.x   | 3.x.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | master     |
+| 2.x.x   | 2.x.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | release/v2 |
+| 1.x.x   | 2.x.x | :white_check_mark: | :white_check_mark: | :x:                | release/v1 |
+| 0.x.x   | 2.x.x | :x:                | :x:                | :x:                | release/v0 |
 
-## 1. Installation
-
-Nowadays you can find SDL_kitchensink in eg. linux repositories. Installation might be as simple as running the
-following (or your distributions' equivalent):
-
-```apt install libsdl-kitchensink libsdl-kitchensink-dev```
-
-If you are running on windows/MSYS2 or on linux distributions where the package management does not have kitchensink,
-you will need to compile it yourself. Please see the "Compiling" section below.
-
-## 2. Library requirements
+## 1. Library requirements
 
 Build requirements:
 
@@ -54,14 +48,14 @@ Library requirements:
 Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions may or may not work; versions
 noted here are the only ones tested.
 
-### 2.1. Debian / Ubuntu
+### 1.1. Debian / Ubuntu
 
 ```
 sudo apt-get install libsdl2-dev libavcodec-dev libavformat-dev \
     libavutil-dev libswresample-dev libswscale-dev libass-dev
 ```
 
-### 2.2. MSYS2 64bit
+### 1.2. MSYS2 64bit
 
 These are for x86_64. For 32bit installation, just change the package names a bit .
 
@@ -69,7 +63,7 @@ These are for x86_64. For 32bit installation, just change the package names a bi
 pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ```
 
-## 3. Compiling
+## 2. Compiling
 
 By default, both static and dynamic libraries are built.
 
@@ -85,38 +79,34 @@ Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The fi
 * CMAKE_INSTALL_PREFIX/bin for binaries (.dll, .so)
 * CMAKE_INSTALL_PREFIX/include for headers
 
-### 3.1. Building the libraries on Debian/Ubuntu
+### 2.1. Building the libraries on Debian/Ubuntu
 
 1. ```mkdir build && cd build```
 2. ```cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
 3. ```make -j```
 4. ```sudo make install```
 
-### 3.2. Building the libraries on MSYS2
+### 2.2. Building the libraries on MSYS2
 
 1. ```mkdir build && cd build```
 2. ```cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
 3. ```make```
 4. ```make install```
 
-### 3.3. Building examples
+### 2.3. Building examples
 
 Just add ```-DBUILD_EXAMPLES=1``` to cmake arguments and rebuild.
 
-### 3.4. Building with AddressSanitizer
+### 2.4. Building with AddressSanitizer
 
 This is for development/debugging use only!
 
 Make sure llvm is installed, then add ```-DUSE_ASAN=1``` to the cmake arguments and rebuild. Note that ASAN is not
 supported on all OSes (eg. windows).
 
-After building, you can run with the following (make sure to set correct llvm-symbolizer path):
+After building, you should be able to just run the examples and get asan errors.
 
-```
-ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./complex <my videofile>
-```
-
-## 4. Q&A
+## 3. Q&A
 
 Q: What's with the USE_DYNAMIC_LIBASS cmake flag ?
 
@@ -130,22 +120,22 @@ Q: Why the name SDL_kitchensink
 * A: Because pulling major blob of library code like ffmpeg feels like bringing in a whole house with its kitchensink
   and everything to the project. Also, it sounded funny. Also, SDL_ffmpeg is already reserved :(
 
-## 5. Examples
+## 4. Examples
 
 Please see examples directory. You can also take a look at unittests for some help. Note that examples are NOT meant for
 any kind of real life use; they are only meant to show simple use cases for the library.
 
-## 6. FFMPEG & licensing
+## 5. FFMPEG & licensing
 
 Note that FFmpeg has a rather complex license. Please take a look at
 [FFmpeg Legal page](http://ffmpeg.org/legal.html) for details.
 
-## 7. License
+## 6. License
 
 ```
 The MIT License (MIT)
 
-Copyright (c) 2020 Tuomas Virtanen
+Copyright (c) Tuomas Virtanen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
