@@ -39,10 +39,10 @@ build-tsan:
 	ninja -C build/
 
 test-asan: build-asan
-	ninja -C build test
+	LSAN_OPTIONS=suppressions=$(CURDIR)/tests/common/lsan.supp ninja -C build test
 
 test-tsan: build-tsan
-	ninja -C build test
+	TSAN_OPTIONS=suppressions=$(CURDIR)/tests/common/tsan.supp ninja -C build test
 
 clean:
 	rm -rf ./build/
