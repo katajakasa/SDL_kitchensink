@@ -1,6 +1,5 @@
 #include <SDL_atomic.h>
 #include <SDL_timer.h>
-#include <SDL_version.h>
 #include <assert.h>
 
 #include "kitchensink3/internal/audio/kitaudio.h"
@@ -667,9 +666,7 @@ SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, SDL_Rende
         Kit_SetError("Unable to create video texture: %s", SDL_GetError());
         return NULL;
     }
-#if SDL_VERSION_ATLEAST(2, 0, 12)
     SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);
-#endif
     return texture;
 }
 
@@ -710,9 +707,7 @@ SDL_Texture *Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Re
         return NULL;
     }
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-#if SDL_VERSION_ATLEAST(2, 0, 12)
     SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
-#endif
     return texture;
 }
 
