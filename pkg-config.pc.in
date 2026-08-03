@@ -4,7 +4,7 @@ libdir=@CMAKE_INSTALL_FULL_LIBDIR@
 includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
 
 Name: SDL_kitchensink3
-Description: SDL2/ffmpeg video playback library
+Description: SDL3/ffmpeg video playback library
 Version: @KIT_VERSION@
 URL: https://github.com/katajakasa/SDL_kitchensink
 Requires.private: @PC_REQUIRES_PRIVATE@

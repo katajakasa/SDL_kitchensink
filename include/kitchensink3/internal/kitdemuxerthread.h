@@ -15,7 +15,7 @@
 #include "kitchensink3/internal/kitpacketbuffer.h"
 #include "kitchensink3/internal/kittimer.h"
 #include "kitchensink3/kitconfig.h"
-#include <SDL_thread.h>
+#include <SDL3/SDL_thread.h>
 #include <stdbool.h>
 
 /**
@@ -24,7 +24,7 @@
 typedef struct Kit_DemuxerThread {
     Kit_Demuxer *demuxer;
     SDL_Thread *thread;
-    SDL_atomic_t run;
+    SDL_AtomicInt run;
     bool seek;           ///< Seek request flag; may only be set while the thread is not running
     int64_t seek_target; ///< Seek target position; may only be set while the thread is not running
     Kit_Timer *timer;    ///< Non-writeable reference to the sync timer, used for the seek serial

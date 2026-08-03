@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/katajakasa/SDL_kitchensink/actions/workflows/ci.yml/badge.svg)](https://github.com/katajakasa/SDL_kitchensink/actions/workflows/ci.yml)
 
-FFmpeg and SDL2 based library for audio and video playback, written in C99.
+FFmpeg and SDL3 based library for audio and video playback, written in C99.
 
 Documentation is available at http://katajakasa.github.io/SDL_kitchensink/dev/
 
@@ -11,7 +11,7 @@ Features:
 * Decoding video, audio and subtitles via FFmpeg
 * Dumping video and subtitle data on SDL_Textures or software surfaces
 * Dumping audio data in the usual mono/stereo interleaved formats
-* Automatic audio and video conversion to SDL2 friendly formats
+* Automatic audio and video conversion to SDL3 friendly formats
 * Synchronizing video & audio to clock
 * Stream seeking
 * Bitmap, text and SSA/ASS subtitle support
@@ -41,17 +41,17 @@ Build requirements:
 
 Library requirements:
 
-* SDL2 2.0.5 or newer (2.0.12 or newer recommended)
+* SDL3 3.2.0 or newer
 * FFmpeg 5.1 or newer
 * libass (optional, supports runtime linking via SDL_LoadSO)
 
-Note that Clang might work, but is not tested. Older SDL2 and FFmpeg library versions may or may not work; versions
+Note that Clang might work, but is not tested. Older SDL3 and FFmpeg library versions may or may not work; versions
 noted here are the only ones tested.
 
 ### 1.1. Debian / Ubuntu
 
 ```
-sudo apt-get install libsdl2-dev libavcodec-dev libavformat-dev \
+sudo apt-get install libsdl3-dev libavcodec-dev libavformat-dev \
     libavutil-dev libswresample-dev libswscale-dev libass-dev
 ```
 
@@ -60,7 +60,7 @@ sudo apt-get install libsdl2-dev libavcodec-dev libavformat-dev \
 These are for x86_64. For 32bit installation, just change the package names a bit .
 
 ```
-pacman -S mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
+pacman -S mingw-w64-x86_64-SDL3 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
 ```
 
 ## 2. Compiling

@@ -33,7 +33,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -y install libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev \
+          sudo apt-get -y install libsdl3-dev libavcodec-dev libavformat-dev libavutil-dev \
             libswresample-dev libswscale-dev libass-dev clang-tidy ${{ matrix.config.cc }} \
             libcmocka-dev
 
@@ -76,7 +76,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get -y install libsdl2-dev libavcodec-dev libavformat-dev libavutil-dev \
+          sudo apt-get -y install libsdl3-dev libavcodec-dev libavformat-dev libavutil-dev \
             libswresample-dev libswscale-dev libass-dev ${{ matrix.config.cc }} libcmocka-dev
 
       - name: Build

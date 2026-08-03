@@ -18,7 +18,7 @@
 /**
  * @brief Maps an SDL audio format constant to the matching FFmpeg sample format.
  *
- * @param format SDL audio format (e.g. AUDIO_S16SYS)
+ * @param format SDL audio format (e.g. SDL_AUDIO_S16)
  * @return Matching AVSampleFormat, or AV_SAMPLE_FMT_NONE if unsupported
  */
 KIT_LOCAL enum AVSampleFormat Kit_FindAVSampleFormat(int format);
@@ -54,7 +54,7 @@ KIT_LOCAL int Kit_FindBytes(enum AVSampleFormat fmt);
  * @brief Maps an FFmpeg sample format to the matching SDL audio format constant.
  *
  * @param fmt FFmpeg sample format
- * @return Matching SDL audio format (defaults to AUDIO_S16SYS for anything not 8-bit or 32-bit)
+ * @return Matching SDL audio format (defaults to SDL_AUDIO_S16 for anything not 8-bit or 32-bit)
  */
 KIT_LOCAL int Kit_FindSDLSampleFormat(enum AVSampleFormat fmt);
 

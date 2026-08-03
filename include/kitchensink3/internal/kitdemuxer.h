@@ -17,7 +17,7 @@
 #include "kitchensink3/kitplayer.h"
 #include "kitchensink3/kitsource.h"
 
-#include <SDL_atomic.h>
+#include <SDL3/SDL_atomic.h>
 #include <libavcodec/avcodec.h>
 #include <stdbool.h>
 
@@ -27,8 +27,8 @@
 typedef struct Kit_Demuxer {
     const Kit_Source *src;                        ///< Source being demuxed; not owned.
     Kit_PacketBuffer *buffers[KIT_INDEX_COUNT];   ///< Per-stream-type output packet buffers; NULL if unused.
-    SDL_atomic_t stream_indexes[KIT_INDEX_COUNT]; ///< Per-stream-type source stream index; -1 if unused.
-    SDL_atomic_t abort_requested;                 ///< Breaks the read-retry delay in Kit_RunDemuxer() on abort.
+    SDL_AtomicInt stream_indexes[KIT_INDEX_COUNT]; ///< Per-stream-type source stream index; -1 if unused.
+    SDL_AtomicInt abort_requested;                 ///< Breaks the read-retry delay in Kit_RunDemuxer() on abort.
     AVPacket *scratch_packet;                     ///< Reusable packet used for reading/writing.
     int read_attempts;                            ///< Read attempts before a failure is treated as EOF.
     int read_retry_delay;                         ///< Delay between read attempts, in milliseconds.

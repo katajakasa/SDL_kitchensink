@@ -1,4 +1,4 @@
-#include <SDL_thread.h>
+#include <SDL3/SDL_thread.h>
 
 #include "kitchensink3/internal/kitdecoder.h"
 #include "kitchensink3/internal/kitdecoderthread.h"
@@ -80,16 +80,16 @@ static int Kit_DecodeMain(void *ptr) {
     bool eof_received = false;
     double pts;
 
-    while(SDL_AtomicGet(&thread->run)) {
+    while(SDL_GetAtomicInt(&thread->run)) {
         // Feed the decoder until its internal queue is full (input callback signals retry) or input runs out.
         // Queueing multiple packets at once lets decoders keep several frames in flight.
         int timeout = 100;
-        while(SDL_AtomicGet(&thread->run) && Kit_ProcessPacket(thread, &pts_jumped, &draining, &eof_received, timeout))
+        while(SDL_GetAtomicInt(&thread->run) && Kit_ProcessPacket(thread, &pts_jumped, &draining, &eof_received, timeout))
             timeout = 0;
 
         // Run the decoder. This will consume packets from the ffmpeg queue. We may need to call this multiple times,
         // since a single data packet might contain multiple frames.
-        while(SDL_AtomicGet(&thread->run) && Kit_RunDecoder(thread->decoder, &pts)) {
+        while(SDL_GetAtomicInt(&thread->run) && Kit_RunDecoder(thread->decoder, &pts)) {
             if(pts_jumped) {
                 // Re-base the clock (only the primary sync stream can do this). This also stamps the serial
                 // on the clock base, telling the other streams that the clock can be trusted again.
@@ -109,7 +109,7 @@ static int Kit_DecodeMain(void *ptr) {
         }
     }
 
-    SDL_AtomicSet(&thread->run, 0);
+    SDL_SetAtomicInt(&thread->run, 0);
     return 0;
 }
 
@@ -129,7 +129,7 @@ Kit_DecoderThread *Kit_CreateDecoderThread(Kit_PacketBuffer *input, Kit_Decoder 
     decoder_thread->input = input;
     decoder_thread->decoder = decoder;
     decoder_thread->scratch_packet = packet;
-    SDL_AtomicSet(&decoder_thread->run, 0);
+    SDL_SetAtomicInt(&decoder_thread->run, 0);
     return decoder_thread;
 
 error_1:
@@ -141,14 +141,14 @@ error_0:
 void Kit_StartDecoderThread(Kit_DecoderThread *decoder_thread, const char *name) {
     if(!decoder_thread || decoder_thread->thread)
         return;
-    SDL_AtomicSet(&decoder_thread->run, 1);
+    SDL_SetAtomicInt(&decoder_thread->run, 1);
     decoder_thread->thread = SDL_CreateThread(Kit_DecodeMain, name, decoder_thread);
 }
 
 void Kit_StopDecoderThread(Kit_DecoderThread *decoder_thread) {
     if(!decoder_thread || !decoder_thread->thread)
         return;
-    SDL_AtomicSet(&decoder_thread->run, 0);
+    SDL_SetAtomicInt(&decoder_thread->run, 0);
 }
 
 void Kit_WaitDecoderThread(Kit_DecoderThread *decoder_thread) {
@@ -159,7 +159,7 @@ void Kit_WaitDecoderThread(Kit_DecoderThread *decoder_thread) {
 }
 
 bool Kit_IsDecoderThreadAlive(Kit_DecoderThread *decoder_thread) {
-    return SDL_AtomicGet(&decoder_thread->run);
+    return SDL_GetAtomicInt(&decoder_thread->run);
 }
 
 void Kit_CloseDecoderThread(Kit_DecoderThread **ref) {

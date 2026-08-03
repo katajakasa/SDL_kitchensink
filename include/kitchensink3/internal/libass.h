@@ -20,6 +20,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 
+#include <SDL3/SDL_loadso.h>
+
 #include "kitchensink3/kitconfig.h"
 
 /** @brief Opaque libass library handle (mirrors ass_library from libass). */
@@ -101,7 +103,7 @@ extern KIT_LOCAL void (*ass_set_storage_size)(ASS_Renderer *priv, int w, int h);
  * @param handle Shared object handle (as returned by SDL_LoadObject()) to resolve symbols from
  * @return 0 on success (all required symbols resolved), 1 if any required symbol failed to load
  */
-KIT_LOCAL int load_libass(void *handle);
+KIT_LOCAL int load_libass(SDL_SharedObject *handle);
 
 #endif // USE_DYNAMIC_LIBASS
 

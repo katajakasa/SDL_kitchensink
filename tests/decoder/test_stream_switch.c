@@ -21,8 +21,8 @@
 #include "kit_lifecycle.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
-#include <SDL_timer.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_timer.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -74,7 +74,7 @@ static int test_teardown(void **state) {
     if(ts->renderer != NULL)
         SDL_DestroyRenderer(ts->renderer);
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     Kit_CloseSource(ts->src);
     free(ts);
     *state = NULL;
@@ -341,7 +341,7 @@ static void test_close_subtitle_stream_mid_play(void **state) {
     ts->video_tex = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;

@@ -22,7 +22,7 @@ extern "C" {
  * @brief Returns a descriptive string for SDL audio format types
  *
  * @param type SDL_AudioFormat
- * @return Format string, eg. "AUDIO_S8", or NULL for unknown values
+ * @return Format string, eg. "SDL_AUDIO_S8", or NULL for unknown values
  */
 KIT_API const char *Kit_GetSDLAudioFormatString(unsigned int type);
 

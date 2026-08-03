@@ -1,7 +1,7 @@
 /**
  * Tests for Kit_CreateSourceFromUrl/Kit_CloseSource error paths and the
  * broader Kit_Source stream-introspection API (kitsource.h): stream lists,
- * next-stream iteration, RWops/custom-IO source creation, and stream info
+ * next-stream iteration, IOStream/custom-IO source creation, and stream info
  * lookups.
  *
  * Needs the generated fixtures under KIT_TEST_DATA_DIR (video_audio.mp4,
@@ -34,7 +34,7 @@
  * long as the source stays open -- including in the teardown's Kit_CloseSource(). */
 typedef struct {
     Kit_Source *src;
-    SDL_RWops *rw;
+    SDL_IOStream *io;
     unsigned char *data;
     MemFile mem;
 } TestState;
@@ -45,18 +45,18 @@ static int test_setup(void **state) {
     return *state == NULL ? -1 : 0;
 }
 
-/** @brief Per-test teardown: releases whatever the TestState still holds (source, RWops, file
+/** @brief Per-test teardown: releases whatever the TestState still holds (source, IOStream, file
  * buffer), then the state itself. Tests NULL each member right after their own close, so only
- * what an assert-longjmp left behind is released here. The RWops is never owned by the source
- * (Kit_CreateSourceFromRW only stores it as callback userdata), so closing it after the source
+ * what an assert-longjmp left behind is released here. The IOStream is never owned by the source
+ * (Kit_CreateSourceFromIO only stores it as callback userdata), so closing it after the source
  * is always safe. */
 static int test_teardown(void **state) {
     TestState *ts = *state;
     if(ts == NULL)
         return 0;
     Kit_CloseSource(ts->src);
-    if(ts->rw != NULL)
-        SDL_RWclose(ts->rw);
+    if(ts->io != NULL)
+        SDL_CloseIO(ts->io);
     free(ts->data);
     free(ts);
     *state = NULL;
@@ -172,17 +172,17 @@ static void test_next_stream_iteration(void **state) {
 }
 
 /**
- * @brief Kit_CreateSourceFromRW() produces a fully usable source from an SDL_RWops.
- * The RWops outlives the source and must be closed separately afterwards.
+ * @brief Kit_CreateSourceFromIO() produces a fully usable source from an SDL_IOStream.
+ * The IOStream outlives the source and must be closed separately afterwards.
  */
-static void test_source_from_rw(void **state) {
+static void test_source_from_io(void **state) {
     TestState *ts = *state;
     // Arrange
-    ts->rw = SDL_RWFromFile(VIDEO_AUDIO_FILE, "rb");
-    assert_non_null(ts->rw);
+    ts->io = SDL_IOFromFile(VIDEO_AUDIO_FILE, "rb");
+    assert_non_null(ts->io);
 
     // Act
-    ts->src = Kit_CreateSourceFromRW(ts->rw);
+    ts->src = Kit_CreateSourceFromIO(ts->io);
 
     // Assert
     assert_non_null(ts->src);
@@ -190,8 +190,8 @@ static void test_source_from_rw(void **state) {
 
     Kit_CloseSource(ts->src);
     ts->src = NULL;
-    SDL_RWclose(ts->rw);
-    ts->rw = NULL;
+    SDL_CloseIO(ts->io);
+    ts->io = NULL;
 }
 
 /**
@@ -277,7 +277,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_source_duration_fractional, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_stream_list, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_next_stream_iteration, test_setup, test_teardown),
-        cmocka_unit_test_setup_teardown(test_source_from_rw, test_setup, test_teardown),
+        cmocka_unit_test_setup_teardown(test_source_from_io, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_source_from_custom, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_stream_info_invalid_index, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_audio_first_stream_order, test_setup, test_teardown),

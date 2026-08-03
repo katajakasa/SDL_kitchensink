@@ -22,7 +22,7 @@
 #include "kit_lifecycle.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -65,7 +65,7 @@ static int test_teardown(void **state) {
     if(ts->renderer != NULL)
         SDL_DestroyRenderer(ts->renderer);
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     Kit_CloseSource(ts->src);
     free(ts);
     *state = NULL;
@@ -149,7 +149,7 @@ static void test_truncated_file(void **state) {
         SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;
@@ -203,7 +203,7 @@ static void test_corrupt_middle_survives_playback(void **state) {
         SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;

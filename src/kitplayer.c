@@ -1,6 +1,5 @@
-#include <SDL_atomic.h>
-#include <SDL_timer.h>
-#include <SDL_version.h>
+#include <SDL3/SDL_atomic.h>
+#include <SDL3/SDL_timer.h>
 #include <assert.h>
 
 #include "kitchensink3/internal/audio/kitaudio.h"
@@ -22,7 +21,7 @@
  * - Lock order is main control lock first, then a decoder control lock. Slot critical sections must stay short.
  */
 struct Kit_Player {
-    SDL_atomic_t state;                ///< Playback state
+    SDL_AtomicInt state;               ///< Playback state
     Kit_Decoder *decoders[3];          ///< Decoder contexts
     Kit_Demuxer *demuxer;              ///< Demuxer context
     Kit_DecoderThread *dec_threads[3]; ///< Decoder threads
@@ -34,16 +33,16 @@ struct Kit_Player {
     const Kit_Source *src;             ///< Reference to Audio/Video source
     int screen_w;                      ///< Width of the screen surface (for positioning subtitles)
     int screen_h;                      ///< Height of the screen surface (for positioning subtitles)
-    SDL_mutex *control_lock;           ///< Serializes lifecycle operations
-    SDL_mutex *decoder_ctrl_locks[3];  ///< Guard decoders against concurrent getters
+    SDL_Mutex *control_lock;           ///< Serializes lifecycle operations
+    SDL_Mutex *decoder_ctrl_locks[3];  ///< Guard decoders against concurrent getters
 };
 
 static Kit_PlayerState Kit_GetState(const Kit_Player *player) {
-    return SDL_AtomicGet((SDL_atomic_t *)&player->state);
+    return SDL_GetAtomicInt((SDL_AtomicInt *)&player->state);
 }
 
 static void Kit_SetState(Kit_Player *player, Kit_PlayerState state) {
-    SDL_AtomicSet(&player->state, state);
+    SDL_SetAtomicInt(&player->state, state);
 }
 
 static void Kit_LockDecoderCtrl(const Kit_Player *player, int index) {
@@ -667,14 +666,11 @@ SDL_Texture *Kit_CreatePlayerVideoSDLTexture(const Kit_Player *player, SDL_Rende
         Kit_SetError("Unable to create video texture: %s", SDL_GetError());
         return NULL;
     }
-#if SDL_VERSION_ATLEAST(2, 0, 12)
-    SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);
-#endif
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
     return texture;
 }
 
 SDL_Texture *Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *renderer, int w, int h) {
-    SDL_RendererInfo renderer_info;
     if(player == NULL || renderer == NULL) {
         Kit_SetError("Player and renderer must not be NULL");
         return NULL;
@@ -693,11 +689,11 @@ SDL_Texture *Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Re
     if(w <= 0 || h <= 0) {
         int max_w = 4096;
         int max_h = 4096;
-        if(SDL_GetRendererInfo(renderer, &renderer_info) == 0) {
-            if(renderer_info.max_texture_width > 0)
-                max_w = Kit_min(max_w, renderer_info.max_texture_width);
-            if(renderer_info.max_texture_height > 0)
-                max_h = Kit_min(max_h, renderer_info.max_texture_height);
+        const int64_t max_size =
+            SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
+        if(max_size > 0) {
+            max_w = Kit_min(max_w, (int)max_size);
+            max_h = Kit_min(max_h, (int)max_size);
         }
         if(w <= 0)
             w = max_w;
@@ -710,9 +706,7 @@ SDL_Texture *Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Re
         return NULL;
     }
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-#if SDL_VERSION_ATLEAST(2, 0, 12)
-    SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
-#endif
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
     return texture;
 }
 

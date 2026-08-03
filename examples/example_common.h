@@ -1,7 +1,7 @@
 #ifndef EXAMPLE_COMMON_H
 #define EXAMPLE_COMMON_H
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -40,8 +40,8 @@ static inline const char *get_filename_arg(int argc, char *argv[], const char *e
  * @param flags Subsystem init flags, passed to SDL_Init() as-is
  */
 static inline void initialize_sdl(Uint32 flags) {
-    if(SDL_Init(flags) != 0) {
-        fprintf(stderr, "Unable to initialize SDL2: %s\n", SDL_GetError());
+    if(!SDL_Init(flags)) {
+        fprintf(stderr, "Unable to initialize SDL3: %s\n", SDL_GetError());
         exit(1);
     }
 }
@@ -55,9 +55,8 @@ static inline void initialize_sdl(Uint32 flags) {
  * @param flags Extra SDL_WindowFlags to set in addition to SDL_WINDOW_RESIZABLE, 0 for none
  * @return The created window
  */
-static inline SDL_Window *create_window(const char *title, int w, int h, Uint32 flags) {
-    SDL_Window *window =
-        SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, SDL_WINDOW_RESIZABLE | flags);
+static inline SDL_Window *create_window(const char *title, int w, int h, SDL_WindowFlags flags) {
+    SDL_Window *window = SDL_CreateWindow(title, w, h, SDL_WINDOW_RESIZABLE | flags);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a new window: %s\n", SDL_GetError());
         exit(1);
@@ -75,11 +74,12 @@ static inline SDL_Window *create_window(const char *title, int w, int h, Uint32 
  * @return The created renderer
  */
 static inline SDL_Renderer *create_renderer(SDL_Window *window) {
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL);
     if(renderer == NULL) {
         fprintf(stderr, "Unable to create a renderer: %s\n", SDL_GetError());
         exit(1);
     }
+    SDL_SetRenderVSync(renderer, 1);
     return renderer;
 }
 

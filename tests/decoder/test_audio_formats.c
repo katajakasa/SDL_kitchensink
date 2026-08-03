@@ -20,7 +20,7 @@
 #include "kit_param.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -223,7 +223,7 @@ int main(void) {
 
     Kit_AudioFormatRequest req_format;
     Kit_ResetAudioFormatRequest(&req_format);
-    req_format.format = AUDIO_S16SYS;
+    req_format.format = SDL_AUDIO_S16;
 
     Kit_AudioFormatRequest req_rate;
     Kit_ResetAudioFormatRequest(&req_rate);
@@ -234,7 +234,7 @@ int main(void) {
     req_layout.layout = KIT_LAYOUT_MONO;
 
     const AudioRequestCase request_cases[] = {
-        {"format_s16sys",     req_format, CHECK_FORMAT,      AUDIO_S16SYS, 0,     KIT_LAYOUT_UNKNOWN},
+        {"format_s16sys",     req_format, CHECK_FORMAT,      SDL_AUDIO_S16, 0,     KIT_LAYOUT_UNKNOWN},
         {"sample_rate_22050", req_rate,   CHECK_SAMPLE_RATE, 0,            22050, KIT_LAYOUT_UNKNOWN},
         {"layout_mono",       req_layout, CHECK_LAYOUT,      0,            0,     KIT_LAYOUT_MONO   },
     };

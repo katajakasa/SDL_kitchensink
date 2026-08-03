@@ -1,6 +1,6 @@
 #include <assert.h>
 #ifdef USE_DYNAMIC_LIBASS
-#include <SDL_loadso.h>
+#include <SDL3/SDL_loadso.h>
 #endif
 
 #include "libavcodec/avcodec.h"

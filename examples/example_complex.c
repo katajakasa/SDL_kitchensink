@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <kitchensink3/kitchensink.h>
 
 #include "example_common.h"
@@ -119,11 +119,12 @@ void render_buffer_bar(const Kit_Player *player, int tick) {
 void render_gui(SDL_Renderer *renderer, double percent) {
     // Get window size
     int size_w, size_h;
-    SDL_RenderGetLogicalSize(renderer, &size_w, &size_h);
+    SDL_RendererLogicalPresentation mode;
+    SDL_GetRenderLogicalPresentation(renderer, &size_w, &size_h, &mode);
 
     // Render progress bar
     SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
-    SDL_Rect progress_border;
+    SDL_FRect progress_border;
     progress_border.x = 28;
     progress_border.y = size_h - 61;
     progress_border.w = size_w - 57;
@@ -131,7 +132,7 @@ void render_gui(SDL_Renderer *renderer, double percent) {
     SDL_RenderFillRect(renderer, &progress_border);
 
     SDL_SetRenderDrawColor(renderer, 155, 155, 155, 255);
-    SDL_Rect progress_bottom;
+    SDL_FRect progress_bottom;
     progress_bottom.x = 30;
     progress_bottom.y = size_h - 60;
     progress_bottom.w = size_w - 60;
@@ -139,7 +140,7 @@ void render_gui(SDL_Renderer *renderer, double percent) {
     SDL_RenderFillRect(renderer, &progress_bottom);
 
     SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
-    SDL_Rect progress_top;
+    SDL_FRect progress_top;
     progress_top.x = 30;
     progress_top.y = size_h - 60;
     progress_top.w = (size_w - 60) * percent;
@@ -258,15 +259,15 @@ int main(int argc, char *argv[]) {
     }
     fprintf(stderr, "Duration: %f seconds\n", Kit_GetPlayerDuration(player));
 
-    // Init audio. Note that audio_dev is reopened later if the user switches audio streams,
+    // Init audio. Note that audio_stream is reopened later if the user switches audio streams,
     // so it cannot be const here.
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = player_info.audio_format.sample_rate;
-    wanted_spec.format = player_info.audio_format.format;
-    wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-    SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
-    SDL_PauseAudioDevice(audio_dev, 0);
+    SDL_AudioSpec audio_spec;
+    SDL_memset(&audio_spec, 0, sizeof(audio_spec));
+    audio_spec.freq = player_info.audio_format.sample_rate;
+    audio_spec.format = player_info.audio_format.format;
+    audio_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
+    SDL_AudioStream *audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
+    SDL_ResumeAudioStreamDevice(audio_stream);
 
     // Print some format info
     fprintf(stderr, "Texture type: %s\n", Kit_GetSDLPixelFormatString(player_info.video_format.format));
@@ -315,7 +316,7 @@ int main(int argc, char *argv[]) {
     find_viewport_size(
         screen_w, screen_h, player_info.video_format.width, player_info.video_format.height, &size_w, &size_h
     );
-    SDL_RenderSetLogicalSize(renderer, size_w, size_h);
+    SDL_SetRenderLogicalPresentation(renderer, size_w, size_h, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     Kit_SetPlayerScreenSize(player, size_w, size_h);
 
     // Start playback
@@ -330,11 +331,12 @@ int main(int argc, char *argv[]) {
         // Check for events
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
+            SDL_ConvertEventToRenderCoordinates(renderer, &event);
             switch(event.type) {
-                case SDL_KEYUP:
-                    if(event.key.keysym.sym == SDLK_ESCAPE) {
+                case SDL_EVENT_KEY_UP:
+                    if(event.key.key == SDLK_ESCAPE) {
                         run = false;
-                    } else if(event.key.keysym.sym == SDLK_s) {
+                    } else if(event.key.key == SDLK_S) {
                         const int current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE);
                         const int next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_SUBTITLE, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_SUBTITLE, next_index) != 0) {
@@ -345,7 +347,7 @@ int main(int argc, char *argv[]) {
                             fprintf(stderr, "\33[2K\rSetting subtitle stream %d\n", next_index);
                         }
                         fflush(stderr);
-                    } else if(event.key.keysym.sym == SDLK_v) {
+                    } else if(event.key.key == SDLK_V) {
                         const int current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_VIDEO);
                         const int next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_VIDEO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_VIDEO, next_index) != 0) {
@@ -354,7 +356,7 @@ int main(int argc, char *argv[]) {
                             fprintf(stderr, "\33[2K\rSetting video stream %d\n", next_index);
                         }
                         fflush(stderr);
-                    } else if(event.key.keysym.sym == SDLK_a) {
+                    } else if(event.key.key == SDLK_A) {
                         const int current_index = Kit_GetPlayerStream(player, KIT_STREAMTYPE_AUDIO);
                         const int next_index = Kit_GetNextSourceStream(src, KIT_STREAMTYPE_AUDIO, current_index, 1);
                         if(Kit_SetPlayerStream(player, KIT_STREAMTYPE_AUDIO, next_index) != 0) {
@@ -362,57 +364,54 @@ int main(int argc, char *argv[]) {
                         } else {
                             fprintf(stderr, "\33[2K\rSetting audio stream %d\n", next_index);
                             Kit_GetPlayerInfo(player, &player_info);
-                            SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-                            wanted_spec.freq = player_info.audio_format.sample_rate;
-                            wanted_spec.format = player_info.audio_format.format;
-                            wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-                            SDL_CloseAudioDevice(audio_dev);
-                            audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
+                            SDL_memset(&audio_spec, 0, sizeof(audio_spec));
+                            audio_spec.freq = player_info.audio_format.sample_rate;
+                            audio_spec.format = player_info.audio_format.format;
+                            audio_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
+                            SDL_DestroyAudioStream(audio_stream);
+                            audio_stream =
+                                SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
                             dump_audio_stream_info(player, &player_info);
-                            SDL_PauseAudioDevice(audio_dev, 0);
+                            SDL_ResumeAudioStreamDevice(audio_stream);
                         }
                         fflush(stderr);
                     }
                     break;
 
-                case SDL_KEYDOWN: {
+                case SDL_EVENT_KEY_DOWN: {
                     // Find alt+enter
-                    const Uint8 *state = SDL_GetKeyboardState(NULL);
+                    const bool *state = SDL_GetKeyboardState(NULL);
                     if(state[SDL_SCANCODE_RETURN] && state[SDL_SCANCODE_LALT]) {
                         if(!fullscreen) {
-                            SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+                            SDL_SetWindowFullscreen(window, true);
                         } else {
-                            SDL_SetWindowFullscreen(window, 0);
+                            SDL_SetWindowFullscreen(window, false);
                         }
                         fullscreen = !fullscreen;
                     }
                     break;
                 }
 
-                case SDL_MOUSEMOTION:
+                case SDL_EVENT_MOUSE_MOTION:
                     mouse_x = event.motion.x;
                     mouse_y = event.motion.y;
                     break;
 
-                case SDL_WINDOWEVENT:
-                    switch(event.window.event) {
-                        case SDL_WINDOWEVENT_SIZE_CHANGED:
-                            SDL_GetWindowSize(window, &screen_w, &screen_h);
-                            find_viewport_size(
-                                screen_w,
-                                screen_h,
-                                player_info.video_format.width,
-                                player_info.video_format.height,
-                                &size_w,
-                                &size_h
-                            );
-                            SDL_RenderSetLogicalSize(renderer, size_w, size_h);
-                            Kit_SetPlayerScreenSize(player, size_w, size_h);
-                            break;
-                    }
+                case SDL_EVENT_WINDOW_RESIZED:
+                    SDL_GetWindowSize(window, &screen_w, &screen_h);
+                    find_viewport_size(
+                        screen_w,
+                        screen_h,
+                        player_info.video_format.width,
+                        player_info.video_format.height,
+                        &size_w,
+                        &size_h
+                    );
+                    SDL_SetRenderLogicalPresentation(renderer, size_w, size_h, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+                    Kit_SetPlayerScreenSize(player, size_w, size_h);
                     break;
 
-                case SDL_MOUSEBUTTONUP:
+                case SDL_EVENT_MOUSE_BUTTON_UP:
                     // Handle user clicking the progress bar
                     if(mouse_x >= 30 && mouse_x <= size_w - 30 && mouse_y >= size_h - 60 && mouse_y <= size_h - 40) {
                         const double pos = ((double)mouse_x - 30) / ((double)size_w - 60);
@@ -420,7 +419,7 @@ int main(int argc, char *argv[]) {
                         if(Kit_PlayerSeek(player, m_time) != 0) {
                             fprintf(stderr, "%s\n", Kit_GetError());
                         }
-                        SDL_ClearQueuedAudio(audio_dev);
+                        SDL_ClearAudioStream(audio_stream);
                     } else {
                         // Handle pause
                         if(Kit_GetPlayerState(player) == KIT_PAUSED) {
@@ -431,14 +430,14 @@ int main(int argc, char *argv[]) {
                     }
                     break;
 
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     run = false;
                     break;
             }
         }
 
         // Refresh audio
-        const int queued = SDL_GetQueuedAudioSize(audio_dev);
+        const int queued = SDL_GetAudioStreamQueued(audio_stream);
         if(queued < AUDIO_BUFFER_SIZE) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
@@ -446,14 +445,10 @@ int main(int argc, char *argv[]) {
                 const int ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
-                    SDL_QueueAudio(audio_dev, audio_buf, ret);
+                    SDL_PutAudioStreamData(audio_stream, audio_buf, ret);
                 } else {
                     break;
                 }
-            }
-            // If we now have data, start playback (again)
-            if(SDL_GetQueuedAudioSize(audio_dev) > 0) {
-                SDL_PauseAudioDevice(audio_dev, 0);
             }
         }
 
@@ -466,14 +461,19 @@ int main(int argc, char *argv[]) {
         // A stopped player renders nothing, leaving the cleared (black) window.
         if(!stopped) {
             Kit_GetPlayerVideoSDLTexture(player, video_tex, &video_area);
-            SDL_RenderCopy(renderer, video_tex, &video_area, NULL);
+            SDL_FRect video_area_f;
+            SDL_RectToFRect(&video_area, &video_area_f);
+            SDL_RenderTexture(renderer, video_tex, &video_area_f, NULL);
 
             // Refresh subtitle texture atlas and render subtitle frames from it
             // For subtitles, use screen size instead of video size for best quality
             if(subtitle_tex != NULL) {
                 const int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
                 for(int i = 0; i < got; i++) {
-                    SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+                    SDL_FRect src_rect, dst_rect;
+                    SDL_RectToFRect(&sources[i], &src_rect);
+                    SDL_RectToFRect(&targets[i], &dst_rect);
+                    SDL_RenderTexture(renderer, subtitle_tex, &src_rect, &dst_rect);
                 }
             }
         }
@@ -500,7 +500,7 @@ int main(int argc, char *argv[]) {
 
     SDL_DestroyTexture(subtitle_tex);
     SDL_DestroyTexture(video_tex);
-    SDL_CloseAudioDevice(audio_dev);
+    SDL_DestroyAudioStream(audio_stream);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

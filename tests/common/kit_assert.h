@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#include <SDL_rect.h>
+#include <SDL3/SDL_rect.h>
 
 #include "kitchensink3/kitchensink.h"
 

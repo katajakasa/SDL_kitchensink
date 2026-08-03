@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <kitchensink3/kitchensink.h>
 
 #include "example_common.h"
@@ -73,13 +73,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Init audio
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio_format.sample_rate;
-    wanted_spec.format = pinfo.audio_format.format;
-    wanted_spec.channels = Kit_GetChannelLayoutCount(pinfo.audio_format.layout);
-    const SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
-    SDL_PauseAudioDevice(audio_dev, 0);
+    SDL_AudioSpec audio_spec;
+    SDL_memset(&audio_spec, 0, sizeof(audio_spec));
+    audio_spec.freq = pinfo.audio_format.sample_rate;
+    audio_spec.format = pinfo.audio_format.format;
+    audio_spec.channels = Kit_GetChannelLayoutCount(pinfo.audio_format.layout);
+    SDL_AudioStream *audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
+    SDL_ResumeAudioStreamDevice(audio_stream);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
     SDL_Texture *video_tex = Kit_CreatePlayerVideoSDLTexture(player, renderer, 0, 0);
@@ -111,7 +111,9 @@ int main(int argc, char *argv[]) {
     SDL_Rect targets[ATLAS_MAX];
 
     // Get movie area size
-    SDL_RenderSetLogicalSize(renderer, pinfo.video_format.width, pinfo.video_format.height);
+    SDL_SetRenderLogicalPresentation(
+        renderer, pinfo.video_format.width, pinfo.video_format.height, SDL_LOGICAL_PRESENTATION_LETTERBOX
+    );
     bool run = true;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
@@ -122,14 +124,14 @@ int main(int argc, char *argv[]) {
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     run = false;
                     break;
             }
         }
 
         // Refresh audio
-        const int queued = SDL_GetQueuedAudioSize(audio_dev);
+        const int queued = SDL_GetAudioStreamQueued(audio_stream);
         if(queued < AUDIO_BUFFER_SIZE) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
@@ -137,27 +139,26 @@ int main(int argc, char *argv[]) {
                 const int ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
-                    SDL_QueueAudio(audio_dev, audio_buf, ret);
+                    SDL_PutAudioStreamData(audio_stream, audio_buf, ret);
                 } else {
                     break;
                 }
-            }
-            // If we now have data, start playback (again)
-            if(SDL_GetQueuedAudioSize(audio_dev) > 0) {
-                SDL_PauseAudioDevice(audio_dev, 0);
             }
         }
 
         // Refresh video texture and render it
         Kit_GetPlayerVideoSDLTexture(player, video_tex, NULL);
-        SDL_RenderCopy(renderer, video_tex, NULL, NULL);
+        SDL_RenderTexture(renderer, video_tex, NULL, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
         if(subtitle_tex != NULL) {
             const int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
             for(int i = 0; i < got; i++) {
-                SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+                SDL_FRect src_rect, dst_rect;
+                SDL_RectToFRect(&sources[i], &src_rect);
+                SDL_RectToFRect(&targets[i], &dst_rect);
+                SDL_RenderTexture(renderer, subtitle_tex, &src_rect, &dst_rect);
             }
         }
 
@@ -171,7 +172,7 @@ int main(int argc, char *argv[]) {
 
     SDL_DestroyTexture(subtitle_tex);
     SDL_DestroyTexture(video_tex);
-    SDL_CloseAudioDevice(audio_dev);
+    SDL_DestroyAudioStream(audio_stream);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

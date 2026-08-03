@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <string.h>
 
-#include <SDL_atomic.h>
-#include <SDL_mutex.h>
+#include <SDL3/SDL_atomic.h>
+#include <SDL3/SDL_mutex.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
 
@@ -22,19 +22,19 @@ typedef struct Kit_FailPointEntry {
 
 static Kit_FailPointEntry fail_points[KIT_FAIL_POINT_MAX];
 static int fail_point_count = 0;
-static SDL_mutex *fail_point_mutex = NULL;
+static SDL_Mutex *fail_point_mutex = NULL;
 static SDL_SpinLock fail_point_mutex_create_lock = 0;
 
 /**
  * @brief Lazily creates the shared registry mutex on first use.
  */
-static SDL_mutex *Kit_GetFailPointMutex(void) {
-    SDL_AtomicLock(&fail_point_mutex_create_lock);
+static SDL_Mutex *Kit_GetFailPointMutex(void) {
+    SDL_LockSpinlock(&fail_point_mutex_create_lock);
     if(fail_point_mutex == NULL) {
         fail_point_mutex = SDL_CreateMutex();
     }
-    SDL_mutex *m = fail_point_mutex;
-    SDL_AtomicUnlock(&fail_point_mutex_create_lock);
+    SDL_Mutex *m = fail_point_mutex;
+    SDL_UnlockSpinlock(&fail_point_mutex_create_lock);
     return m;
 }
 
@@ -66,7 +66,7 @@ static Kit_FailPointEntry *Kit_FindOrCreateFailPoint(const char *name) {
 }
 
 bool Kit_TestFailPointCode(const char *name, int *error_code) {
-    SDL_mutex *mutex = Kit_GetFailPointMutex();
+    SDL_Mutex *mutex = Kit_GetFailPointMutex();
     SDL_LockMutex(mutex);
 
     Kit_FailPointEntry *entry = Kit_FindOrCreateFailPoint(name);
@@ -96,7 +96,7 @@ bool Kit_TestFailPoint(const char *name) {
 }
 
 void Kit_SetFailPoint(const char *name, int first_failing_call, int count, int error_code) {
-    SDL_mutex *mutex = Kit_GetFailPointMutex();
+    SDL_Mutex *mutex = Kit_GetFailPointMutex();
     SDL_LockMutex(mutex);
 
     Kit_FailPointEntry *entry = Kit_FindOrCreateFailPoint(name);
@@ -114,7 +114,7 @@ void Kit_SetFailPoint(const char *name, int first_failing_call, int count, int e
 }
 
 void Kit_ResetFailPoints(void) {
-    SDL_mutex *mutex = Kit_GetFailPointMutex();
+    SDL_Mutex *mutex = Kit_GetFailPointMutex();
     SDL_LockMutex(mutex);
 
     fail_point_count = 0;
@@ -124,7 +124,7 @@ void Kit_ResetFailPoints(void) {
 }
 
 int Kit_GetFailPointCount(const char *name) {
-    SDL_mutex *mutex = Kit_GetFailPointMutex();
+    SDL_Mutex *mutex = Kit_GetFailPointMutex();
     SDL_LockMutex(mutex);
 
     int result = 0;

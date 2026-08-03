@@ -16,8 +16,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <SDL_thread.h>
-#include <SDL_timer.h>
+#include <SDL3/SDL_thread.h>
+#include <SDL3/SDL_timer.h>
 
 #include "kitchensink3/internal/kittimer.h"
 

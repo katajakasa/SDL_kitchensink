@@ -42,11 +42,11 @@ typedef enum Kit_HardwareDeviceType
 /**
  * @brief Audio channel layouts supported for audio output
  *
- * Channel counts and interleaved speaker orders match what SDL2 expects
+ * Channel counts and interleaved speaker orders match what SDL3 expects
  * for the corresponding SDL_AudioSpec.channels value. Use
  * Kit_GetChannelLayoutCount() to get the channel count for a layout.
  *
- * @ref https://wiki.libsdl.org/SDL2/SDL_AudioSpec
+ * @ref https://wiki.libsdl.org/SDL3/SDL_AudioSpec
  * @ref https://ffmpeg.org/doxygen/5.1/channel__layout_8h.html
  */
 typedef enum Kit_AudioChannelLayout

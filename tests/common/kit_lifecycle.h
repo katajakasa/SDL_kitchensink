@@ -15,7 +15,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -35,7 +35,7 @@ static inline int kit_lifecycle_teardown(void **state) {
 /** @brief Group setup: init SDL video and the library; pairs with kit_lifecycle_teardown_video(). */
 static inline int kit_lifecycle_setup_video(void **state) {
     (void)state;
-    if(SDL_Init(SDL_INIT_VIDEO) != 0)
+    if(!SDL_Init(SDL_INIT_VIDEO))
         return -1;
     if(Kit_Init(0) != 0) {
         SDL_Quit(); // cmocka skips group teardown when setup fails
@@ -48,7 +48,7 @@ static inline int kit_lifecycle_setup_video(void **state) {
  * kit_lifecycle_teardown_video(). */
 static inline int kit_lifecycle_setup_video_ass(void **state) {
     (void)state;
-    if(SDL_Init(SDL_INIT_VIDEO) != 0)
+    if(!SDL_Init(SDL_INIT_VIDEO))
         return -1;
     if(Kit_Init(KIT_INIT_ASS) != 0) {
         SDL_Quit(); // cmocka skips group teardown when setup fails

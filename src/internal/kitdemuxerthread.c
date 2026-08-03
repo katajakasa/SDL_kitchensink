@@ -1,4 +1,4 @@
-#include <SDL_timer.h>
+#include <SDL3/SDL_timer.h>
 #include <assert.h>
 
 #include "kitchensink3/internal/kitdemuxerthread.h"
@@ -9,7 +9,7 @@ static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;
     bool eof = false;
 
-    while(SDL_AtomicGet(&thread->run)) {
+    while(SDL_GetAtomicInt(&thread->run)) {
         if(thread->seek) {
             // Seeks are only requested while the demuxer thread is stopped, no locks needed.
             thread->seek = false;
@@ -21,7 +21,7 @@ static int Kit_DemuxMain(void *ptr) {
         }
     }
 
-    SDL_AtomicSet(&thread->run, 0);
+    SDL_SetAtomicInt(&thread->run, 0);
     if(eof) {
         for(int i = 0; i < KIT_INDEX_COUNT; i++) {
             Kit_SendDemuxerEOFPacket(thread->demuxer, i);
@@ -48,7 +48,7 @@ Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer, const Kit_Timer
     demuxer_thread->seek = false;
     demuxer_thread->seek_target = 0;
     demuxer_thread->timer = seek_timer;
-    SDL_AtomicSet(&demuxer_thread->run, 0);
+    SDL_SetAtomicInt(&demuxer_thread->run, 0);
     return demuxer_thread;
 
 exit_1:
@@ -66,14 +66,14 @@ void Kit_SeekDemuxerThread(Kit_DemuxerThread *demuxer_thread, int64_t seek_targe
 void Kit_StartDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
     if(!demuxer_thread || demuxer_thread->thread)
         return;
-    SDL_AtomicSet(&demuxer_thread->run, 1);
+    SDL_SetAtomicInt(&demuxer_thread->run, 1);
     demuxer_thread->thread = SDL_CreateThread(Kit_DemuxMain, "SDL_Kitchensink demuxer thread", demuxer_thread);
 }
 
 void Kit_StopDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
     if(!demuxer_thread || !demuxer_thread->thread)
         return;
-    SDL_AtomicSet(&demuxer_thread->run, 0);
+    SDL_SetAtomicInt(&demuxer_thread->run, 0);
 }
 
 void Kit_WaitDemuxerThread(Kit_DemuxerThread *demuxer_thread) {
@@ -90,7 +90,7 @@ Kit_GetDemuxerThreadPacketBuffer(const Kit_DemuxerThread *demuxer_thread, Kit_Bu
 }
 
 bool Kit_IsDemuxerThreadAlive(Kit_DemuxerThread *demuxer_thread) {
-    return SDL_AtomicGet(&demuxer_thread->run);
+    return SDL_GetAtomicInt(&demuxer_thread->run);
 }
 
 void Kit_CloseDemuxerThread(Kit_DemuxerThread **ref) {

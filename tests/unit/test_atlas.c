@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/internal/subtitle/kitatlas.h"
 
@@ -26,14 +26,14 @@ typedef struct atlas_env {
 } atlas_env;
 
 static int group_setup(void **state) {
-    if(SDL_Init(SDL_INIT_VIDEO) != 0)
+    if(!SDL_Init(SDL_INIT_VIDEO))
         return -1;
     atlas_env *env = calloc(1, sizeof(atlas_env));
     if(env == NULL) {
         SDL_Quit(); // cmocka skips group teardown when setup fails
         return -1;
     }
-    env->screen = SDL_CreateRGBSurfaceWithFormat(0, 1024, 1024, 32, SDL_PIXELFORMAT_RGBA32);
+    env->screen = SDL_CreateSurface(1024, 1024, SDL_PIXELFORMAT_RGBA32);
     env->renderer = SDL_CreateSoftwareRenderer(env->screen);
     env->texture = SDL_CreateTexture(env->renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, 1024, 1024);
     if(env->screen == NULL || env->renderer == NULL || env->texture == NULL) {
@@ -42,7 +42,7 @@ static int group_setup(void **state) {
         if(env->renderer != NULL)
             SDL_DestroyRenderer(env->renderer);
         if(env->screen != NULL)
-            SDL_FreeSurface(env->screen);
+            SDL_DestroySurface(env->screen);
         free(env);
         SDL_Quit();
         return -1;
@@ -84,7 +84,7 @@ static int test_teardown(void **state) {
     if(ts->atlas != NULL)
         Kit_FreeAtlas(ts->atlas);
     if(ts->item != NULL)
-        SDL_FreeSurface(ts->item);
+        SDL_DestroySurface(ts->item);
     free(ts);
     *state = NULL;
     return 0;
@@ -94,7 +94,7 @@ static int group_teardown(void **state) {
     atlas_env *env = *state;
     SDL_DestroyTexture(env->texture);
     SDL_DestroyRenderer(env->renderer);
-    SDL_FreeSurface(env->screen);
+    SDL_DestroySurface(env->screen);
     free(env);
     SDL_Quit();
     return 0;
@@ -143,7 +143,7 @@ static void test_add_and_get_items(void **state) {
     // Arrange
     ts->atlas = Kit_CreateAtlas();
     Kit_CheckAtlasTextureSize(ts->atlas, env->texture);
-    ts->item = SDL_CreateRGBSurfaceWithFormat(0, 16, 16, 32, SDL_PIXELFORMAT_RGBA32);
+    ts->item = SDL_CreateSurface(16, 16, SDL_PIXELFORMAT_RGBA32);
     assert_non_null(ts->item);
     const SDL_Rect target = {10, 10, 16, 16};
 
@@ -159,7 +159,7 @@ static void test_add_and_get_items(void **state) {
     assert_int_equal(sources[0].w, 16);
     assert_int_equal(sources[0].h, 16);
 
-    SDL_FreeSurface(ts->item);
+    SDL_DestroySurface(ts->item);
     ts->item = NULL;
     Kit_FreeAtlas(ts->atlas);
     ts->atlas = NULL;
@@ -174,7 +174,7 @@ static void test_clear_resets_atlas(void **state) {
     // Arrange
     ts->atlas = Kit_CreateAtlas();
     Kit_CheckAtlasTextureSize(ts->atlas, env->texture);
-    ts->item = SDL_CreateRGBSurfaceWithFormat(0, 16, 16, 32, SDL_PIXELFORMAT_RGBA32);
+    ts->item = SDL_CreateSurface(16, 16, SDL_PIXELFORMAT_RGBA32);
     assert_non_null(ts->item);
     const SDL_Rect target = {10, 10, 16, 16};
     assert_int_equal(Kit_AddAtlasItem(ts->atlas, env->texture, ts->item, &target), 0);
@@ -186,7 +186,7 @@ static void test_clear_resets_atlas(void **state) {
     // Assert
     assert_int_equal(ts->atlas->cur_items, 0);
 
-    SDL_FreeSurface(ts->item);
+    SDL_DestroySurface(ts->item);
     ts->item = NULL;
     Kit_FreeAtlas(ts->atlas);
     ts->atlas = NULL;

@@ -12,6 +12,8 @@
 #include "kitchensink3/internal/libass.h"
 #include "kitchensink3/kitconfig.h"
 
+#include <SDL3/SDL_loadso.h>
+
 /**
  * @brief Global library state: init flags and libass handles. All tuning lives in the
  * per-player Kit_PlayerConfig. There is exactly one static instance, accessed via
@@ -20,7 +22,7 @@
 typedef struct Kit_LibraryState {
     unsigned int init_flags;
     ASS_Library *libass_handle;
-    void *ass_so_handle;
+    SDL_SharedObject *ass_so_handle;
 } Kit_LibraryState;
 
 /**

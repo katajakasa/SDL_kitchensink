@@ -1,4 +1,4 @@
-#include <SDL_mutex.h>
+#include <SDL3/SDL_mutex.h>
 #include <assert.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
@@ -9,9 +9,9 @@
 
 struct Kit_PacketBuffer {
     void **packets;
-    SDL_mutex *mutex;
-    SDL_cond *can_read;
-    SDL_cond *can_write;
+    SDL_Mutex *mutex;
+    SDL_Condition *can_read;
+    SDL_Condition *can_write;
     size_t head;
     size_t tail;
     size_t capacity;
@@ -33,16 +33,16 @@ Kit_PacketBuffer *Kit_CreatePacketBuffer(
 ) {
     assert(capacity > 0);
     Kit_PacketBuffer *buffer = NULL;
-    SDL_mutex *mutex = NULL;
-    SDL_cond *can_write = NULL;
-    SDL_cond *can_read = NULL;
+    SDL_Mutex *mutex = NULL;
+    SDL_Condition *can_write = NULL;
+    SDL_Condition *can_read = NULL;
     void **packets;
 
-    if((can_write = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateCond())) == NULL) {
+    if((can_write = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateCondition())) == NULL) {
         Kit_SetError("Unable to allocate writer conditional variable: %s", SDL_GetError());
         goto error_0;
     }
-    if((can_read = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateCond())) == NULL) {
+    if((can_read = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateCondition())) == NULL) {
         Kit_SetError("Unable to allocate reader conditional variable: %s", SDL_GetError());
         goto error_1;
     }
@@ -90,9 +90,9 @@ error_4:
 error_3:
     SDL_DestroyMutex(mutex);
 error_2:
-    SDL_DestroyCond(can_read);
+    SDL_DestroyCondition(can_read);
 error_1:
-    SDL_DestroyCond(can_write);
+    SDL_DestroyCondition(can_write);
 error_0:
     return NULL;
 }
@@ -104,15 +104,15 @@ void Kit_FreePacketBuffer(Kit_PacketBuffer **ref) {
     // Note that all reader/writer threads must be stopped before this is called; destroying the
     // mutex and conditions below is not safe while anyone can still be waiting on them.
     Kit_PacketBuffer *buffer = *ref;
-    SDL_CondBroadcast(buffer->can_read);
-    SDL_CondBroadcast(buffer->can_write);
+    SDL_BroadcastCondition(buffer->can_read);
+    SDL_BroadcastCondition(buffer->can_write);
     SDL_LockMutex(buffer->mutex);
     for(size_t i = 0; i < buffer->capacity; i++) {
         buffer->free_cb((void **)&buffer->packets[i]);
     }
     SDL_UnlockMutex(buffer->mutex);
-    SDL_DestroyCond(buffer->can_read);
-    SDL_DestroyCond(buffer->can_write);
+    SDL_DestroyCondition(buffer->can_read);
+    SDL_DestroyCondition(buffer->can_write);
     SDL_DestroyMutex(buffer->mutex);
     free(buffer->packets);
     free(buffer);
@@ -158,7 +158,7 @@ void Kit_FlushPacketBuffer(Kit_PacketBuffer *buffer) {
     buffer->aborted = false;
     SDL_UnlockMutex(buffer->mutex);
     // Wake up writers, since buffer now has free space.
-    SDL_CondSignal(buffer->can_write);
+    SDL_SignalCondition(buffer->can_write);
 }
 
 void Kit_AbortPacketBuffer(Kit_PacketBuffer *buffer) {
@@ -168,8 +168,8 @@ void Kit_AbortPacketBuffer(Kit_PacketBuffer *buffer) {
     buffer->aborted = true;
     SDL_UnlockMutex(buffer->mutex);
     // Wake up all waiters so that they notice the abort.
-    SDL_CondBroadcast(buffer->can_write);
-    SDL_CondBroadcast(buffer->can_read);
+    SDL_BroadcastCondition(buffer->can_write);
+    SDL_BroadcastCondition(buffer->can_read);
 }
 
 static void advance_read(Kit_PacketBuffer *buffer) {
@@ -196,7 +196,7 @@ bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
     // The wait may also end due to a spurious wakeup, so keep waiting until there is really
     // free space (or an abort). Failing the write on a spurious wakeup would drop the packet.
     while(Kit_IsPacketBufferFull(buffer) && !buffer->aborted)
-        SDL_CondWait(buffer->can_write, buffer->mutex);
+        SDL_WaitCondition(buffer->can_write, buffer->mutex);
     if(buffer->aborted)
         goto error;
     buffer->move_cb(buffer->packets[buffer->head], src);
@@ -204,7 +204,7 @@ bool Kit_WritePacketBuffer(Kit_PacketBuffer *buffer, void *src) {
     // LOG("WRITE -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
     // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     SDL_UnlockMutex(buffer->mutex);
-    SDL_CondSignal(buffer->can_read);
+    SDL_SignalCondition(buffer->can_read);
     return true;
 
 error:
@@ -220,7 +220,7 @@ bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     if(Kit_IsPacketBufferEmpty(buffer)) {
         if(timeout <= 0)
             goto error;
-        if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
+        if(!SDL_WaitConditionTimeout(buffer->can_read, buffer->mutex, timeout))
             goto error;
     }
     // The wait may have ended due to an abort or a spurious wakeup, so re-check the state.
@@ -231,7 +231,7 @@ bool Kit_ReadPacketBuffer(Kit_PacketBuffer *buffer, void *dst, int timeout) {
     // LOG("READ -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
     // Kit_GetPacketBufferLength(buffer), buffer->capacity);
     SDL_UnlockMutex(buffer->mutex);
-    SDL_CondSignal(buffer->can_write);
+    SDL_SignalCondition(buffer->can_write);
     return true;
 
 error:
@@ -247,7 +247,7 @@ bool Kit_BeginPacketBufferRead(Kit_PacketBuffer *buffer, void *dst, int timeout)
     if(Kit_IsPacketBufferEmpty(buffer)) {
         if(timeout <= 0)
             goto error;
-        if(SDL_CondWaitTimeout(buffer->can_read, buffer->mutex, timeout) == SDL_MUTEX_TIMEDOUT)
+        if(!SDL_WaitConditionTimeout(buffer->can_read, buffer->mutex, timeout))
             goto error;
     }
     // The wait may have ended due to an abort or a spurious wakeup, so re-check the state.
@@ -270,7 +270,7 @@ void Kit_FinishPacketBufferRead(Kit_PacketBuffer *buffer) {
     SDL_UnlockMutex(buffer->mutex);
     // LOG("FINISH -- HEAD = %lld, TAIL = %lld, USED = %lld/%lld\n", buffer->head, buffer->tail,
     // Kit_GetPacketBufferLength(buffer), buffer->capacity);
-    SDL_CondSignal(buffer->can_write);
+    SDL_SignalCondition(buffer->can_write);
 }
 
 void Kit_CancelPacketBufferRead(Kit_PacketBuffer *buffer) {

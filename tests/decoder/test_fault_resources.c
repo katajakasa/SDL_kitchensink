@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <SDL.h>
-#include <SDL_timer.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_timer.h>
 
 #include <libavutil/error.h>
 
@@ -90,7 +90,7 @@ static int test_teardown(void **state) {
     if(ts->renderer != NULL)
         SDL_DestroyRenderer(ts->renderer);
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     Kit_CloseSource(ts->src);
     free(ts);
     *state = NULL;
@@ -116,7 +116,7 @@ static void attempt_create_player(void *ctx) {
 // -- test_mutex_failure_unwinds ----------------------------------------
 
 /**
- * @brief Failing the "sdl_mutex" point at each ordinal Kit_CreatePlayer() consumes (SDL_CreateMutex/SDL_CreateCond
+ * @brief Failing the "sdl_mutex" point at each ordinal Kit_CreatePlayer() consumes (SDL_CreateMutex/SDL_CreateCondition
  * calls in Kit_CreatePlayer's own locks and every packet buffer created along the way -- the demuxer's per-stream
  * buffers plus the audio/video decoders' output buffers) yields a clean NULL + Kit_GetError(), with no leaks
  * (ASan-checked unwind).
@@ -217,7 +217,7 @@ static void test_sws_failure(void **state) {
     ts->texture = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;

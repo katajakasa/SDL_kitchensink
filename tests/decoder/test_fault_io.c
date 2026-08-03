@@ -19,8 +19,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <SDL.h>
-#include <SDL_timer.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_timer.h>
 #include <libavutil/error.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
