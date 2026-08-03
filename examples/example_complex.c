@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
                     mouse_y = event.motion.y;
                     break;
 
-                case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+                case SDL_EVENT_WINDOW_RESIZED:
                     SDL_GetWindowSize(window, &screen_w, &screen_h);
                     find_viewport_size(
                         screen_w,
