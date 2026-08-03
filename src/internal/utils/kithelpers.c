@@ -13,7 +13,7 @@ static const char *const font_mime[] = {
     NULL
 };
 
-double Kit_GetSystemTime() {
+double Kit_GetSystemTime(void) {
     return (double)av_gettime_relative() / 1000000.0;
 }
 

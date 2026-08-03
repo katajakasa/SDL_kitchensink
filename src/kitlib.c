@@ -79,7 +79,7 @@ exit_0:
     return 1;
 }
 
-void Kit_Quit() {
+void Kit_Quit(void) {
     Kit_LibraryState *state = Kit_GetLibraryState();
     if(state->init_flags & KIT_INIT_NETWORK) {
         avformat_network_deinit();

@@ -34,7 +34,7 @@ typedef struct Kit_SubtitlePacket {
  *
  * @return newly allocated packet, or NULL on allocation failure
  */
-KIT_LOCAL Kit_SubtitlePacket *Kit_CreateSubtitlePacket();
+KIT_LOCAL Kit_SubtitlePacket *Kit_CreateSubtitlePacket(void);
 
 /**
  * @brief Frees a subtitle packet, releasing its surface, and nulls out the caller's pointer.
