@@ -59,18 +59,17 @@ if (USE_TSAN)
     message(STATUS "DEVELOPMENT: ThreadSanitizer enabled!")
 endif ()
 
-find_package(SDL2 REQUIRED)
+find_package(SDL3 REQUIRED CONFIG)
 find_package(ffmpeg REQUIRED COMPONENTS avcodec avformat avutil swscale swresample)
 
 check_library_exists(m pow "" LIBM_EXISTS)
 
 set(LIBRARIES
-        ${SDL2_LIBRARIES}
+        SDL3::SDL3
         ${FFMPEG_LIBRARIES}
 )
 set(INCLUDES
         include/
-        ${SDL2_INCLUDE_DIRS}
         ${FFMPEG_INCLUDE_DIRS}
 )
 
@@ -142,6 +141,8 @@ endif ()
 if (BUILD_STATIC)
     add_library(SDL_kitchensink_static STATIC ${SOURCES})
 
+    target_link_libraries(SDL_kitchensink_static ${LIBRARIES})
+
     if (USE_ASAN)
         target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=address")
     endif ()
@@ -198,7 +199,7 @@ else ()
     message(STATUS "Development: clang-format disabled")
 endif ()
 
-set(PC_REQUIRES_PRIVATE "sdl2 libavcodec libavformat libavutil libswresample libswscale")
+set(PC_REQUIRES_PRIVATE "sdl3 libavcodec libavformat libavutil libswresample libswscale")
 if (NOT USE_DYNAMIC_LIBASS)
     string(APPEND PC_REQUIRES_PRIVATE " libass")
 endif ()
@@ -230,7 +231,7 @@ if (BUILD_EXAMPLES)
     if (BUILD_STATIC)
         set(EXAMPLE_LIBRARIES SDL_kitchensink_static ${LIBRARIES})
     else ()
-        set(EXAMPLE_LIBRARIES SDL_kitchensink ${SDL2_LIBRARIES})
+        set(EXAMPLE_LIBRARIES SDL_kitchensink SDL3::SDL3)
     endif ()
     if (USE_ASAN)
         set(EXAMPLE_LIBRARIES "-fsanitize=address" ${EXAMPLE_LIBRARIES})
