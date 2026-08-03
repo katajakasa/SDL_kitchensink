@@ -13,7 +13,7 @@
 #include "kitchensink2/internal/kitdecoder.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubrenderer.h"
 #include "kitchensink2/kitconfig.h"
-#include "kitchensink2/kitlib.h"
+#include "kitchensink2/kitplayer.h"
 
 /**
  * @brief Creates a subtitle renderer that decodes text subtitles (SRT/SSA/ASS/...) via libass.
