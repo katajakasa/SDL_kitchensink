@@ -1,0 +1,93 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - master
+      - release/v1
+      - release/v2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# The whole site is rebuilt and replaced on every deploy, so never run two
+# deploys at once; the newest queued run supersedes any waiting one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out master (dev docs)
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          path: src/dev
+
+      - name: Check out release/v2
+        uses: actions/checkout@v4
+        with:
+          ref: release/v2
+          path: src/v2
+
+      - name: Check out release/v1
+        uses: actions/checkout@v4
+        with:
+          ref: release/v1
+          path: src/v1
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen
+
+      - name: Build documentation for each version
+        run: |
+          for version in v1 v2 dev; do
+            (
+              cd "src/$version"
+              ( cat Doxyfile
+                echo "OUTPUT_DIRECTORY = $GITHUB_WORKSPACE/docs-out/$version"
+                echo "PROJECT_NUMBER = $version"
+              ) | doxygen -
+            )
+            mkdir -p "site/$version"
+            cp -r "docs-out/$version/html/." "site/$version/"
+          done
+
+      - name: Add root redirect to latest stable docs
+        run: |
+          cat > site/index.html <<'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=v2/">
+            <link rel="canonical" href="v2/">
+            <title>SDL_kitchensink documentation</title>
+          </head>
+          <body>
+            <p>Redirecting to the <a href="v2/">latest stable documentation</a>&hellip;</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
