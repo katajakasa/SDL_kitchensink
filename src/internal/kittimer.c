@@ -24,7 +24,7 @@ struct Kit_Timer {
     Kit_TimerValue *ref;
 };
 
-Kit_Timer *Kit_CreateTimer() {
+Kit_Timer *Kit_CreateTimer(void) {
     Kit_Timer *timer;
     Kit_TimerValue *value;
 

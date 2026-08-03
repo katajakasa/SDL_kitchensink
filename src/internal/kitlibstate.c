@@ -7,6 +7,6 @@ static Kit_LibraryState _library_state = {
     .ass_so_handle = NULL,
 };
 
-Kit_LibraryState *Kit_GetLibraryState() {
+Kit_LibraryState *Kit_GetLibraryState(void) {
     return &_library_state;
 }

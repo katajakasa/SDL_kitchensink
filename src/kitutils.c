@@ -169,7 +169,7 @@ const char *Kit_GetChannelLayoutString(Kit_AudioChannelLayout layout) {
     }
 }
 
-const char *Kit_GetKitStreamTypeString(unsigned int type) {
+const char *Kit_GetKitStreamTypeString(Kit_StreamType type) {
     switch(type) {
         case KIT_STREAMTYPE_UNKNOWN:
             return "KIT_STREAMTYPE_UNKNOWN";
@@ -188,7 +188,7 @@ const char *Kit_GetKitStreamTypeString(unsigned int type) {
     }
 }
 
-const char *Kit_GetHardwareDecoderTypeString(unsigned int type) {
+const char *Kit_GetHardwareDecoderTypeString(Kit_HardwareDeviceType type) {
     switch(type) {
         case KIT_HWDEVICE_TYPE_NONE:
             return "NONE";

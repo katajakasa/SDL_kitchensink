@@ -17,18 +17,6 @@ extern "C" {
 #endif
 
 /**
- * @brief Font hinting options. Used as values for Kit_PlayerConfig subtitle.font_hinting.
- */
-typedef enum Kit_FontHinting
-{
-    KIT_FONT_HINTING_NONE = 0, ///< No hinting. This is recommended option
-    KIT_FONT_HINTING_LIGHT,    ///< Light hinting. Use this if you need hinting
-    KIT_FONT_HINTING_NORMAL,   ///< Not recommended, please see libass docs for details
-    KIT_FONT_HINTING_NATIVE,   ///< Not recommended, please see libass docs for details
-    KIT_FONT_HINTING_COUNT
-} Kit_FontHinting;
-
-/**
  * @brief SDL_kitchensink library version container
  */
 typedef struct Kit_Version {
@@ -80,7 +68,7 @@ KIT_API int Kit_Init(unsigned int flags);
  *
  * Note that any calls to library functions after this will cause undefined behaviour!
  */
-KIT_API void Kit_Quit();
+KIT_API void Kit_Quit(void);
 
 /**
  * @brief Can be used to fetch the version of the linked SDL_kitchensink library

@@ -10,13 +10,11 @@
  * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
+#include "kitchensink2/kitconfig.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "kitchensink2/kitconfig.h"
-
-#define KIT_MAX_HW_DEVICES 32
 
 /**
  * @brief Hardware decoder device types
@@ -24,7 +22,7 @@ extern "C" {
  * Used as a bitmask in Kit_VideoFormatRequest.hw_device_types to limit which hardware
  * decoders may be used.
  */
-typedef enum
+typedef enum Kit_HardwareDeviceType
 {
     KIT_HWDEVICE_TYPE_NONE = 0,
     KIT_HWDEVICE_TYPE_VDPAU = 0x1,
@@ -120,7 +118,7 @@ typedef struct Kit_SubtitleOutputFormat {
  * @brief Contains information about the video data format coming out from the player
  */
 typedef struct Kit_VideoOutputFormat {
-    unsigned int hw_device_type; ///< Kit_HardwareDeviceType, if enabled.
+    Kit_HardwareDeviceType hw_device_type; ///< Hardware decoder in use, KIT_HWDEVICE_TYPE_NONE if disabled.
     unsigned int format;         ///< SDL_PixelFormat for surface format description
     int width;                   ///< Width in pixels
     int height;                  ///< Height in pixels

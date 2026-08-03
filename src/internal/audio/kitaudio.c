@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 #include <SDL.h>
 #include <libavformat/avformat.h>
