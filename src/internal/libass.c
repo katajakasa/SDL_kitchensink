@@ -1,7 +1,7 @@
 #ifdef USE_DYNAMIC_LIBASS
 
 #include "kitchensink3/internal/libass.h"
-#include <SDL_loadso.h>
+#include <SDL3/SDL_loadso.h>
 
 ASS_Library *(*ass_library_init)(void);
 void (*ass_library_done)(ASS_Library *priv);
@@ -24,23 +24,25 @@ void (*ass_process_chunk)(ASS_Track *track, char *data, int size, long long time
 void (*ass_add_font)(ASS_Library *library, char *name, char *data, int data_size);
 void (*ass_set_storage_size)(ASS_Renderer *priv, int w, int h);
 
-int load_libass(void *handle) {
-    ass_library_init = SDL_LoadFunction(handle, "ass_library_init");
-    ass_library_done = SDL_LoadFunction(handle, "ass_library_done");
-    ass_set_message_cb = SDL_LoadFunction(handle, "ass_set_message_cb");
-    ass_renderer_init = SDL_LoadFunction(handle, "ass_renderer_init");
-    ass_renderer_done = SDL_LoadFunction(handle, "ass_renderer_done");
-    ass_set_frame_size = SDL_LoadFunction(handle, "ass_set_frame_size");
-    ass_set_hinting = SDL_LoadFunction(handle, "ass_set_hinting");
-    ass_set_fonts = SDL_LoadFunction(handle, "ass_set_fonts");
-    ass_render_frame = SDL_LoadFunction(handle, "ass_render_frame");
-    ass_new_track = SDL_LoadFunction(handle, "ass_new_track");
-    ass_free_track = SDL_LoadFunction(handle, "ass_free_track");
-    ass_process_data = SDL_LoadFunction(handle, "ass_process_data");
-    ass_add_font = SDL_LoadFunction(handle, "ass_add_font");
-    ass_process_codec_private = SDL_LoadFunction(handle, "ass_process_codec_private");
-    ass_process_chunk = SDL_LoadFunction(handle, "ass_process_chunk");
-    ass_set_storage_size = SDL_LoadFunction(handle, "ass_set_storage_size");
+#define KIT_LOAD_SYM(handle, name) name = (typeof(name))SDL_LoadFunction((handle), #name)
+
+int load_libass(SDL_SharedObject *handle) {
+    KIT_LOAD_SYM(handle, ass_library_init);
+    KIT_LOAD_SYM(handle, ass_library_done);
+    KIT_LOAD_SYM(handle, ass_set_message_cb);
+    KIT_LOAD_SYM(handle, ass_renderer_init);
+    KIT_LOAD_SYM(handle, ass_renderer_done);
+    KIT_LOAD_SYM(handle, ass_set_frame_size);
+    KIT_LOAD_SYM(handle, ass_set_hinting);
+    KIT_LOAD_SYM(handle, ass_set_fonts);
+    KIT_LOAD_SYM(handle, ass_render_frame);
+    KIT_LOAD_SYM(handle, ass_new_track);
+    KIT_LOAD_SYM(handle, ass_free_track);
+    KIT_LOAD_SYM(handle, ass_process_data);
+    KIT_LOAD_SYM(handle, ass_add_font);
+    KIT_LOAD_SYM(handle, ass_process_codec_private);
+    KIT_LOAD_SYM(handle, ass_process_chunk);
+    KIT_LOAD_SYM(handle, ass_set_storage_size);
 
     // Check that all required functions were loaded
     if(ass_library_init == NULL || ass_library_done == NULL || ass_set_message_cb == NULL ||

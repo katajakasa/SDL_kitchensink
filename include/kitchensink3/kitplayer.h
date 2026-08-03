@@ -16,7 +16,7 @@
 #include "kitchensink3/kitlib.h"
 #include "kitchensink3/kitsource.h"
 
-#include <SDL_render.h>
+#include <SDL3/SDL_render.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -514,7 +514,10 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  * SDL_Rect targets[256];
  * int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, 256);
  * for(int i = 0; i < got; i++) {
- *     SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+ *     SDL_FRect src_rect, dst_rect;
+ *     SDL_RectToFRect(&sources[i], &src_rect);
+ *     SDL_RectToFRect(&targets[i], &dst_rect);
+ *     SDL_RenderTexture(renderer, subtitle_tex, &src_rect, &dst_rect);
  * }
  * ```
  *
@@ -575,8 +578,8 @@ KIT_API int Kit_GetPlayerSubtitleRawFrames(
  * Audio data format can be acquired by calling Kit_GetPlayerInfo().
  *
  * The "backend_buffer_size" argument should be set to the amount of audio currently queued in the
- * backend (hardware) buffers. If your backend is SDL2, this can be provided by
- * SDL_GetQueuedAudioSize(). This information is used to supply silence if the backend queue is about
+ * backend (hardware) buffers. If your backend is SDL3, this can be provided by
+ * SDL_GetAudioStreamQueued(). This information is used to supply silence if the backend queue is about
  * to run empty while the decoder momentarily has no audio data to give, protecting against audible
  * underruns. If you don't have this value, a large value (e.g. SIZE_MAX) disables the silence
  * padding, while 0 always enables it whenever the decoder has no data.

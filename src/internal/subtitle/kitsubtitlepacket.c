@@ -9,7 +9,7 @@ void Kit_FreeSubtitlePacket(Kit_SubtitlePacket **ref) {
     if(!ref || !*ref)
         return;
     Kit_SubtitlePacket *packet = *ref;
-    SDL_FreeSurface(packet->surface);
+    SDL_DestroySurface(packet->surface);
     free(packet);
     *ref = NULL;
 }
@@ -24,7 +24,7 @@ void Kit_SetSubtitlePacketData(
     SDL_Surface *surface
 ) {
     if(packet->surface)
-        SDL_FreeSurface(packet->surface);
+        SDL_DestroySurface(packet->surface);
     packet->pts_start = pts_start;
     packet->pts_end = pts_end;
     packet->x = pos_x;
@@ -35,7 +35,7 @@ void Kit_SetSubtitlePacketData(
 
 void Kit_MoveSubtitlePacketRefs(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src) {
     if(dst->surface)
-        SDL_FreeSurface(dst->surface);
+        SDL_DestroySurface(dst->surface);
     dst->pts_start = src->pts_start;
     dst->pts_end = src->pts_end;
     dst->x = src->x;
@@ -47,6 +47,6 @@ void Kit_MoveSubtitlePacketRefs(Kit_SubtitlePacket *dst, Kit_SubtitlePacket *src
 
 void Kit_DelSubtitlePacketRefs(Kit_SubtitlePacket *packet, bool free_surface) {
     if(packet->surface && free_surface)
-        SDL_FreeSurface(packet->surface);
+        SDL_DestroySurface(packet->surface);
     memset(packet, 0, sizeof(Kit_SubtitlePacket));
 }

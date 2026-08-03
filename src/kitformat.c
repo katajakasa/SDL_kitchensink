@@ -1,6 +1,6 @@
 #include "kitchensink3/kitformat.h"
 
-#include <SDL_pixels.h>
+#include <SDL3/SDL_pixels.h>
 
 void Kit_ResetVideoFormatRequest(Kit_VideoFormatRequest *request) {
     request->hw_device_types = KIT_HWDEVICE_TYPE_ALL;

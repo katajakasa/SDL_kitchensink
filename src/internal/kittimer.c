@@ -1,5 +1,5 @@
-#include <SDL_atomic.h>
-#include <SDL_mutex.h>
+#include <SDL3/SDL_atomic.h>
+#include <SDL3/SDL_mutex.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
 #include "kitchensink3/internal/kittimer.h"
@@ -9,10 +9,10 @@
 #include <stdlib.h>
 
 typedef struct Kit_TimerValue {
-    SDL_atomic_t count;       ///< Reference count
-    SDL_atomic_t serial;      ///< Current seek serial; bumped on every seek request
-    SDL_atomic_t base_serial; ///< Seek serial for which the timer base was last set
-    SDL_mutex *lock;          ///< Guards the non-atomic fields below (shared by multiple threads)
+    SDL_AtomicInt count;       ///< Reference count
+    SDL_AtomicInt serial;      ///< Current seek serial; bumped on every seek request
+    SDL_AtomicInt base_serial; ///< Seek serial for which the timer base was last set
+    SDL_Mutex *lock;          ///< Guards the non-atomic fields below (shared by multiple threads)
     bool initialized;
     bool paused;
     double pause_start;
@@ -41,9 +41,9 @@ Kit_Timer *Kit_CreateTimer(void) {
         goto exit_2;
     }
 
-    SDL_AtomicSet(&value->count, 1);
-    SDL_AtomicSet(&value->serial, 0);
-    SDL_AtomicSet(&value->base_serial, 0);
+    SDL_SetAtomicInt(&value->count, 1);
+    SDL_SetAtomicInt(&value->serial, 0);
+    SDL_SetAtomicInt(&value->base_serial, 0);
     value->value = 0;
     value->initialized = false;
     timer->ref = value;
@@ -65,7 +65,7 @@ Kit_Timer *Kit_CreateSecondaryTimer(const Kit_Timer *src, bool writeable) {
         return NULL;
     }
     timer->ref = src->ref;
-    SDL_AtomicAdd(&timer->ref->count, 1);
+    SDL_AddAtomicInt(&timer->ref->count, 1);
     timer->writeable = writeable;
     return timer;
 }
@@ -117,7 +117,7 @@ void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust, unsigned int serial) {
     timer->ref->value = now - adjust;
     timer->ref->pause_start = now;
     timer->ref->initialized = true;
-    SDL_AtomicSet(&timer->ref->base_serial, (int)serial);
+    SDL_SetAtomicInt(&timer->ref->base_serial, (int)serial);
     SDL_UnlockMutex(timer->ref->lock);
 }
 
@@ -169,28 +169,28 @@ bool Kit_IsTimerPrimary(const Kit_Timer *timer) {
 }
 
 unsigned int Kit_GetTimerSerial(const Kit_Timer *timer) {
-    return (unsigned int)SDL_AtomicGet(&timer->ref->serial);
+    return (unsigned int)SDL_GetAtomicInt(&timer->ref->serial);
 }
 
 unsigned int Kit_IncreaseTimerSerial(Kit_Timer *timer) {
-    return (unsigned int)SDL_AtomicAdd(&timer->ref->serial, 1) + 1;
+    return (unsigned int)SDL_AddAtomicInt(&timer->ref->serial, 1) + 1;
 }
 
 void Kit_SetTimerBaseSerial(Kit_Timer *timer, unsigned int serial) {
     if(timer->writeable) {
-        SDL_AtomicSet(&timer->ref->base_serial, (int)serial);
+        SDL_SetAtomicInt(&timer->ref->base_serial, (int)serial);
     }
 }
 
 bool Kit_IsTimerSynced(const Kit_Timer *timer) {
-    return SDL_AtomicGet(&timer->ref->base_serial) == SDL_AtomicGet(&timer->ref->serial);
+    return SDL_GetAtomicInt(&timer->ref->base_serial) == SDL_GetAtomicInt(&timer->ref->serial);
 }
 
 void Kit_CloseTimer(Kit_Timer **ref) {
     if(!ref || !*ref)
         return;
     Kit_Timer *timer = *ref;
-    if(SDL_AtomicAdd(&timer->ref->count, -1) == 1) {
+    if(SDL_AddAtomicInt(&timer->ref->count, -1) == 1) {
         SDL_DestroyMutex(timer->ref->lock);
         free(timer->ref);
     }

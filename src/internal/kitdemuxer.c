@@ -1,6 +1,6 @@
 #include <assert.h>
 
-#include <SDL_timer.h>
+#include <SDL3/SDL_timer.h>
 #include <libavformat/avformat.h>
 
 #include "kitchensink3/internal/kitdemuxer.h"
@@ -30,13 +30,13 @@ void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index) {
  */
 static bool Kit_DemuxerRetryDelay(Kit_Demuxer *demuxer, unsigned int delay_ms) {
     while(delay_ms > 0) {
-        if(SDL_AtomicGet(&demuxer->abort_requested))
+        if(SDL_GetAtomicInt(&demuxer->abort_requested))
             return false;
         const unsigned int slice = delay_ms < 10 ? delay_ms : 10;
         SDL_Delay(slice);
         delay_ms -= slice;
     }
-    return !SDL_AtomicGet(&demuxer->abort_requested);
+    return !SDL_GetAtomicInt(&demuxer->abort_requested);
 }
 
 bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
@@ -59,7 +59,7 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     // Note that Kit_WritePacketBuffer() may block if the buffer is full. It will also move the scratch_packet
     // references to its own buffer, leaving the scratch_buffer in a clean state.
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if(demuxer->scratch_packet->stream_index == SDL_AtomicGet(&demuxer->stream_indexes[i])) {
+        if(demuxer->scratch_packet->stream_index == SDL_GetAtomicInt(&demuxer->stream_indexes[i])) {
             if(!Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet))
                 av_packet_unref(demuxer->scratch_packet);
             return true;
@@ -137,9 +137,9 @@ Kit_Demuxer *Kit_CreateDemuxer(
     demuxer->buffers[KIT_VIDEO_INDEX] = video_buf;
     demuxer->buffers[KIT_AUDIO_INDEX] = audio_buf;
     demuxer->buffers[KIT_SUBTITLE_INDEX] = subtitle_buf;
-    SDL_AtomicSet(&demuxer->stream_indexes[KIT_VIDEO_INDEX], video_index);
-    SDL_AtomicSet(&demuxer->stream_indexes[KIT_AUDIO_INDEX], audio_index);
-    SDL_AtomicSet(&demuxer->stream_indexes[KIT_SUBTITLE_INDEX], subtitle_index);
+    SDL_SetAtomicInt(&demuxer->stream_indexes[KIT_VIDEO_INDEX], video_index);
+    SDL_SetAtomicInt(&demuxer->stream_indexes[KIT_AUDIO_INDEX], audio_index);
+    SDL_SetAtomicInt(&demuxer->stream_indexes[KIT_SUBTITLE_INDEX], subtitle_index);
     return demuxer;
 
 error_4:
@@ -157,20 +157,20 @@ error_0:
 void Kit_ClearDemuxerBuffers(Kit_Demuxer *demuxer) {
     if(!demuxer)
         return;
-    SDL_AtomicSet(&demuxer->abort_requested, 0);
+    SDL_SetAtomicInt(&demuxer->abort_requested, 0);
     for(int i = 0; i < KIT_INDEX_COUNT; i++)
         Kit_FlushPacketBuffer(demuxer->buffers[i]);
 }
 
 void Kit_SetDemuxerStreamIndex(Kit_Demuxer *demuxer, Kit_BufferIndex index, int stream_index) {
     Kit_FlushPacketBuffer(demuxer->buffers[index]);
-    SDL_AtomicSet(&demuxer->stream_indexes[index], stream_index);
+    SDL_SetAtomicInt(&demuxer->stream_indexes[index], stream_index);
 }
 
 void Kit_AbortDemuxer(Kit_Demuxer *demuxer) {
     if(!demuxer)
         return;
-    SDL_AtomicSet(&demuxer->abort_requested, 1);
+    SDL_SetAtomicInt(&demuxer->abort_requested, 1);
     for(int i = 0; i < KIT_INDEX_COUNT; i++)
         Kit_AbortPacketBuffer(demuxer->buffers[i]);
 }
@@ -187,7 +187,7 @@ void Kit_CloseDemuxer(Kit_Demuxer **ref) {
     Kit_Demuxer *demuxer = *ref;
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         Kit_FreePacketBuffer(&demuxer->buffers[i]);
-        SDL_AtomicSet(&demuxer->stream_indexes[i], -1);
+        SDL_SetAtomicInt(&demuxer->stream_indexes[i], -1);
     }
     av_packet_free(&demuxer->scratch_packet);
     free(demuxer);

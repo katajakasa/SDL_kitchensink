@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <SDL_surface.h>
+#include <SDL3/SDL_surface.h>
 
 #include "kitchensink3/internal/kitpacketbuffer.h"
 #include "kitchensink3/internal/subtitle/kitatlas.h"
@@ -50,11 +50,11 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
         if(r->type != SUBTITLE_BITMAP)
             continue;
 
-        tmp = SDL_CreateRGBSurfaceWithFormatFrom(r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8);
-        SDL_SetPaletteColors(tmp->format->palette, (SDL_Color *)r->data[1], 0, 256);
-        dst = SDL_CreateRGBSurfaceWithFormat(0, r->w, r->h, 32, SDL_PIXELFORMAT_RGBA32);
+        tmp = SDL_CreateSurfaceFrom(r->w, r->h, SDL_PIXELFORMAT_INDEX8, r->data[0], r->linesize[0]);
+        SDL_SetPaletteColors(SDL_CreateSurfacePalette(tmp), (SDL_Color *)r->data[1], 0, 256);
+        dst = SDL_CreateSurface(r->w, r->h, SDL_PIXELFORMAT_RGBA32);
         SDL_BlitSurface(tmp, NULL, dst, NULL);
-        SDL_FreeSurface(tmp);
+        SDL_DestroySurface(tmp);
 
         // Create a new packet and write it to output buffer
         Kit_SetSubtitlePacketData(image_renderer->in_packet, false, start_pts, end_pts, r->x, r->y, dst);
@@ -102,7 +102,7 @@ static int ren_get_img_data_cb(
 
 static void Kit_ClearSubCache(Kit_ImageSubtitleRenderer *image_renderer) {
     for(int i = 0; i < image_renderer->cached_items_size; i++) {
-        SDL_FreeSurface(image_renderer->cached_surfaces[i]);
+        SDL_DestroySurface(image_renderer->cached_surfaces[i]);
     }
     image_renderer->cached_items_size = 0;
 }

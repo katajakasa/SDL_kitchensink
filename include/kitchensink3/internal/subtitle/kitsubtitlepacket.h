@@ -10,7 +10,7 @@
  * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
-#include <SDL_surface.h>
+#include <SDL3/SDL_surface.h>
 #include <stdbool.h>
 
 #include "kitchensink3/kitconfig.h"

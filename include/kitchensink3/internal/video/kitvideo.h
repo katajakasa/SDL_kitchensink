@@ -9,7 +9,7 @@
  * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
-#include <SDL_render.h>
+#include <SDL3/SDL_render.h>
 
 #include "kitchensink3/internal/kitdecoder.h"
 #include "kitchensink3/internal/kittimer.h"

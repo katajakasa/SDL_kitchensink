@@ -1,8 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <SDL_mutex.h>
-#include <SDL_surface.h>
+#include <SDL3/SDL_mutex.h>
+#include <SDL3/SDL_surface.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
 #include "kitchensink3/internal/kitlibstate.h"
@@ -15,7 +15,7 @@
 typedef struct Kit_ASSSubtitleRenderer {
     ASS_Renderer *renderer;
     ASS_Track *track;
-    SDL_mutex *decoder_lock;
+    SDL_Mutex *decoder_lock;
     unsigned char **cached_items;
     SDL_Rect *cached_dst_rects;
     SDL_Rect *cached_src_rects;
@@ -114,8 +114,8 @@ static int ren_get_ass_data_cb(
         if(dst == NULL || dst_w != src->w || dst_h != src->h) {
             dst_w = src->w;
             dst_h = src->h;
-            SDL_FreeSurface(dst);
-            dst = SDL_CreateRGBSurfaceWithFormat(0, dst_w, dst_h, 32, SDL_PIXELFORMAT_RGBA32);
+            SDL_DestroySurface(dst);
+            dst = SDL_CreateSurface(dst_w, dst_h, SDL_PIXELFORMAT_RGBA32);
         }
 
         Kit_ProcessAssImage(dst->pixels, src, dst->pitch);
@@ -127,7 +127,7 @@ static int ren_get_ass_data_cb(
         Kit_AddAtlasItem(atlas, texture, dst, &target);
     }
 
-    SDL_FreeSurface(dst);
+    SDL_DestroySurface(dst);
     return 0;
 }
 
@@ -252,7 +252,7 @@ Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
     Kit_ASSSubtitleRenderer *ass_renderer;
     ASS_Renderer *render_handler;
     ASS_Track *render_track;
-    SDL_mutex *decoder_lock;
+    SDL_Mutex *decoder_lock;
 
     const Kit_LibraryState *state = Kit_GetLibraryState();
     if(state->libass_handle == NULL) {

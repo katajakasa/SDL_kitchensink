@@ -112,11 +112,11 @@ void Kit_CheckAtlasTextureSize(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
     assert(texture != NULL);
 
     // Check if texture size has changed, and clear content if it has.
-    int texture_w;
-    int texture_h;
-    if(SDL_QueryTexture(texture, NULL, NULL, &texture_w, &texture_h) == 0) {
-        atlas->w = texture_w;
-        atlas->h = texture_h;
+    float texture_w;
+    float texture_h;
+    if(SDL_GetTextureSize(texture, &texture_w, &texture_h)) {
+        atlas->w = (int)texture_w;
+        atlas->h = (int)texture_h;
     }
 }
 

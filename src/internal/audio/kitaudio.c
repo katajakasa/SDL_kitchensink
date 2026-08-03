@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <libavformat/avformat.h>
 #include <libavutil/audio_fifo.h>
 #include <libswresample/swresample.h>
@@ -33,7 +33,7 @@ typedef struct Kit_AudioDecoder {
     Kit_AudioOutputFormat output; ///< Output audio format description
     int early_threshold;          ///< Early sync threshold, in milliseconds
     int late_threshold;           ///< Late sync threshold, in milliseconds
-    SDL_atomic_t eof_seen;        ///< Codec fully drained at end of stream (decoder thread writes, getter reads)
+    SDL_AtomicInt eof_seen;        ///< Codec fully drained at end of stream (decoder thread writes, getter reads)
 } Kit_AudioDecoder;
 
 int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *decoder, Kit_AudioOutputFormat *output) {
@@ -129,7 +129,7 @@ static void dec_flush_audio_cb(Kit_Decoder *decoder) {
     Kit_FlushPacketBuffer(audio_decoder->buffer);
     av_audio_fifo_reset(audio_decoder->fifo);
     audio_decoder->fifo_start_pts = -1;
-    SDL_AtomicSet(&audio_decoder->eof_seen, 0);
+    SDL_SetAtomicInt(&audio_decoder->eof_seen, 0);
     // Drop any samples buffered inside the resampler, so that old audio does not leak past a seek.
     swr_close(audio_decoder->swr);
     if(swr_init(audio_decoder->swr) != 0) {
@@ -183,7 +183,7 @@ static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
     if(ret == AVERROR_EOF) {
         // If this is the end of the stream, flush the FIFO.
         read_fifo_frame(decoder, audio_decoder, true);
-        SDL_AtomicSet(&audio_decoder->eof_seen, 1);
+        SDL_SetAtomicInt(&audio_decoder->eof_seen, 1);
     }
     return false;
 }
@@ -477,7 +477,7 @@ serve:
 
 no_data:
     // If we are at EOF, then no point in generating silence.
-    if(SDL_AtomicGet(&audio_decoder->eof_seen))
+    if(SDL_GetAtomicInt(&audio_decoder->eof_seen))
         return 0;
     len = Kit_min(floor(len / SAMPLE_BYTES(audio_decoder)), 1024);
     if(backend_buffer_size < len * SAMPLE_BYTES(audio_decoder)) {
