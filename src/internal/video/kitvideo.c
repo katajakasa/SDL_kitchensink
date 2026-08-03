@@ -5,8 +5,10 @@
 #include <libswscale/swscale.h>
 
 #include "kitchensink2/internal/kitdecoder.h"
+#include "kitchensink2/internal/kitfaultinject.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/internal/video/kitvideo.h"
 #include "kitchensink2/internal/video/kitvideoutils.h"
@@ -30,9 +32,10 @@ typedef struct Kit_VideoDecoder {
 static struct SwsContext *Kit_GetSwsContext(
     struct SwsContext *old_context, int w, int h, enum AVPixelFormat in_fmt, enum AVPixelFormat out_fmt
 ) {
-    struct SwsContext *new_context =
-        sws_getCachedContext(old_context, w, h, in_fmt, w, h, out_fmt, SWS_BILINEAR, NULL, NULL, NULL);
-    if(new_context == NULL) {
+    struct SwsContext *new_context;
+    if((new_context = KIT_FAULT_WRAP_PTR(
+            "sws_init", sws_getCachedContext(old_context, w, h, in_fmt, w, h, out_fmt, SWS_BILINEAR, NULL, NULL, NULL)
+        )) == NULL) {
         LOG("Unable to initialize video converter context\n");
     }
     return new_context;
@@ -92,7 +95,8 @@ static void dec_read_video(const Kit_Decoder *decoder) {
 
 static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, const AVPacket *in_packet) {
     assert(decoder);
-    switch(avcodec_send_packet(decoder->codec_ctx, in_packet)) {
+    int ret = KIT_FAULT_WRAP_CODE("decode_send", avcodec_send_packet(decoder->codec_ctx, in_packet));
+    switch(ret) {
         case AVERROR_EOF:
             return KIT_DEC_INPUT_EOF;
         case AVERROR(ENOMEM):
@@ -106,7 +110,8 @@ static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, con
 static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
     Kit_VideoDecoder *video_decoder = decoder->userdata;
-    if(avcodec_receive_frame(decoder->codec_ctx, video_decoder->tmp_frame) == 0) {
+    int ret = KIT_FAULT_WRAP_CODE("decode_receive", avcodec_receive_frame(decoder->codec_ctx, video_decoder->tmp_frame));
+    if(ret == 0) {
         // Process the temporary frame, and then make sure result is in in_frame.
         // If the frame is hardware frame, we need to pull it from the hardware device first!
         if(video_decoder->tmp_frame->format == decoder->hw_fmt) {
@@ -181,7 +186,7 @@ Kit_Decoder *Kit_CreateVideoDecoder(
     }
     stream = format_ctx->streams[stream_index];
 
-    if((video_decoder = calloc(1, sizeof(Kit_VideoDecoder))) == NULL) {
+    if((video_decoder = Kit_Calloc(1, sizeof(Kit_VideoDecoder))) == NULL) {
         Kit_SetError("Unable to allocate video decoder for stream %d", stream_index);
         goto exit_0;
     }

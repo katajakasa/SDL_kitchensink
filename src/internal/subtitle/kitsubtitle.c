@@ -10,6 +10,7 @@
 #include "kitchensink2/internal/subtitle/renderers/kitsubass.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubimage.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubrenderer.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/kiterror.h"
 #include "kitchensink2/kitlib.h"
 
@@ -141,7 +142,7 @@ Kit_Decoder *Kit_CreateSubtitleDecoder(
     }
     stream = format_ctx->streams[stream_index];
 
-    if((subtitle_decoder = calloc(1, sizeof(Kit_SubtitleDecoder))) == NULL) {
+    if((subtitle_decoder = Kit_Calloc(1, sizeof(Kit_SubtitleDecoder))) == NULL) {
         Kit_SetError("Unable to allocate audio decoder for stream %d", stream_index);
         goto exit_0;
     }

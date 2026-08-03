@@ -4,9 +4,11 @@
 #include <SDL_mutex.h>
 #include <SDL_surface.h>
 
+#include "kitchensink2/internal/kitfaultinject.h"
 #include "kitchensink2/internal/kitlibstate.h"
 #include "kitchensink2/internal/subtitle/kitatlas.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubass.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/kiterror.h"
 
@@ -189,7 +191,7 @@ static int ren_get_ass_raw_frames_cb(
         if(src->w == 0 || src->h == 0)
             continue;
 
-        unsigned char *buf = malloc(src->w * src->h * 4);
+        unsigned char *buf = Kit_Malloc(src->w * src->h * 4);
         if(buf == NULL) {
             continue; // Skip this frame if allocation fails
         }
@@ -257,7 +259,7 @@ Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
         Kit_SetError("Libass library has not been initialized");
         return NULL;
     }
-    if((ass_renderer = calloc(1, sizeof(Kit_ASSSubtitleRenderer))) == NULL) {
+    if((ass_renderer = Kit_Calloc(1, sizeof(Kit_ASSSubtitleRenderer))) == NULL) {
         Kit_SetError("Unable to allocate ass subtitle renderer");
         goto exit_0;
     }
@@ -278,7 +280,7 @@ Kit_SubtitleRenderer *Kit_CreateASSSubtitleRenderer(
         Kit_SetError("Unable to initialize libass renderer");
         goto exit_2;
     }
-    if((decoder_lock = SDL_CreateMutex()) == NULL) {
+    if((decoder_lock = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateMutex())) == NULL) {
         Kit_SetError("Unable to initialize libass decoder lock mutex");
         goto exit_3;
     }

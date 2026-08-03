@@ -5,6 +5,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 #include "kitchensink2/kitsource.h"
@@ -27,7 +28,7 @@ Kit_Source *Kit_CreateSourceFromUrl(const char *url) {
         return NULL;
     }
 
-    Kit_Source *src = calloc(1, sizeof(Kit_Source));
+    Kit_Source *src = Kit_Calloc(1, sizeof(Kit_Source));
     if(src == NULL) {
         Kit_SetError("Unable to allocate source");
         return NULL;
@@ -56,7 +57,7 @@ EXIT_0:
 Kit_Source *Kit_CreateSourceFromCustom(Kit_ReadCallback read_cb, Kit_SeekCallback seek_cb, void *userdata) {
     assert(read_cb != NULL);
 
-    Kit_Source *src = calloc(1, sizeof(Kit_Source));
+    Kit_Source *src = Kit_Calloc(1, sizeof(Kit_Source));
     if(src == NULL) {
         Kit_SetError("Unable to allocate source");
         return NULL;

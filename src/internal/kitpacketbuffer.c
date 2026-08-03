@@ -1,7 +1,9 @@
 #include <SDL_mutex.h>
 #include <assert.h>
 
+#include "kitchensink2/internal/kitfaultinject.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kitlog.h"
 #include "kitchensink2/kiterror.h"
 
@@ -36,19 +38,19 @@ Kit_PacketBuffer *Kit_CreatePacketBuffer(
     SDL_cond *can_read = NULL;
     void **packets;
 
-    if((can_write = SDL_CreateCond()) == NULL) {
+    if((can_write = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateCond())) == NULL) {
         Kit_SetError("Unable to allocate writer conditional variable: %s", SDL_GetError());
         goto error_0;
     }
-    if((can_read = SDL_CreateCond()) == NULL) {
+    if((can_read = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateCond())) == NULL) {
         Kit_SetError("Unable to allocate reader conditional variable: %s", SDL_GetError());
         goto error_1;
     }
-    if((mutex = SDL_CreateMutex()) == NULL) {
+    if((mutex = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateMutex())) == NULL) {
         Kit_SetError("Unable to allocate mutex: %s", SDL_GetError());
         goto error_2;
     }
-    if((packets = calloc(capacity, sizeof(void *))) == NULL) {
+    if((packets = Kit_Calloc(capacity, sizeof(void *))) == NULL) {
         Kit_SetError("Unable to allocate packet buffer");
         goto error_3;
     }
@@ -58,7 +60,7 @@ Kit_PacketBuffer *Kit_CreatePacketBuffer(
             goto error_4;
         }
     }
-    if((buffer = malloc(sizeof(Kit_PacketBuffer))) == NULL) {
+    if((buffer = Kit_Malloc(sizeof(Kit_PacketBuffer))) == NULL) {
         Kit_SetError("Unable to allocate packet stream");
         goto error_4;
     }

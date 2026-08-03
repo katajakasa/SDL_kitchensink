@@ -6,8 +6,10 @@
 #include "kitchensink2/internal/audio/kitaudio.h"
 #include "kitchensink2/internal/kitdecoderthread.h"
 #include "kitchensink2/internal/kitdemuxerthread.h"
+#include "kitchensink2/internal/kitfaultinject.h"
 #include "kitchensink2/internal/kittimer.h"
 #include "kitchensink2/internal/subtitle/kitsubtitle.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/internal/video/kitvideo.h"
 #include "kitchensink2/kiterror.h"
@@ -239,16 +241,16 @@ Kit_Player *Kit_CreatePlayer(
         Kit_SetError("Subtitle stream selected without video stream");
         goto exit_0;
     }
-    if((player = calloc(1, sizeof(Kit_Player))) == NULL) {
+    if((player = Kit_Calloc(1, sizeof(Kit_Player))) == NULL) {
         Kit_SetError("Unable to allocate player");
         goto exit_0;
     }
-    if((player->control_lock = SDL_CreateMutex()) == NULL) {
+    if((player->control_lock = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateMutex())) == NULL) {
         Kit_SetError("Unable to allocate player control lock: %s", SDL_GetError());
         goto exit_1;
     }
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
-        if((player->decoder_ctrl_locks[i] = SDL_CreateMutex()) == NULL) {
+        if((player->decoder_ctrl_locks[i] = KIT_FAULT_WRAP_PTR("sdl_mutex", SDL_CreateMutex())) == NULL) {
             Kit_SetError("Unable to allocate player decoder control lock: %s", SDL_GetError());
             goto exit_1;
         }

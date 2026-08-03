@@ -4,8 +4,10 @@
 #include <libavformat/avformat.h>
 
 #include "kitchensink2/internal/kitdemuxer.h"
+#include "kitchensink2/internal/kitfaultinject.h"
 #include "kitchensink2/internal/kitpacketbuffer.h"
 #include "kitchensink2/internal/kitpackettag.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/kiterror.h"
 
 void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index) {
@@ -39,7 +41,8 @@ static bool Kit_DemuxerRetryDelay(Kit_Demuxer *demuxer, unsigned int delay_ms) {
 
 bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     for(unsigned int attempt = 0;; attempt++) {
-        const int ret = av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet);
+        const int ret =
+            KIT_FAULT_WRAP_CODE("demux_read", av_read_frame(demuxer->src->format_ctx, demuxer->scratch_packet));
         if(ret >= 0)
             break;
         if(ret == AVERROR_EOF)
@@ -77,7 +80,7 @@ Kit_Demuxer *Kit_CreateDemuxer(
     Kit_PacketBuffer *subtitle_buf = NULL;
     AVPacket *scratch_packet;
 
-    if((demuxer = calloc(1, sizeof(Kit_Demuxer))) == NULL) {
+    if((demuxer = Kit_Calloc(1, sizeof(Kit_Demuxer))) == NULL) {
         Kit_SetError("Unable to allocate demuxer");
         goto error_0;
     }
@@ -202,7 +205,10 @@ static void Kit_SendSeekPacket(Kit_Demuxer *demuxer, unsigned int seek_serial) {
 }
 
 bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, Kit_Timer *timer, const int64_t seek_target) {
-    if(avformat_seek_file(demuxer->src->format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, 0) >= 0) {
+    const int ret = KIT_FAULT_WRAP_CODE(
+        "demux_seek", avformat_seek_file(demuxer->src->format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, 0)
+    );
+    if(ret >= 0) {
         Kit_ClearDemuxerBuffers(demuxer);
         Kit_SendSeekPacket(demuxer, Kit_IncreaseTimerSerial(timer));
         return true;

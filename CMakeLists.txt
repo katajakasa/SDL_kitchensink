@@ -28,6 +28,8 @@ option(USE_TIDY "Use clang-tidy" OFF)
 option(USE_FORMAT "Use clang-format for formatting" OFF)
 option(BUILD_SHARED "Build shared library" ON)
 option(BUILD_STATIC "Build static library" ON)
+option(BUILD_TESTS "Build unit tests" OFF)
+option(KIT_FAULT_INJECTION "Compile in the debug fault-injection registry (tests only)" OFF)
 
 if (USE_ASAN AND USE_TSAN)
     message(FATAL_ERROR "USE_ASAN and USE_TSAN are mutually exclusive")
@@ -93,7 +95,15 @@ endif ()
 FILE(GLOB_RECURSE SOURCES "src/*.c")
 FILE(GLOB INSTALL_HEADERS "include/kitchensink2/*.h")
 
+# Compiled in only via the KIT_FAULT_INJECTION option below, not unconditionally.
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/internal/kitfaultinject.c")
+
 include_directories(${INCLUDES})
+
+if (KIT_FAULT_INJECTION)
+    message(STATUS "DEVELOPMENT: fault-injection registry enabled!")
+    list(APPEND SOURCES "src/internal/kitfaultinject.c")
+endif ()
 
 set(INSTALL_TARGETS "")
 
@@ -102,12 +112,12 @@ if (BUILD_SHARED)
 
     if (USE_ASAN)
         target_compile_options(SDL_kitchensink PRIVATE "-fsanitize=address")
-        target_link_libraries(SDL_kitchensink asan)
+        target_link_libraries(SDL_kitchensink "-fsanitize=address")
     endif ()
 
     if (USE_TSAN)
         target_compile_options(SDL_kitchensink PRIVATE "-fsanitize=thread")
-        target_link_libraries(SDL_kitchensink tsan)
+        target_link_libraries(SDL_kitchensink "-fsanitize=thread")
     endif ()
 
     target_link_libraries(SDL_kitchensink ${LIBRARIES})
@@ -119,6 +129,10 @@ if (BUILD_SHARED)
 
     target_compile_definitions(SDL_kitchensink PRIVATE "KIT_DLL;KIT_DLL_EXPORTS")
     target_compile_options(SDL_kitchensink PRIVATE "-fvisibility=hidden")
+
+    if (KIT_FAULT_INJECTION)
+        target_compile_definitions(SDL_kitchensink PRIVATE KIT_FAULT_INJECTION)
+    endif ()
 
     set_property(TARGET SDL_kitchensink PROPERTY C_STANDARD 99)
 
@@ -140,7 +154,19 @@ if (BUILD_STATIC)
     set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
 
+    if (KIT_FAULT_INJECTION)
+        target_compile_definitions(SDL_kitchensink_static PUBLIC KIT_FAULT_INJECTION)
+    endif ()
+
     set(INSTALL_TARGETS SDL_kitchensink_static ${INSTALL_TARGETS})
+endif ()
+
+if (BUILD_TESTS)
+    if (NOT BUILD_STATIC)
+        message(FATAL_ERROR "BUILD_TESTS requires BUILD_STATIC=ON")
+    endif ()
+    enable_testing()
+    add_subdirectory(tests)
 endif ()
 
 if (USE_TIDY)
@@ -207,10 +233,10 @@ if (BUILD_EXAMPLES)
         set(EXAMPLE_LIBRARIES SDL_kitchensink ${SDL2_LIBRARIES})
     endif ()
     if (USE_ASAN)
-        set(EXAMPLE_LIBRARIES asan ${EXAMPLE_LIBRARIES})
+        set(EXAMPLE_LIBRARIES "-fsanitize=address" ${EXAMPLE_LIBRARIES})
     endif ()
     if (USE_TSAN)
-        set(EXAMPLE_LIBRARIES tsan ${EXAMPLE_LIBRARIES})
+        set(EXAMPLE_LIBRARIES "-fsanitize=thread" ${EXAMPLE_LIBRARIES})
     endif ()
 
     foreach (TARGET ${EXAMPLE_TARGETS})

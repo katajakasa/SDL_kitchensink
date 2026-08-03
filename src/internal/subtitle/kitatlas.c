@@ -1,10 +1,11 @@
 #include <assert.h>
 
 #include "kitchensink2/internal/subtitle/kitatlas.h"
+#include "kitchensink2/internal/utils/kitalloc.h"
 #include "kitchensink2/internal/utils/kithelpers.h"
 
 Kit_TextureAtlas *Kit_CreateAtlas() {
-    Kit_TextureAtlas *atlas = calloc(1, sizeof(Kit_TextureAtlas));
+    Kit_TextureAtlas *atlas = Kit_Calloc(1, sizeof(Kit_TextureAtlas));
     if(atlas == NULL) {
         goto EXIT_0;
     }
@@ -15,13 +16,13 @@ Kit_TextureAtlas *Kit_CreateAtlas() {
     atlas->h = 0;
 
     // Allocate items. These hold the surfaces that should be in atlas
-    atlas->items = calloc(atlas->max_items, sizeof(Kit_TextureAtlasItem));
+    atlas->items = Kit_Calloc(atlas->max_items, sizeof(Kit_TextureAtlasItem));
     if(atlas->items == NULL) {
         goto EXIT_1;
     }
 
     // Allocate shelves. These describe the used space of the atlas
-    atlas->shelves = calloc(atlas->max_shelves, sizeof(Kit_Shelf));
+    atlas->shelves = Kit_Calloc(atlas->max_shelves, sizeof(Kit_Shelf));
     if(atlas->shelves == NULL) {
         goto EXIT_2;
     }
