@@ -7,8 +7,8 @@
 #include <SDL_atomic.h>
 #include <SDL_thread.h>
 
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/kiterror.h"
 
 #define KIT_ERRBUFSIZE 1024
 

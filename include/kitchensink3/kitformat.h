@@ -1,0 +1,142 @@
+#ifndef KITFORMAT_H
+#define KITFORMAT_H
+
+/**
+ * @brief Audio/video output format type
+ *
+ * @file kitformat.h
+ * @author Tuomas Virtanen
+ * @date 2018-06-25
+ * @copyright Tuomas Virtanen; MIT license (see LICENSE)
+ */
+
+#include "kitchensink3/kitconfig.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @brief Hardware decoder device types
+ *
+ * Used as a bitmask in Kit_VideoFormatRequest.hw_device_types to limit which hardware
+ * decoders may be used.
+ */
+typedef enum Kit_HardwareDeviceType
+{
+    KIT_HWDEVICE_TYPE_NONE = 0,
+    KIT_HWDEVICE_TYPE_VDPAU = 0x1,
+    KIT_HWDEVICE_TYPE_CUDA = 0x2,
+    KIT_HWDEVICE_TYPE_VAAPI = 0x4,
+    KIT_HWDEVICE_TYPE_DXVA2 = 0x8,
+    KIT_HWDEVICE_TYPE_QSV = 0x10,
+    KIT_HWDEVICE_TYPE_VIDEOTOOLBOX = 0x20,
+    KIT_HWDEVICE_TYPE_D3D11VA = 0x40,
+    KIT_HWDEVICE_TYPE_DRM = 0x80,
+    KIT_HWDEVICE_TYPE_OPENCL = 0x100,
+    KIT_HWDEVICE_TYPE_MEDIACODEC = 0x200,
+    KIT_HWDEVICE_TYPE_VULKAN = 0x400,
+    KIT_HWDEVICE_TYPE_ALL = 0xFFFFFFFF,
+} Kit_HardwareDeviceType;
+
+/**
+ * @brief Audio channel layouts supported for audio output
+ *
+ * Channel counts and interleaved speaker orders match what SDL2 expects
+ * for the corresponding SDL_AudioSpec.channels value. Use
+ * Kit_GetChannelLayoutCount() to get the channel count for a layout.
+ *
+ * @ref https://wiki.libsdl.org/SDL2/SDL_AudioSpec
+ * @ref https://ffmpeg.org/doxygen/5.1/channel__layout_8h.html
+ */
+typedef enum Kit_AudioChannelLayout
+{
+    KIT_LAYOUT_UNKNOWN = -1, ///< In requests: use the source stream's layout
+    KIT_LAYOUT_MONO,         ///< 1 channel
+    KIT_LAYOUT_STEREO,       ///< 2 channels: FL FR
+    KIT_LAYOUT_2POINT1,      ///< 3 channels: FL FR LFE
+    KIT_LAYOUT_QUAD,         ///< 4 channels: FL FR BL BR
+    KIT_LAYOUT_5POINT1,      ///< 6 channels: FL FR FC LFE BL BR
+    KIT_LAYOUT_6POINT1,      ///< 7 channels: FL FR FC LFE BC SL SR
+    KIT_LAYOUT_7POINT1,      ///< 8 channels: FL FR FC LFE BL BR SL SR
+} Kit_AudioChannelLayout;
+
+/**
+ * @brief Used to request specific type for formats for output video
+ *
+ * Note that any requests here will cause software conversion, which may be slow!
+ *
+ * A requested surface format must be one the player supports: the YUV family
+ * (YV12, IYUV, YUY2, UYVY, YVYU, NV12, NV21) or the RGB family (the RGBA32/ARGB32/BGRA32/ABGR32
+ * byte-order aliases, XRGB8888/XBGR8888, RGB24/BGR24, and the 555/565 16-bit formats).
+ * Requesting anything else fails player creation cleanly with an error -- there is no
+ * automatic fallback to a default format.
+ */
+typedef struct Kit_VideoFormatRequest {
+    unsigned int
+        hw_device_types; ///< Bitmap of allowed hardware acceleration types. Defaults to KIT_HWDEVICE_TYPE_ALL.
+    unsigned int format; ///< Requested surface format. Defaults to SDL_PIXELFORMAT_UNKNOWN (allow any).
+    int width;           ///< Requested width in pixels. Defaults to -1 (no change).
+    int height;          ///< Requested height in pixels. Defaults to -1 (no change).
+} Kit_VideoFormatRequest;
+
+/**
+ * @brief Sets default values for Kit_VideoFormatRequest
+ *
+ * @param request Request to reset to default values
+ */
+KIT_API void Kit_ResetVideoFormatRequest(Kit_VideoFormatRequest *request);
+
+/**
+ * @brief Used to request specific type for formats for output audio
+ *
+ * Note that any requests here will cause software conversion, which may be slow!
+ */
+typedef struct Kit_AudioFormatRequest {
+    unsigned int format;           ///< Requested sample format. Defaults to 0 (no change).
+    int is_signed;                 ///< Signedness, 1 = signed, 0 = unsigned. Defaults to -1 (no change).
+    int bytes;                     ///< Bytes per sample per channel. Defaults to -1 (no change).
+    int sample_rate;               ///< Sampling rate. Defaults to -1 (no change).
+    Kit_AudioChannelLayout layout; ///< Channel layout. Defaults to KIT_LAYOUT_UNKNOWN (use source layout).
+} Kit_AudioFormatRequest;
+
+/**
+ * @brief Sets default values for Kit_AudioFormatRequest
+ *
+ * @param request Request to reset to default values
+ */
+KIT_API void Kit_ResetAudioFormatRequest(Kit_AudioFormatRequest *request);
+
+/**
+ * @brief Contains information about the subtitle data format coming out from the player
+ */
+typedef struct Kit_SubtitleOutputFormat {
+    unsigned int format; ///< SDL_PixelFormat for surface format description
+} Kit_SubtitleOutputFormat;
+
+/**
+ * @brief Contains information about the video data format coming out from the player
+ */
+typedef struct Kit_VideoOutputFormat {
+    Kit_HardwareDeviceType hw_device_type; ///< Hardware decoder in use, KIT_HWDEVICE_TYPE_NONE if disabled.
+    unsigned int format;         ///< SDL_PixelFormat for surface format description
+    int width;                   ///< Width in pixels
+    int height;                  ///< Height in pixels
+} Kit_VideoOutputFormat;
+
+/**
+ * @brief Contains information about the audio data format coming out from the player
+ */
+typedef struct Kit_AudioOutputFormat {
+    unsigned int format;           ///< SDL_AudioFormat for format description
+    int is_signed;                 ///< Signedness, 1 = signed, 0 = unsigned
+    int bytes;                     ///< Bytes per sample per channel
+    int sample_rate;               ///< Sampling rate
+    Kit_AudioChannelLayout layout; ///< Channel layout. Kit_GetChannelLayoutCount() gives SDL_AudioSpec.channels.
+} Kit_AudioOutputFormat;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // KITFORMAT_H

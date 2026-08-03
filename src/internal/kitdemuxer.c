@@ -3,12 +3,12 @@
 #include <SDL_timer.h>
 #include <libavformat/avformat.h>
 
-#include "kitchensink2/internal/kitdemuxer.h"
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/internal/kitpacketbuffer.h"
-#include "kitchensink2/internal/kitpackettag.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitdemuxer.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/kitpackettag.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/kiterror.h"
 
 void Kit_SendDemuxerEOFPacket(Kit_Demuxer *demuxer, Kit_BufferIndex index) {
     AVPacket *packet;

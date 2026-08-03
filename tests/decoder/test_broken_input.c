@@ -24,7 +24,7 @@
 
 #include <SDL.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #define GARBAGE_FILE KIT_TEST_DATA_DIR "/garbage.mp4"
 #define EMPTY_FILE KIT_TEST_DATA_DIR "/empty.mp4"

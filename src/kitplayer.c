@@ -3,17 +3,17 @@
 #include <SDL_version.h>
 #include <assert.h>
 
-#include "kitchensink2/internal/audio/kitaudio.h"
-#include "kitchensink2/internal/kitdecoderthread.h"
-#include "kitchensink2/internal/kitdemuxerthread.h"
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/internal/kittimer.h"
-#include "kitchensink2/internal/subtitle/kitsubtitle.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kithelpers.h"
-#include "kitchensink2/internal/video/kitvideo.h"
-#include "kitchensink2/kiterror.h"
-#include "kitchensink2/kitplayer.h"
+#include "kitchensink3/internal/audio/kitaudio.h"
+#include "kitchensink3/internal/kitdecoderthread.h"
+#include "kitchensink3/internal/kitdemuxerthread.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kittimer.h"
+#include "kitchensink3/internal/subtitle/kitsubtitle.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kithelpers.h"
+#include "kitchensink3/internal/video/kitvideo.h"
+#include "kitchensink3/kiterror.h"
+#include "kitchensink3/kitplayer.h"
 
 /**
  * Locking rules:

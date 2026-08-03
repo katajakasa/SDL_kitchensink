@@ -17,7 +17,7 @@
 
 #include <SDL.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /** @brief Group setup: initialize the library only (no SDL); pairs with kit_lifecycle_teardown(). */
 static inline int kit_lifecycle_setup(void **state) {

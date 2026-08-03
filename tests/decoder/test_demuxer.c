@@ -18,8 +18,8 @@
 
 #include "kit_lifecycle.h"
 
-#include "kitchensink2/internal/kitdemuxer.h"
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/internal/kitdemuxer.h"
+#include "kitchensink3/kitchensink.h"
 
 #define VIDEO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 

@@ -16,7 +16,7 @@
 #include <SDL_audio.h>
 #include <SDL_pixels.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /**
  * @brief Known stream types map to their enum-name strings; unknown values return NULL.

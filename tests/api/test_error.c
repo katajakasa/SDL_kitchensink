@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /**
  * @brief Kit_SetError/Kit_GetError/Kit_ClearError round-trip through clear -> set -> read -> clear.

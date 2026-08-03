@@ -1,9 +1,9 @@
 #include <SDL_timer.h>
 #include <assert.h>
 
-#include "kitchensink2/internal/kitdemuxerthread.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitdemuxerthread.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/kiterror.h"
 
 static int Kit_DemuxMain(void *ptr) {
     Kit_DemuxerThread *thread = ptr;

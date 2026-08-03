@@ -17,7 +17,7 @@
 
 #include <SDL.h>
 
-#include "kitchensink2/internal/subtitle/kitatlas.h"
+#include "kitchensink3/internal/subtitle/kitatlas.h"
 
 typedef struct atlas_env {
     SDL_Surface *screen;

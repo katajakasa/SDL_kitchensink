@@ -20,7 +20,7 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
 
 /** @brief Simple payload object standing in for AVPacket in buffer tests (mirrors test_packetbuffer.c's test_obj). */
 typedef struct test_obj {

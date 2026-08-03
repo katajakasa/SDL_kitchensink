@@ -1,11 +1,11 @@
 #include <SDL_atomic.h>
 #include <SDL_mutex.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/internal/kittimer.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kithelpers.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kittimer.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kithelpers.h"
+#include "kitchensink3/kiterror.h"
 #include <stdlib.h>
 
 typedef struct Kit_TimerValue {

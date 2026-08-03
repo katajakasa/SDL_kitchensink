@@ -1,11 +1,11 @@
 #include <SDL_mutex.h>
 #include <assert.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/internal/kitpacketbuffer.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kitlog.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kitlog.h"
+#include "kitchensink3/kiterror.h"
 
 struct Kit_PacketBuffer {
     void **packets;

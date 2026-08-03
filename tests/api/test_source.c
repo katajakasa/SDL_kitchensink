@@ -22,7 +22,7 @@
 #include "kit_lifecycle.h"
 #include "kit_memsource.h"
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #define VIDEO_AUDIO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 #define MANY_SUBS_FILE KIT_TEST_DATA_DIR "/many_subs.mkv"

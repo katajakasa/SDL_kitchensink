@@ -26,7 +26,7 @@
 #include <libavformat/avio.h>
 #include <libavutil/error.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #define SCREEN_W 160
 #define SCREEN_H 120

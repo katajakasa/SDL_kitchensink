@@ -16,7 +16,7 @@
 
 #include "kit_assert.h"
 
-#include "kitchensink2/internal/kittimer.h"
+#include "kitchensink3/internal/kittimer.h"
 
 /** @brief Per-test resources, heap-allocated by test_setup() and released by test_teardown(),
  * so a mid-test assert failure cannot leak them or cascade into the remaining tests in the

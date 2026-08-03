@@ -21,7 +21,7 @@
 
 #include <SDL_rect.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 static inline void
 assert_double_in_range_impl(const double value, const double min, const double max, const char *file, const int line) {

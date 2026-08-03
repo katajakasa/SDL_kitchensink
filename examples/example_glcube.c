@@ -1,6 +1,6 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
-#include <kitchensink2/kitchensink.h>
+#include <kitchensink3/kitchensink.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>

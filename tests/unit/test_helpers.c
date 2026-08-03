@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kitchensink2/internal/utils/kithelpers.h"
+#include "kitchensink3/internal/utils/kithelpers.h"
 
 /**
  * @brief Kit_max() picks the larger value regardless of argument order, including negative numbers and ties.

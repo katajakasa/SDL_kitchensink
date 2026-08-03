@@ -19,7 +19,7 @@
 
 #include <SDL_thread.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitfaultinject.h"
 
 #define WORKER_ITERATIONS 10000
 

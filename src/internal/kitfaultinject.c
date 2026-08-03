@@ -6,7 +6,7 @@
 #include <SDL_atomic.h>
 #include <SDL_mutex.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitfaultinject.h"
 
 #define KIT_FAIL_POINT_MAX 32
 
