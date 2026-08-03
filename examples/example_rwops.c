@@ -122,8 +122,8 @@ int main(int argc, char *argv[]) {
 
     // Playback temporary data buffers
     char audio_buf[AUDIO_BUFFER_SIZE];
-    SDL_Rect sources[ATLAS_MAX];
-    SDL_Rect targets[ATLAS_MAX];
+    SDL_FRect sources[ATLAS_MAX];
+    SDL_FRect targets[ATLAS_MAX];
 
     // Get movie area size
     SDL_SetRenderLogicalPresentation(
@@ -175,10 +175,7 @@ int main(int argc, char *argv[]) {
         // For subtitles, use screen size instead of video size for best quality
         const int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
-            SDL_FRect src_rect, dst_rect;
-            SDL_RectToFRect(&sources[i], &src_rect);
-            SDL_RectToFRect(&targets[i], &dst_rect);
-            SDL_RenderTexture(renderer, subtitle_tex, &src_rect, &dst_rect);
+            SDL_RenderTexture(renderer, subtitle_tex, &sources[i], &targets[i]);
         }
 
         // Render to screen + wait for vsync
