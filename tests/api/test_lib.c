@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /**
  * @brief Kit_Init/Kit_Quit must support repeated init/quit cycles in one process.

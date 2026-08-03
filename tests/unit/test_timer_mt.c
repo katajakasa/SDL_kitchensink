@@ -19,7 +19,7 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-#include "kitchensink2/internal/kittimer.h"
+#include "kitchensink3/internal/kittimer.h"
 
 #define WRITER_DURATION_MS 200
 

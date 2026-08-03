@@ -14,7 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kitchensink2/internal/kitpackettag.h"
+#include "kitchensink3/internal/kitpackettag.h"
 
 /**
  * @brief The serial field is 30 bits wide (see Kit_PacketTag.bits.serial), so the

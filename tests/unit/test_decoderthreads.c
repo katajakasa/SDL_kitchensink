@@ -22,11 +22,11 @@
 
 #include "kit_lifecycle.h"
 
-#include "kitchensink2/internal/kitdecoderthread.h"
-#include "kitchensink2/internal/kitdemuxerthread.h"
-#include "kitchensink2/internal/kittimer.h"
-#include "kitchensink2/internal/video/kitvideo.h"
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/internal/kitdecoderthread.h"
+#include "kitchensink3/internal/kitdemuxerthread.h"
+#include "kitchensink3/internal/kittimer.h"
+#include "kitchensink3/internal/video/kitvideo.h"
+#include "kitchensink3/kitchensink.h"
 
 #define VIDEO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 #define POLL_ITERATIONS 200 // bounded poll guard (~2s at 10ms/iteration)

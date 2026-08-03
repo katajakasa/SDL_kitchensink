@@ -17,7 +17,7 @@
 #include <libavformat/avio.h>
 #include <libavutil/error.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /** @brief In-memory file, used as userdata for the mem_read()/mem_seek() callback pair. */
 typedef struct MemFile {

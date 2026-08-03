@@ -15,7 +15,7 @@
 
 #include <SDL_audio.h>
 
-#include "kitchensink2/internal/audio/kitaudioutils.h"
+#include "kitchensink3/internal/audio/kitaudioutils.h"
 
 /**
  * @brief Known SDL formats map to the matching AV sample format; an unrecognized value falls back to

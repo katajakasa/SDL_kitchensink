@@ -4,7 +4,7 @@ include(GNUInstallDirs)
 include(CheckLibraryExists)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-set(KIT_VERSION_MAJOR "2")
+set(KIT_VERSION_MAJOR "3")
 set(KIT_VERSION_MINOR "0")
 set(KIT_VERSION_PATCH "0")
 set(KIT_VERSION ${KIT_VERSION_MAJOR}.${KIT_VERSION_MINOR}.${KIT_VERSION_PATCH})
@@ -93,7 +93,7 @@ else ()
 endif ()
 
 FILE(GLOB_RECURSE SOURCES "src/*.c")
-FILE(GLOB INSTALL_HEADERS "include/kitchensink2/*.h")
+FILE(GLOB INSTALL_HEADERS "include/kitchensink3/*.h")
 
 # Compiled in only via the KIT_FAULT_INJECTION option below, not unconditionally.
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/internal/kitfaultinject.c")
@@ -122,7 +122,7 @@ if (BUILD_SHARED)
 
     target_link_libraries(SDL_kitchensink ${LIBRARIES})
 
-    set_target_properties(SDL_kitchensink PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
+    set_target_properties(SDL_kitchensink PROPERTIES OUTPUT_NAME "SDL_kitchensink3")
     set_target_properties(SDL_kitchensink PROPERTIES VERSION ${KIT_VERSION})
     set_target_properties(SDL_kitchensink PROPERTIES SOVERSION ${KIT_VERSION_MAJOR})
     set_target_properties(SDL_kitchensink PROPERTIES DEBUG_POSTFIX "d")
@@ -150,7 +150,7 @@ if (BUILD_STATIC)
         target_compile_options(SDL_kitchensink_static PRIVATE "-fsanitize=thread")
     endif ()
 
-    set_target_properties(SDL_kitchensink_static PROPERTIES OUTPUT_NAME "SDL_kitchensink2")
+    set_target_properties(SDL_kitchensink_static PROPERTIES OUTPUT_NAME "SDL_kitchensink3")
     set_target_properties(SDL_kitchensink_static PROPERTIES DEBUG_POSTFIX "d")
     set_property(TARGET SDL_kitchensink_static PROPERTY C_STANDARD 99)
 
@@ -206,7 +206,7 @@ set(PC_LIBS_PRIVATE "")
 if (LIBM_EXISTS)
     set(PC_LIBS_PRIVATE "-lm")
 endif ()
-set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink2.pc")
+set(PKG_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/SDL_kitchensink3.pc")
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.in"
         ${PKG_CONFIG_FILE}
@@ -269,7 +269,7 @@ add_custom_target(docs COMMAND doxygen WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 # Installation
 INSTALL(FILES ${PKG_CONFIG_FILE} DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
-INSTALL(FILES ${INSTALL_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitchensink2)
+INSTALL(FILES ${INSTALL_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/kitchensink3)
 INSTALL(TARGETS ${INSTALL_TARGETS}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink3/internal/subtitle/kitsubtitlepacket.h"
 
 /** @brief Allocates a small 4x4 RGBA surface to act as a caller-owned subtitle bitmap. */
 static SDL_Surface *create_test_surface(void) {

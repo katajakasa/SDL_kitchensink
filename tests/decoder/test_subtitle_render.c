@@ -26,7 +26,7 @@
 
 #include <SDL.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #define SRT_FILE KIT_TEST_DATA_DIR "/subtitled.mkv"
 #define ASS_FILE KIT_TEST_DATA_DIR "/subtitled_ass.mkv"

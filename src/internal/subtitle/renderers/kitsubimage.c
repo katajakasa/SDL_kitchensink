@@ -3,12 +3,12 @@
 
 #include <SDL_surface.h>
 
-#include "kitchensink2/internal/kitpacketbuffer.h"
-#include "kitchensink2/internal/subtitle/kitatlas.h"
-#include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
-#include "kitchensink2/internal/subtitle/renderers/kitsubimage.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/subtitle/kitatlas.h"
+#include "kitchensink3/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink3/internal/subtitle/renderers/kitsubimage.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/kiterror.h"
 
 typedef struct Kit_ImageSubtitleRenderer {
     int video_w;

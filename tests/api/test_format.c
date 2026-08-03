@@ -16,7 +16,7 @@
 
 #include <SDL_pixels.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /**
  * @brief Kit_ResetVideoFormatRequest() must restore every field to its "auto" sentinel.

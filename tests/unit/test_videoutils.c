@@ -16,7 +16,7 @@
 #include <SDL_pixels.h>
 #include <libavutil/hwcontext.h>
 
-#include "kitchensink2/internal/video/kitvideoutils.h"
+#include "kitchensink3/internal/video/kitvideoutils.h"
 
 /**
  * @brief Known AV pixel formats map to the matching SDL format; anything unsupported falls back to RGBA32.

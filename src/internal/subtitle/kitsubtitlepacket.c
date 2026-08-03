@@ -1,5 +1,5 @@
-#include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/subtitle/kitsubtitlepacket.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
 
 Kit_SubtitlePacket *Kit_CreateSubtitlePacket(void) {
     return Kit_Calloc(1, sizeof(Kit_SubtitlePacket));

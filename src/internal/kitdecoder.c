@@ -8,15 +8,15 @@
 
 #include <SDL_mutex.h>
 
-#include "kitchensink2/internal/kitdecoder.h"
-#include "kitchensink2/internal/kitlibstate.h"
-#include "kitchensink2/internal/kitpacketbuffer.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kitlog.h"
-#include "kitchensink2/internal/video/kitvideoutils.h"
-#include "kitchensink2/kiterror.h"
-#include "kitchensink2/kitformat.h"
-#include "kitchensink2/kitsource.h"
+#include "kitchensink3/internal/kitdecoder.h"
+#include "kitchensink3/internal/kitlibstate.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kitlog.h"
+#include "kitchensink3/internal/video/kitvideoutils.h"
+#include "kitchensink3/kiterror.h"
+#include "kitchensink3/kitformat.h"
+#include "kitchensink3/kitsource.h"
 
 /**
  * Check if hardware context supports an output format that we can feed to swscale

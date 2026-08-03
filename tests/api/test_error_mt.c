@@ -20,7 +20,7 @@
 
 #include <SDL_thread.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /** @brief Sets a distinct error on this thread, then reports what Kit_GetError() reads back via `data`. */
 static int set_error_thread(void *data) {

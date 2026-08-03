@@ -16,8 +16,8 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/kiterror.h"
 
 /** @brief Runs fn(ctx) once with no fail points armed and returns how many `name` checks it consumed. */
 static inline int kit_probe_fail_point_count(const char *name, void (*fn)(void *ctx), void *ctx) {

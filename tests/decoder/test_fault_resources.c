@@ -27,8 +27,8 @@
 
 #include <libavutil/error.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/kitchensink.h"
 
 #include "kit_faultsweep.h"
 #include "kit_lifecycle.h"

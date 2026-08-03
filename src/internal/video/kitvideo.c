@@ -4,16 +4,16 @@
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 
-#include "kitchensink2/internal/kitdecoder.h"
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/internal/kitpacketbuffer.h"
-#include "kitchensink2/internal/kitpackettag.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kitlog.h"
-#include "kitchensink2/internal/video/kitvideo.h"
-#include "kitchensink2/internal/video/kitvideoutils.h"
-#include "kitchensink2/kiterror.h"
-#include "kitchensink2/kitformat.h"
+#include "kitchensink3/internal/kitdecoder.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/kitpackettag.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kitlog.h"
+#include "kitchensink3/internal/video/kitvideo.h"
+#include "kitchensink3/internal/video/kitvideoutils.h"
+#include "kitchensink3/kiterror.h"
+#include "kitchensink3/kitformat.h"
 
 #define KIT_VIDEO_EARLY_FAIL 1.0
 

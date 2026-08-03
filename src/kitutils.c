@@ -1,8 +1,8 @@
 #include <SDL.h>
 
-#include "kitchensink2/kitformat.h"
-#include "kitchensink2/kitsource.h"
-#include "kitchensink2/kitutils.h"
+#include "kitchensink3/kitformat.h"
+#include "kitchensink3/kitsource.h"
+#include "kitchensink3/kitutils.h"
 
 const char *Kit_GetSDLAudioFormatString(unsigned int type) {
     switch(type) {

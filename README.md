@@ -69,8 +69,8 @@ By default, both static and dynamic libraries are built.
 
 * Set BUILD_STATIC off if you don't want to build static library
 * Set BUILD_SHARED off if you don't want to build shared library
-* Dynamic library is called libSDL_kitchensink2.dll or .so
-* Static library is called libSDL_kitchensink2.a
+* Dynamic library is called libSDL_kitchensink3.dll or .so
+* Static library is called libSDL_kitchensink3.a
 * If you build in debug mode (```-DCMAKE_BUILD_TYPE=Debug```), libraries will be postfixed with 'd'.
 
 Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The files will be installed to

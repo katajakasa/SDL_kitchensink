@@ -20,7 +20,7 @@
 #include <SDL.h>
 #include <SDL_timer.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 // SIZE_MAX as backend_buffer_size disables silence padding, per
 // Kit_GetPlayerAudioData()'s doc comment.

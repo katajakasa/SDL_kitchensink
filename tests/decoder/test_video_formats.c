@@ -23,7 +23,7 @@
 
 #include <SDL.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 /** @brief Per-test resources, heap-allocated by test_setup() and released by test_teardown(),
  * so a mid-test assert failure cannot leak them or let a failed case's live player threads

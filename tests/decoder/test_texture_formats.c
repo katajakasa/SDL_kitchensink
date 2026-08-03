@@ -23,7 +23,7 @@
 
 #include <SDL.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #define VIDEO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 #define SUBTITLED_FILE KIT_TEST_DATA_DIR "/subtitled.mkv"

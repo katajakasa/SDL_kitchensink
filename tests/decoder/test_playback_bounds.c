@@ -20,7 +20,7 @@
 #include <SDL.h>
 #include <SDL_timer.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #include "kit_lifecycle.h"
 #include "kit_playback.h"

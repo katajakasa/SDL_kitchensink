@@ -4,13 +4,13 @@
 #include <SDL_mutex.h>
 #include <SDL_surface.h>
 
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/internal/kitlibstate.h"
-#include "kitchensink2/internal/subtitle/kitatlas.h"
-#include "kitchensink2/internal/subtitle/renderers/kitsubass.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kithelpers.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitlibstate.h"
+#include "kitchensink3/internal/subtitle/kitatlas.h"
+#include "kitchensink3/internal/subtitle/renderers/kitsubass.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kithelpers.h"
+#include "kitchensink3/kiterror.h"
 
 typedef struct Kit_ASSSubtitleRenderer {
     ASS_Renderer *renderer;

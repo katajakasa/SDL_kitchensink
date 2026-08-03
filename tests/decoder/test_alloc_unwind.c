@@ -24,8 +24,8 @@
 #include "kit_lifecycle.h"
 #include "kit_memsource.h"
 
-#include "kitchensink2/internal/kitfaultinject.h"
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/kitchensink.h"
 
 #define VIDEO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 #define SUBTITLED_FILE KIT_TEST_DATA_DIR "/subtitled.mkv"

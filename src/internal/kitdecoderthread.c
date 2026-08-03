@@ -1,11 +1,11 @@
 #include <SDL_thread.h>
 
-#include "kitchensink2/internal/kitdecoder.h"
-#include "kitchensink2/internal/kitdecoderthread.h"
-#include "kitchensink2/internal/kitpackettag.h"
-#include "kitchensink2/internal/utils/kitalloc.h"
-#include "kitchensink2/internal/utils/kitlog.h"
-#include "kitchensink2/kiterror.h"
+#include "kitchensink3/internal/kitdecoder.h"
+#include "kitchensink3/internal/kitdecoderthread.h"
+#include "kitchensink3/internal/kitpackettag.h"
+#include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kitlog.h"
+#include "kitchensink3/kiterror.h"
 
 static bool
 Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *draining, bool *eof_received, const int timeout) {

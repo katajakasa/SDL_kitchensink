@@ -28,7 +28,7 @@
 #include <SDL_thread.h>
 #include <SDL_timer.h>
 
-#include "kitchensink2/kitchensink.h"
+#include "kitchensink3/kitchensink.h"
 
 #define VIDEO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 #define SUBTITLED_FULL_FILE KIT_TEST_DATA_DIR "/subtitled_full.mkv"

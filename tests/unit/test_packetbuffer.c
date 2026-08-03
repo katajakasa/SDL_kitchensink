@@ -17,7 +17,7 @@
 
 #include <stdlib.h>
 
-#include "kitchensink2/internal/kitpacketbuffer.h"
+#include "kitchensink3/internal/kitpacketbuffer.h"
 
 /** @brief Simple payload object standing in for AVPacket in buffer tests. */
 typedef struct test_obj {
