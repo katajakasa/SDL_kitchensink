@@ -123,8 +123,11 @@ EXIT_0:
 }
 
 static int _IOReadCallback(void *userdata, uint8_t *buf, int size) {
-    const size_t bytes_read = SDL_ReadIO((SDL_IOStream *)userdata, buf, size);
-    return bytes_read == 0 ? AVERROR_EOF : bytes_read;
+    SDL_IOStream *io_stream = userdata;
+    const size_t bytes_read = SDL_ReadIO(io_stream, buf, size);
+    if(bytes_read == 0)
+        return SDL_GetIOStatus(io_stream) == SDL_IO_STATUS_EOF ? AVERROR_EOF : AVERROR(EIO);
+    return bytes_read;
 }
 
 static int64_t _IOSeekCallback(void *userdata, int64_t offset, int whence) {
