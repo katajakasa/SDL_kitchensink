@@ -41,7 +41,7 @@ Build requirements:
 
 Library requirements:
 
-* SDL3 3.0.0 or newer
+* SDL3 3.2.0 or newer
 * FFmpeg 5.1 or newer
 * libass (optional, supports runtime linking via SDL_LoadSO)
 
