@@ -1,4 +1,4 @@
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 #include <libavcodec/avcodec.h>
 
 #include "kitchensink3/internal/video/kitvideoutils.h"
@@ -97,17 +97,17 @@ enum AVPixelFormat Kit_FindAVPixelFormat(const unsigned int fmt)
             return AV_PIX_FMT_BGRA;
         case SDL_PIXELFORMAT_ABGR32:
             return AV_PIX_FMT_ABGR;
-        case SDL_PIXELFORMAT_RGB888:
+        case SDL_PIXELFORMAT_XRGB8888:
             return AV_PIX_FMT_0RGB32;
-        case SDL_PIXELFORMAT_BGR888:
+        case SDL_PIXELFORMAT_XBGR8888:
             return AV_PIX_FMT_0BGR32;
         case SDL_PIXELFORMAT_BGR24:
             return AV_PIX_FMT_BGR24;
         case SDL_PIXELFORMAT_RGB24:
             return AV_PIX_FMT_RGB24;
-        case SDL_PIXELFORMAT_RGB555:
+        case SDL_PIXELFORMAT_XRGB1555:
             return AV_PIX_FMT_RGB555;
-        case SDL_PIXELFORMAT_BGR555:
+        case SDL_PIXELFORMAT_XBGR1555:
             return AV_PIX_FMT_BGR555;
         case SDL_PIXELFORMAT_RGB565:
             return AV_PIX_FMT_RGB565;

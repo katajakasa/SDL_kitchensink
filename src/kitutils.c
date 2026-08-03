@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/kitformat.h"
 #include "kitchensink3/kitsource.h"
@@ -6,18 +6,22 @@
 
 const char *Kit_GetSDLAudioFormatString(unsigned int type) {
     switch(type) {
-        case AUDIO_S8:
-            return "AUDIO_S8";
-        case AUDIO_U8:
-            return "AUDIO_U8";
-        case AUDIO_S16:
-            return "AUDIO_S16";
-        case AUDIO_U16:
-            return "AUDIO_U16";
-        case AUDIO_S32:
-            return "AUDIO_S32";
-        case AUDIO_F32:
-            return "AUDIO_F32";
+        case SDL_AUDIO_S8:
+            return "SDL_AUDIO_S8";
+        case SDL_AUDIO_U8:
+            return "SDL_AUDIO_U8";
+        case SDL_AUDIO_S16LE:
+            return "SDL_AUDIO_S16LE";
+        case SDL_AUDIO_S16BE:
+            return "SDL_AUDIO_S16BE";
+        case SDL_AUDIO_S32LE:
+            return "SDL_AUDIO_S32LE";
+        case SDL_AUDIO_S32BE:
+            return "SDL_AUDIO_S32BE";
+        case SDL_AUDIO_F32LE:
+            return "SDL_AUDIO_F32LE";
+        case SDL_AUDIO_F32BE:
+            return "SDL_AUDIO_F32BE";
         default:
             return NULL;
     }
@@ -39,12 +43,12 @@ const char *Kit_GetSDLPixelFormatString(unsigned int type) {
             return "SDL_PIXELFORMAT_INDEX8";
         case SDL_PIXELFORMAT_RGB332:
             return "SDL_PIXELFORMAT_RGB332";
-        case SDL_PIXELFORMAT_RGB444:
-            return "SDL_PIXELFORMAT_RGB444";
-        case SDL_PIXELFORMAT_RGB555:
-            return "SDL_PIXELFORMAT_RGB555";
-        case SDL_PIXELFORMAT_BGR555:
-            return "SDL_PIXELFORMAT_BGR555";
+        case SDL_PIXELFORMAT_XRGB4444:
+            return "SDL_PIXELFORMAT_XRGB4444";
+        case SDL_PIXELFORMAT_XRGB1555:
+            return "SDL_PIXELFORMAT_XRGB1555";
+        case SDL_PIXELFORMAT_XBGR1555:
+            return "SDL_PIXELFORMAT_XBGR1555";
         case SDL_PIXELFORMAT_ARGB4444:
             return "SDL_PIXELFORMAT_ARGB4444";
         case SDL_PIXELFORMAT_RGBA4444:
@@ -69,12 +73,12 @@ const char *Kit_GetSDLPixelFormatString(unsigned int type) {
             return "SDL_PIXELFORMAT_RGB24";
         case SDL_PIXELFORMAT_BGR24:
             return "SDL_PIXELFORMAT_BGR24";
-        case SDL_PIXELFORMAT_RGB888:
-            return "SDL_PIXELFORMAT_RGB888";
+        case SDL_PIXELFORMAT_XRGB8888:
+            return "SDL_PIXELFORMAT_XRGB8888";
         case SDL_PIXELFORMAT_RGBX8888:
             return "SDL_PIXELFORMAT_RGBX8888";
-        case SDL_PIXELFORMAT_BGR888:
-            return "SDL_PIXELFORMAT_BGR888";
+        case SDL_PIXELFORMAT_XBGR8888:
+            return "SDL_PIXELFORMAT_XBGR8888";
         case SDL_PIXELFORMAT_BGRX8888:
             return "SDL_PIXELFORMAT_BGRX8888";
         case SDL_PIXELFORMAT_ARGB8888:

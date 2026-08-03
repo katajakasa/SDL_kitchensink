@@ -1,16 +1,16 @@
 #include "kitchensink3/internal/audio/kitaudioutils.h"
 
-#include <SDL_audio.h>
+#include <SDL3/SDL_audio.h>
 #include <libavutil/samplefmt.h>
 
 enum AVSampleFormat Kit_FindAVSampleFormat(int format)
 {
     switch(format) {
-        case AUDIO_U8:
+        case SDL_AUDIO_U8:
             return AV_SAMPLE_FMT_U8;
-        case AUDIO_S16SYS:
+        case SDL_AUDIO_S16:
             return AV_SAMPLE_FMT_S16;
-        case AUDIO_S32SYS:
+        case SDL_AUDIO_S32:
             return AV_SAMPLE_FMT_S32;
         default:
             return AV_SAMPLE_FMT_NONE;
@@ -78,12 +78,12 @@ int Kit_FindSDLSampleFormat(enum AVSampleFormat fmt) {
     switch(fmt) {
         case AV_SAMPLE_FMT_U8P:
         case AV_SAMPLE_FMT_U8:
-            return AUDIO_U8;
+            return SDL_AUDIO_U8;
         case AV_SAMPLE_FMT_S32P:
         case AV_SAMPLE_FMT_S32:
-            return AUDIO_S32SYS;
+            return SDL_AUDIO_S32;
         default:
-            return AUDIO_S16SYS;
+            return SDL_AUDIO_S16;
     }
 }
 
