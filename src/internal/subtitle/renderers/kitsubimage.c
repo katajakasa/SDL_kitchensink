@@ -76,7 +76,7 @@ static bool Kit_ProcessPacketToAtlas(
     if(image_renderer->out_packet->clear)
         Kit_ClearAtlasContent(atlas);
     if(image_renderer->out_packet->surface != NULL) {
-        SDL_Rect target;
+        SDL_FRect target;
         target.x = image_renderer->out_packet->x * image_renderer->scale_x;
         target.y = image_renderer->out_packet->y * image_renderer->scale_y;
         target.w = image_renderer->out_packet->surface->w * image_renderer->scale_x;

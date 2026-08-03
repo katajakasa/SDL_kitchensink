@@ -510,14 +510,11 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  *
  * For example:
  * ```
- * SDL_Rect sources[256];
- * SDL_Rect targets[256];
+ * SDL_FRect sources[256];
+ * SDL_FRect targets[256];
  * int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, 256);
  * for(int i = 0; i < got; i++) {
- *     SDL_FRect src_rect, dst_rect;
- *     SDL_RectToFRect(&sources[i], &src_rect);
- *     SDL_RectToFRect(&targets[i], &dst_rect);
- *     SDL_RenderTexture(renderer, subtitle_tex, &src_rect, &dst_rect);
+ *     SDL_RenderTexture(renderer, subtitle_tex, &sources[i], &targets[i]);
  * }
  * ```
  *
@@ -529,7 +526,7 @@ Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Renderer *rende
  * @return Number of subtitle rectangles to render (may be 0)
  */
 KIT_API int Kit_GetPlayerSubtitleSDLTexture(
-    const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit
+    const Kit_Player *player, SDL_Texture *texture, SDL_FRect *sources, SDL_FRect *targets, int limit
 );
 
 /**

@@ -232,7 +232,7 @@ void Kit_GetSubtitleDecoderSDLTexture(const Kit_Decoder *dec, SDL_Texture *textu
     Kit_GetSubtitleRendererSDLTexture(subtitle_dec->renderer, subtitle_dec->atlas, texture, sync_ts);
 }
 
-int Kit_GetSubtitleDecoderSDLTextureInfo(const Kit_Decoder *dec, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetSubtitleDecoderSDLTextureInfo(const Kit_Decoder *dec, SDL_FRect *sources, SDL_FRect *targets, int limit) {
     const Kit_SubtitleDecoder *subtitle_dec = dec->userdata;
     return Kit_GetAtlasItems(subtitle_dec->atlas, sources, targets, limit);
 }

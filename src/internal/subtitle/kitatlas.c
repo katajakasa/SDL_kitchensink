@@ -120,24 +120,24 @@ void Kit_CheckAtlasTextureSize(Kit_TextureAtlas *atlas, SDL_Texture *texture) {
     }
 }
 
-int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit) {
+int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_FRect *sources, SDL_FRect *targets, int limit) {
     assert(atlas != NULL);
     assert(limit >= 0);
     const Kit_TextureAtlasItem *item = NULL;
 
-    int max_count = Kit_min(atlas->cur_items, limit);
+    const int max_count = Kit_min(atlas->cur_items, limit);
     for(int i = 0; i < max_count; i++) {
         item = &atlas->items[i];
         if(sources != NULL)
-            memcpy(&sources[i], &item->source, sizeof(SDL_Rect));
+            SDL_RectToFRect(&item->source, &sources[i]);
         if(targets != NULL)
-            memcpy(&targets[i], &item->target, sizeof(SDL_Rect));
+            targets[i] = item->target;
     }
     return max_count;
 }
 
 int Kit_AddAtlasItem(
-    Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_Rect *target
+    Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_FRect *target
 ) {
     assert(atlas != NULL);
     assert(surface != NULL);
@@ -148,9 +148,7 @@ int Kit_AddAtlasItem(
         return -1;
 
     // Create a new item
-    Kit_TextureAtlasItem item;
-    memset(&item, 0, sizeof(Kit_TextureAtlasItem));
-    memcpy(&item.target, target, sizeof(SDL_Rect));
+    Kit_TextureAtlasItem item = {.source = {0}, .target = *target};
 
     // Allocate space for the new item
     if(Kit_FindFreeAtlasSlot(atlas, surface, &item) != 0) {

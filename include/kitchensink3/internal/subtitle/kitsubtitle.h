@@ -82,7 +82,7 @@ KIT_LOCAL void Kit_SetSubtitleDecoderSize(const Kit_Decoder *dec, int w, int h);
  * @return number of items actually copied
  */
 KIT_LOCAL int
-Kit_GetSubtitleDecoderSDLTextureInfo(const Kit_Decoder *dec, SDL_Rect *sources, SDL_Rect *targets, int limit);
+Kit_GetSubtitleDecoderSDLTextureInfo(const Kit_Decoder *dec, SDL_FRect *sources, SDL_FRect *targets, int limit);
 
 /**
  * @brief Retrieves the subtitle output pixel format.
