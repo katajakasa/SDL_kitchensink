@@ -55,7 +55,7 @@ static inline void initialize_sdl(Uint32 flags) {
  * @param flags Extra SDL_WindowFlags to set in addition to SDL_WINDOW_RESIZABLE, 0 for none
  * @return The created window
  */
-static inline SDL_Window *create_window(const char *title, int w, int h, Uint32 flags) {
+static inline SDL_Window *create_window(const char *title, int w, int h, SDL_WindowFlags flags) {
     SDL_Window *window = SDL_CreateWindow(title, w, h, SDL_WINDOW_RESIZABLE | flags);
     if(window == NULL) {
         fprintf(stderr, "Unable to create a new window: %s\n", SDL_GetError());
