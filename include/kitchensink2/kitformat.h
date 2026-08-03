@@ -10,11 +10,11 @@
  * @copyright Tuomas Virtanen; MIT license (see LICENSE)
  */
 
+#include "kitchensink2/kitconfig.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "kitchensink2/kitconfig.h"
 
 /**
  * @brief Hardware decoder device types
