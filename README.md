@@ -4,7 +4,7 @@
 
 FFmpeg and SDL2 based library for audio and video playback, written in C99.
 
-Documentation is available at http://katajakasa.github.io/SDL_kitchensink/
+Documentation is available at http://katajakasa.github.io/SDL_kitchensink/v1/
 
 Features:
 * Decoding video, audio and subtitles via FFmpeg
@@ -15,9 +15,7 @@ Features:
 * Seeking forwards and backwards
 * Bitmap, text and SSA/ASS subtitle support
 
-Note! Master branch is for the development of v1.0.0 series. v0 can be found in the 
-rel-kitchensink-0 branch. v0 is no longer in active development and only bug- and security-fixes
-are accepted.
+Note! This branch is for the development of v1.0.0 series.
 
 ## 1. Installation
 
