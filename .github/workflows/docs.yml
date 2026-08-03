@@ -52,6 +52,7 @@ jobs:
       - name: Build documentation for each version
         run: |
           for version in v1 v2 dev; do
+            mkdir -p "docs-out/$version"
             (
               cd "src/$version"
               ( cat Doxyfile
