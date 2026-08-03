@@ -145,19 +145,55 @@ static void test_add_and_get_items(void **state) {
     Kit_CheckAtlasTextureSize(ts->atlas, env->texture);
     ts->item = SDL_CreateSurface(16, 16, SDL_PIXELFORMAT_RGBA32);
     assert_non_null(ts->item);
-    const SDL_Rect target = {10, 10, 16, 16};
+    const SDL_FRect target = {10, 10, 16, 16};
 
     // Act
     assert_int_equal(Kit_AddAtlasItem(ts->atlas, env->texture, ts->item, &target), 0);
 
     // Assert: item was recorded and can be read back
     assert_int_equal(ts->atlas->cur_items, 1);
-    SDL_Rect sources[4], targets[4];
+    SDL_FRect sources[4], targets[4];
     assert_int_equal(Kit_GetAtlasItems(ts->atlas, sources, targets, 4), 1);
-    assert_int_equal(targets[0].x, 10);
-    assert_int_equal(targets[0].y, 10);
-    assert_int_equal(sources[0].w, 16);
-    assert_int_equal(sources[0].h, 16);
+    assert_float_equal(targets[0].x, 10.0f, 0.0);
+    assert_float_equal(targets[0].y, 10.0f, 0.0);
+    assert_float_equal(sources[0].w, 16.0f, 0.0);
+    assert_float_equal(sources[0].h, 16.0f, 0.0);
+
+    SDL_DestroySurface(ts->item);
+    ts->item = NULL;
+    Kit_FreeAtlas(ts->atlas);
+    ts->atlas = NULL;
+}
+
+/**
+ * @brief A fractional target rect survives the add/get round-trip unrounded, and the returned
+ * source rect equals the packed integer region converted to float — subpixel placement must not
+ * be truncated anywhere in the atlas.
+ */
+static void test_fractional_target_roundtrip(void **state) {
+    TestState *ts = *state;
+    atlas_env *env = ts->env;
+    // Arrange
+    ts->atlas = Kit_CreateAtlas();
+    Kit_CheckAtlasTextureSize(ts->atlas, env->texture);
+    ts->item = SDL_CreateSurface(16, 16, SDL_PIXELFORMAT_RGBA32);
+    assert_non_null(ts->item);
+    const SDL_FRect target = {10.5f, 20.25f, 16.75f, 8.5f};
+
+    // Act
+    assert_int_equal(Kit_AddAtlasItem(ts->atlas, env->texture, ts->item, &target), 0);
+
+    // Assert: target comes back bit-exact, source is the integer packed region as float
+    SDL_FRect sources[1], targets[1];
+    assert_int_equal(Kit_GetAtlasItems(ts->atlas, sources, targets, 1), 1);
+    assert_float_equal(targets[0].x, 10.5f, 0.0);
+    assert_float_equal(targets[0].y, 20.25f, 0.0);
+    assert_float_equal(targets[0].w, 16.75f, 0.0);
+    assert_float_equal(targets[0].h, 8.5f, 0.0);
+    assert_float_equal(sources[0].x, 0.0f, 0.0);
+    assert_float_equal(sources[0].y, 0.0f, 0.0);
+    assert_float_equal(sources[0].w, 16.0f, 0.0);
+    assert_float_equal(sources[0].h, 16.0f, 0.0);
 
     SDL_DestroySurface(ts->item);
     ts->item = NULL;
@@ -176,7 +212,7 @@ static void test_clear_resets_atlas(void **state) {
     Kit_CheckAtlasTextureSize(ts->atlas, env->texture);
     ts->item = SDL_CreateSurface(16, 16, SDL_PIXELFORMAT_RGBA32);
     assert_non_null(ts->item);
-    const SDL_Rect target = {10, 10, 16, 16};
+    const SDL_FRect target = {10, 10, 16, 16};
     assert_int_equal(Kit_AddAtlasItem(ts->atlas, env->texture, ts->item, &target), 0);
     assert_int_equal(ts->atlas->cur_items, 1);
 
@@ -197,6 +233,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_create_and_free, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_check_texture_size, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_add_and_get_items, test_setup, test_teardown),
+        cmocka_unit_test_setup_teardown(test_fractional_target_roundtrip, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_clear_resets_atlas, test_setup, test_teardown),
     };
     return cmocka_run_group_tests(tests, group_setup, group_teardown);

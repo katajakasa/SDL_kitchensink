@@ -575,7 +575,7 @@ int Kit_GetPlayerAudioData(
 }
 
 int Kit_GetPlayerSubtitleSDLTexture(
-    const Kit_Player *player, SDL_Texture *texture, SDL_Rect *sources, SDL_Rect *targets, int limit
+    const Kit_Player *player, SDL_Texture *texture, SDL_FRect *sources, SDL_FRect *targets, int limit
 ) {
     assert(player != NULL);
     assert(texture != NULL);

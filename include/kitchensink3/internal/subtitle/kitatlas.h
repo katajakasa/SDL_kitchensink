@@ -20,8 +20,8 @@
  * and where it should be drawn on the output surface (target).
  */
 typedef struct Kit_TextureAtlasItem {
-    SDL_Rect source; //< Source coordinates on cache surface
-    SDL_Rect target; //< Target coordinates on output surface
+    SDL_Rect source;  //< Source coordinates on cache surface
+    SDL_FRect target; //< Target coordinates on output surface
 } Kit_TextureAtlasItem;
 
 /**
@@ -86,7 +86,7 @@ KIT_LOCAL void Kit_CheckAtlasTextureSize(Kit_TextureAtlas *atlas, SDL_Texture *t
  * @param limit maximum number of items to copy
  * @return number of items actually copied (min of current item count and limit)
  */
-KIT_LOCAL int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources, SDL_Rect *targets, int limit);
+KIT_LOCAL int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_FRect *sources, SDL_FRect *targets, int limit);
 
 /**
  * @brief Packs a surface into the atlas: finds free space, uploads the surface pixels into
@@ -100,6 +100,6 @@ KIT_LOCAL int Kit_GetAtlasItems(const Kit_TextureAtlas *atlas, SDL_Rect *sources
  * @return 0 on success, -1 if the atlas is full or no free slot could be found for the surface
  */
 KIT_LOCAL int
-Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_Rect *target);
+Kit_AddAtlasItem(Kit_TextureAtlas *atlas, SDL_Texture *texture, const SDL_Surface *surface, const SDL_FRect *target);
 
 #endif // KITATLAS_H

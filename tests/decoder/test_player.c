@@ -766,8 +766,8 @@ static void test_subtitle_texture_zero_limit(void **state) {
     Kit_PlayerPlay(ts->player);
 
     // Act / Assert: limit 0 must yield 0 rects.
-    SDL_Rect sources[4];
-    SDL_Rect targets[4];
+    SDL_FRect sources[4];
+    SDL_FRect targets[4];
     const int got = Kit_GetPlayerSubtitleSDLTexture(ts->player, ts->texture, sources, targets, 0);
     assert_int_equal(got, 0);
 

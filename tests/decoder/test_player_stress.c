@@ -266,8 +266,8 @@ static int audio_getter_thread(void *data) {
 /** @brief Worker: tight loop of Kit_GetPlayerSubtitleSDLTexture() until told to stop. */
 static int subtitle_getter_thread(void *data) {
     SubtitleWorkerCtx *ctx = data;
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     long i;
     for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(ctx->stop); i++) {
         Kit_GetPlayerSubtitleSDLTexture(ctx->player, ctx->sub_tex, sources, targets, RECT_LIMIT);

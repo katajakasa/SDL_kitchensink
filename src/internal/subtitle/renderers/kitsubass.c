@@ -119,7 +119,7 @@ static int ren_get_ass_data_cb(
         }
 
         Kit_ProcessAssImage(dst->pixels, src, dst->pitch);
-        SDL_Rect target;
+        SDL_FRect target;
         target.x = src->dst_x;
         target.y = src->dst_y;
         target.w = dst->w;
