@@ -12,6 +12,7 @@
 
 #include "kitchensink2/kitconfig.h"
 #include "kitchensink2/kitformat.h"
+#include "kitchensink2/kitsource.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,7 +40,7 @@ KIT_API const char *Kit_GetSDLPixelFormatString(unsigned int type);
  * @param type Kit_StreamType
  * @return Format string, eg. "KIT_STREAMTYPE_VIDEO", or NULL for unknown values
  */
-KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
+KIT_API const char *Kit_GetKitStreamTypeString(Kit_StreamType type);
 
 /**
  * @brief Returns a descriptive string for Kitchensink hardware video decoder type
@@ -47,7 +48,7 @@ KIT_API const char *Kit_GetKitStreamTypeString(unsigned int type);
  * @param type Kit_HardwareDeviceType
  * @return Format string, eg. "VDPAU", or NULL for unknown values
  */
-KIT_API const char *Kit_GetHardwareDecoderTypeString(unsigned int type);
+KIT_API const char *Kit_GetHardwareDecoderTypeString(Kit_HardwareDeviceType type);
 
 /**
  * @brief Returns the SDL2 channel count for a kitchensink audio channel layout
