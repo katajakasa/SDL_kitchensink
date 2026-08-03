@@ -22,7 +22,7 @@
 #include "kit_memsource.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <libavformat/avio.h>
 #include <libavutil/error.h>
 
@@ -44,7 +44,7 @@ typedef struct {
     int reads_done;
     // Atomic: test_seek_failure flips this from the main thread while the
     // player's demuxer thread is concurrently inside faulty_seek().
-    SDL_atomic_t fail_seeks;
+    SDL_AtomicInt fail_seeks;
     int max_read; // -1 = unlimited; else short-read cap per call
 } FaultyIO;
 
@@ -73,7 +73,7 @@ static int faulty_read(void *userdata, uint8_t *buf, int size) {
 /** @brief Kit_SeekCallback over a FaultyIO buffer; can be told to fail every seek. */
 static int64_t faulty_seek(void *userdata, int64_t offset, int whence) {
     FaultyIO *io = userdata;
-    if(SDL_AtomicGet(&io->fail_seeks))
+    if(SDL_GetAtomicInt(&io->fail_seeks))
         return -1;
     if(whence & AVSEEK_SIZE)
         return (int64_t)io->size;
@@ -137,7 +137,7 @@ static int test_teardown(void **state) {
     if(ts->renderer != NULL)
         SDL_DestroyRenderer(ts->renderer);
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     Kit_CloseSource(ts->src);
     Kit_CloseSource(ts->probe_src);
     free(ts->data);
@@ -246,7 +246,7 @@ static void test_read_failure_mid_playback(void **state) {
     ts->texture = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;
@@ -275,7 +275,7 @@ static void test_seek_failure(void **state) {
     Kit_PlayerPlay(ts->player);
 
     // Act: enable seek failure only now (post-open), then request a seek.
-    SDL_AtomicSet(&ts->io.fail_seeks, 1);
+    SDL_SetAtomicInt(&ts->io.fail_seeks, 1);
     Kit_ClearError();
     const int ret = Kit_PlayerSeek(ts->player, 1.0);
 
@@ -303,7 +303,7 @@ static void test_seek_failure(void **state) {
     ts->texture = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;

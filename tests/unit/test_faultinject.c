@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <SDL_thread.h>
+#include <SDL3/SDL_thread.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
 

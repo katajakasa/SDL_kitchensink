@@ -24,7 +24,7 @@
 #include "kit_lifecycle.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -107,7 +107,7 @@ static void close_subtitle_fixture(SubtitleFixture *f) {
     if(f->renderer != NULL)
         SDL_DestroyRenderer(f->renderer);
     if(f->screen != NULL)
-        SDL_FreeSurface(f->screen);
+        SDL_DestroySurface(f->screen);
     if(f->src != NULL)
         Kit_CloseSource(f->src);
     memset(f, 0, sizeof(*f));

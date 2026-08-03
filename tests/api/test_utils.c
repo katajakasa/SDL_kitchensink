@@ -13,8 +13,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <SDL_audio.h>
-#include <SDL_pixels.h>
+#include <SDL3/SDL_audio.h>
+#include <SDL3/SDL_pixels.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -35,7 +35,7 @@ static void test_stream_type_strings(void **state) {
 static void test_format_strings(void **state) {
     (void)state;
     // Arrange / Act / Assert
-    assert_non_null(Kit_GetSDLAudioFormatString(AUDIO_S16));
+    assert_non_null(Kit_GetSDLAudioFormatString(SDL_AUDIO_S16));
     assert_non_null(Kit_GetSDLPixelFormatString(SDL_PIXELFORMAT_YV12));
     assert_non_null(Kit_GetHardwareDecoderTypeString(KIT_HWDEVICE_TYPE_VAAPI));
 }

@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <SDL_pixels.h>
+#include <SDL3/SDL_pixels.h>
 #include <libavutil/hwcontext.h>
 
 #include "kitchensink3/internal/video/kitvideoutils.h"
@@ -45,8 +45,8 @@ static void test_find_av_pixel_format(void **state) {
     assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_ABGR32), AV_PIX_FMT_ABGR);
     assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_IYUV), AV_PIX_FMT_YUV420P);
     assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_YVYU), AV_PIX_FMT_YVYU422);
-    assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_RGB888), AV_PIX_FMT_0RGB32);
-    assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_BGR888), AV_PIX_FMT_0BGR32);
+    assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_XRGB8888), AV_PIX_FMT_0RGB32);
+    assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_XBGR8888), AV_PIX_FMT_0BGR32);
     assert_int_equal(Kit_FindAVPixelFormat(SDL_PIXELFORMAT_INDEX1LSB), AV_PIX_FMT_NONE);
 }
 

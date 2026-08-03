@@ -14,7 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <SDL_pixels.h>
+#include <SDL3/SDL_pixels.h>
 
 #include "kitchensink3/kitchensink.h"
 

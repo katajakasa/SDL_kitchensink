@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <SDL_audio.h>
+#include <SDL3/SDL_audio.h>
 
 #include "kitchensink3/internal/audio/kitaudioutils.h"
 
@@ -24,9 +24,9 @@
 static void test_find_av_sample_format(void **state) {
     (void)state;
     // Arrange / Act / Assert: known mappings, plus the unrecognized-value fallback
-    assert_int_equal(Kit_FindAVSampleFormat(AUDIO_U8), AV_SAMPLE_FMT_U8);
-    assert_int_equal(Kit_FindAVSampleFormat(AUDIO_S16SYS), AV_SAMPLE_FMT_S16);
-    assert_int_equal(Kit_FindAVSampleFormat(AUDIO_S32SYS), AV_SAMPLE_FMT_S32);
+    assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_U8), AV_SAMPLE_FMT_U8);
+    assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_S16), AV_SAMPLE_FMT_S16);
+    assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_S32), AV_SAMPLE_FMT_S32);
     assert_int_equal(Kit_FindAVSampleFormat(0xBEEF), AV_SAMPLE_FMT_NONE);
 }
 
@@ -63,10 +63,10 @@ static void test_find_signedness(void **state) {
 static void test_find_sdl_sample_format(void **state) {
     (void)state;
     // Arrange / Act / Assert: direct mappings, plus the no-direct-match degradation
-    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_U8), AUDIO_U8);
-    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S32), AUDIO_S32SYS);
-    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S16), AUDIO_S16SYS);
-    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_FLTP), AUDIO_S16SYS);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_U8), SDL_AUDIO_U8);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S32), SDL_AUDIO_S32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S16), SDL_AUDIO_S16);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_FLTP), SDL_AUDIO_S16);
 }
 
 /**

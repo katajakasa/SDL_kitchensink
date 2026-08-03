@@ -20,7 +20,7 @@
 
 /** @brief Allocates a small 4x4 RGBA surface to act as a caller-owned subtitle bitmap. */
 static SDL_Surface *create_test_surface(void) {
-    return SDL_CreateRGBSurfaceWithFormat(0, 4, 4, 32, SDL_PIXELFORMAT_RGBA32);
+    return SDL_CreateSurface(4, 4, SDL_PIXELFORMAT_RGBA32);
 }
 
 /** @brief Per-test resources, heap-allocated by test_setup() and released by test_teardown(),
@@ -51,7 +51,7 @@ static int test_teardown(void **state) {
     Kit_FreeSubtitlePacket(&ts->packet);
     Kit_FreeSubtitlePacket(&ts->dst_packet);
     if(ts->surface != NULL)
-        SDL_FreeSurface(ts->surface);
+        SDL_DestroySurface(ts->surface);
     free(ts);
     *state = NULL;
     return 0;
@@ -127,7 +127,7 @@ static void test_ref_create_and_del(void **state) {
     assert_int_equal(surface->w, 4);
     assert_int_equal(surface->h, 4);
 
-    SDL_FreeSurface(ts->surface);
+    SDL_DestroySurface(ts->surface);
     ts->surface = NULL;
     Kit_FreeSubtitlePacket(&ts->packet);
 }

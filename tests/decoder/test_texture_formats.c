@@ -16,12 +16,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "kit_lifecycle.h"
 #include "kit_param.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -68,7 +69,7 @@ static int test_teardown(void **state) {
     if(ts->renderer != NULL)
         SDL_DestroyRenderer(ts->renderer);
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     free(ts->pixels);
     Kit_CloseSource(ts->src);
     free(ts);
@@ -79,16 +80,28 @@ static int test_teardown(void **state) {
 /** @brief Reads texture back as RGBA8888 and asserts it is not a single flat color (catches channel-swap/stride bugs).
  * The readback buffer lives in ts->pixels so an assert-longjmp cannot leak it. */
 static void assert_texture_has_contrast(TestState *ts, SDL_Renderer *renderer, SDL_Texture *texture) {
-    int w = 0, h = 0;
-    assert_int_equal(SDL_QueryTexture(texture, NULL, NULL, &w, &h), 0);
+    float wf = 0, hf = 0;
+    assert_true(SDL_GetTextureSize(texture, &wf, &hf));
+    int w = (int)wf, h = (int)hf;
 
-    assert_int_equal(SDL_SetRenderTarget(renderer, NULL), 0);
-    assert_int_equal(SDL_RenderClear(renderer), 0);
-    assert_int_equal(SDL_RenderCopy(renderer, texture, NULL, NULL), 0);
+    assert_true(SDL_SetRenderTarget(renderer, NULL));
+    assert_true(SDL_RenderClear(renderer));
+    assert_true(SDL_RenderTexture(renderer, texture, NULL, NULL));
 
+    SDL_Surface *raw_readback = SDL_RenderReadPixels(renderer, NULL);
+    assert_non_null(raw_readback);
+    SDL_Surface *readback = SDL_ConvertSurface(raw_readback, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(raw_readback);
+    assert_non_null(readback);
     ts->pixels = malloc((size_t)w * h * 4);
     assert_non_null(ts->pixels);
-    assert_int_equal(SDL_RenderReadPixels(renderer, NULL, SDL_PIXELFORMAT_RGBA32, ts->pixels, w * 4), 0);
+    for(int y = 0; y < h; y++) {
+        memcpy(
+            ts->pixels + (size_t)y * w * 4, (unsigned char *)readback->pixels + (size_t)y * readback->pitch,
+            (size_t)w * 4
+        );
+    }
+    SDL_DestroySurface(readback);
 
     unsigned char min[4] = {255, 255, 255, 255};
     unsigned char max[4] = {0, 0, 0, 0};
@@ -131,12 +144,12 @@ static const TextureFormatCase format_cases[] = {
     {"rgba32",   SDL_PIXELFORMAT_RGBA32},
     {"bgra32",   SDL_PIXELFORMAT_BGRA32},
     {"abgr32",   SDL_PIXELFORMAT_ABGR32},
-    {"xrgb8888", SDL_PIXELFORMAT_RGB888},
-    {"xbgr8888", SDL_PIXELFORMAT_BGR888},
+    {"xrgb8888", SDL_PIXELFORMAT_XRGB8888},
+    {"xbgr8888", SDL_PIXELFORMAT_XBGR8888},
     {"rgb24",    SDL_PIXELFORMAT_RGB24 },
     {"bgr24",    SDL_PIXELFORMAT_BGR24 },
-    {"rgb555",   SDL_PIXELFORMAT_RGB555},
-    {"bgr555",   SDL_PIXELFORMAT_BGR555},
+    {"rgb555",   SDL_PIXELFORMAT_XRGB1555},
+    {"bgr555",   SDL_PIXELFORMAT_XBGR1555},
     {"rgb565",   SDL_PIXELFORMAT_RGB565},
     {"bgr565",   SDL_PIXELFORMAT_BGR565},
 };
@@ -186,7 +199,7 @@ static void test_texture_format_honored(void **state) {
     ts->texture = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;

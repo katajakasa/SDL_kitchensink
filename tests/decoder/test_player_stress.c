@@ -23,10 +23,10 @@
 #include "kit_lifecycle.h"
 #include "kit_playback.h"
 
-#include <SDL.h>
-#include <SDL_atomic.h>
-#include <SDL_thread.h>
-#include <SDL_timer.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_atomic.h>
+#include <SDL3/SDL_thread.h>
+#include <SDL3/SDL_timer.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -39,7 +39,7 @@
 #define RECT_LIMIT 16
 
 /**
- * @brief A generous per-worker iteration cap, on top of the SDL_atomic_t stop flag:
+ * @brief A generous per-worker iteration cap, on top of the SDL_AtomicInt stop flag:
  * a real bug (e.g. a getter deadlocking against a control-thread lock) must
  * not be able to hang these tests forever and blow the 120s CTest timeout in
  * a way that is hard to attribute. Chosen far larger than any of these
@@ -50,40 +50,40 @@
 typedef struct {
     Kit_Player *player;
     SDL_Texture *video_tex;
-    SDL_atomic_t stop;
+    SDL_AtomicInt stop;
     long iterations;
 } RenderWorkerCtx;
 
 typedef struct {
     Kit_Player *player;
     SDL_Texture *video_tex;
-    SDL_atomic_t *stop;
+    SDL_AtomicInt *stop;
     long iterations;
 } VideoWorkerCtx;
 
 typedef struct {
     Kit_Player *player;
-    SDL_atomic_t *stop;
+    SDL_AtomicInt *stop;
     long iterations;
 } AudioWorkerCtx;
 
 typedef struct {
     Kit_Player *player;
     SDL_Texture *sub_tex;
-    SDL_atomic_t *stop;
+    SDL_AtomicInt *stop;
     long iterations;
 } SubtitleWorkerCtx;
 
 typedef struct {
     Kit_Player *player;
     SDL_Texture *video_tex;
-    SDL_atomic_t stop;
+    SDL_AtomicInt stop;
     long iterations;
 } DrainWorkerCtx;
 
 typedef struct {
     Kit_Player *player;
-    SDL_atomic_t stop;
+    SDL_AtomicInt stop;
     long iterations;
 } StateWorkerCtx;
 
@@ -104,7 +104,7 @@ typedef struct {
     SDL_Thread *video_worker;
     SDL_Thread *audio_worker;
     SDL_Thread *subtitle_worker;
-    SDL_atomic_t stop; // shared by the per-subsystem worker contexts below
+    SDL_AtomicInt stop; // shared by the per-subsystem worker contexts below
     RenderWorkerCtx render_ctx;
     VideoWorkerCtx video_ctx;
     AudioWorkerCtx audio_ctx;
@@ -127,10 +127,10 @@ static int test_teardown(void **state) {
     TestState *ts = *state;
     if(ts == NULL)
         return 0;
-    SDL_AtomicSet(&ts->render_ctx.stop, 1);
-    SDL_AtomicSet(&ts->stop, 1);
-    SDL_AtomicSet(&ts->drain_ctx.stop, 1);
-    SDL_AtomicSet(&ts->state_ctx.stop, 1);
+    SDL_SetAtomicInt(&ts->render_ctx.stop, 1);
+    SDL_SetAtomicInt(&ts->stop, 1);
+    SDL_SetAtomicInt(&ts->drain_ctx.stop, 1);
+    SDL_SetAtomicInt(&ts->state_ctx.stop, 1);
     if(ts->worker != NULL)
         SDL_WaitThread(ts->worker, NULL);
     if(ts->video_worker != NULL)
@@ -147,7 +147,7 @@ static int test_teardown(void **state) {
     if(ts->renderer != NULL)
         SDL_DestroyRenderer(ts->renderer);
     if(ts->screen != NULL)
-        SDL_FreeSurface(ts->screen);
+        SDL_DestroySurface(ts->screen);
     Kit_CloseSource(ts->src);
     free(ts);
     *state = NULL;
@@ -160,7 +160,7 @@ static int render_worker_thread(void *data) {
     unsigned char audio_buf[AUDIO_BUF_SIZE];
     SDL_Rect area;
     long i;
-    for(i = 0; i < WORKER_ITER_CAP && !SDL_AtomicGet(&ctx->stop); i++) {
+    for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(&ctx->stop); i++) {
         Kit_GetPlayerVideoSDLTexture(ctx->player, ctx->video_tex, &area);
         Kit_GetPlayerAudioData(ctx->player, SIZE_MAX, audio_buf, sizeof(audio_buf));
         Kit_GetPlayerPosition(ctx->player);
@@ -196,7 +196,7 @@ static void test_render_thread_vs_control_thread(void **state) {
     assert_non_null(ts->video_tex);
 
     ts->render_ctx = (RenderWorkerCtx){.player = ts->player, .video_tex = ts->video_tex, .iterations = 0};
-    SDL_AtomicSet(&ts->render_ctx.stop, 0);
+    SDL_SetAtomicInt(&ts->render_ctx.stop, 0);
 
     ts->worker = SDL_CreateThread(render_worker_thread, "stress_render_worker", &ts->render_ctx);
     assert_non_null(ts->worker);
@@ -213,7 +213,7 @@ static void test_render_thread_vs_control_thread(void **state) {
         Kit_PlayerStop(ts->player);
     }
 
-    SDL_AtomicSet(&ts->render_ctx.stop, 1);
+    SDL_SetAtomicInt(&ts->render_ctx.stop, 1);
     int worker_status = -1;
     SDL_WaitThread(ts->worker, &worker_status);
     ts->worker = NULL;
@@ -234,7 +234,7 @@ static void test_render_thread_vs_control_thread(void **state) {
     ts->video_tex = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;
@@ -244,7 +244,7 @@ static void test_render_thread_vs_control_thread(void **state) {
 static int video_getter_thread(void *data) {
     VideoWorkerCtx *ctx = data;
     long i;
-    for(i = 0; i < WORKER_ITER_CAP && !SDL_AtomicGet(ctx->stop); i++) {
+    for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(ctx->stop); i++) {
         Kit_GetPlayerVideoSDLTexture(ctx->player, ctx->video_tex, NULL);
     }
     ctx->iterations = i;
@@ -256,7 +256,7 @@ static int audio_getter_thread(void *data) {
     AudioWorkerCtx *ctx = data;
     unsigned char audio_buf[AUDIO_BUF_SIZE];
     long i;
-    for(i = 0; i < WORKER_ITER_CAP && !SDL_AtomicGet(ctx->stop); i++) {
+    for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(ctx->stop); i++) {
         Kit_GetPlayerAudioData(ctx->player, SIZE_MAX, audio_buf, sizeof(audio_buf));
     }
     ctx->iterations = i;
@@ -269,7 +269,7 @@ static int subtitle_getter_thread(void *data) {
     SDL_Rect sources[RECT_LIMIT];
     SDL_Rect targets[RECT_LIMIT];
     long i;
-    for(i = 0; i < WORKER_ITER_CAP && !SDL_AtomicGet(ctx->stop); i++) {
+    for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(ctx->stop); i++) {
         Kit_GetPlayerSubtitleSDLTexture(ctx->player, ctx->sub_tex, sources, targets, RECT_LIMIT);
     }
     ctx->iterations = i;
@@ -302,7 +302,7 @@ static void test_concurrent_getters_per_subsystem(void **state) {
     ts->sub_tex = Kit_CreatePlayerSubtitleSDLTexture(ts->player, ts->renderer, 512, 512);
     assert_non_null(ts->sub_tex);
 
-    SDL_AtomicSet(&ts->stop, 0);
+    SDL_SetAtomicInt(&ts->stop, 0);
     ts->video_ctx =
         (VideoWorkerCtx){.player = ts->player, .video_tex = ts->video_tex, .stop = &ts->stop, .iterations = 0};
     ts->audio_ctx = (AudioWorkerCtx){.player = ts->player, .stop = &ts->stop, .iterations = 0};
@@ -321,7 +321,7 @@ static void test_concurrent_getters_per_subsystem(void **state) {
 
     SDL_Delay(1000); // ~1s of concurrent playback, per the brief
 
-    SDL_AtomicSet(&ts->stop, 1);
+    SDL_SetAtomicInt(&ts->stop, 1);
     int video_status = -1, audio_status = -1, subtitle_status = -1;
     SDL_WaitThread(ts->video_worker, &video_status);
     ts->video_worker = NULL;
@@ -347,7 +347,7 @@ static void test_concurrent_getters_per_subsystem(void **state) {
     ts->video_tex = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;
@@ -358,7 +358,7 @@ static int drain_worker_thread(void *data) {
     DrainWorkerCtx *ctx = data;
     unsigned char audio_buf[AUDIO_BUF_SIZE];
     long i;
-    for(i = 0; i < WORKER_ITER_CAP && !SDL_AtomicGet(&ctx->stop); i++) {
+    for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(&ctx->stop); i++) {
         Kit_GetPlayerVideoSDLTexture(ctx->player, ctx->video_tex, NULL);
         Kit_GetPlayerAudioData(ctx->player, SIZE_MAX, audio_buf, sizeof(audio_buf));
     }
@@ -395,7 +395,7 @@ static void test_seek_storm(void **state) {
     Kit_PlayerPlay(ts->player);
 
     ts->drain_ctx = (DrainWorkerCtx){.player = ts->player, .video_tex = ts->video_tex, .iterations = 0};
-    SDL_AtomicSet(&ts->drain_ctx.stop, 0);
+    SDL_SetAtomicInt(&ts->drain_ctx.stop, 0);
     ts->worker = SDL_CreateThread(drain_worker_thread, "stress_seek_drain", &ts->drain_ctx);
     assert_non_null(ts->worker);
 
@@ -406,7 +406,7 @@ static void test_seek_storm(void **state) {
     }
 
     // Act / Assert: the worker exited cleanly, and the player still produces data.
-    SDL_AtomicSet(&ts->drain_ctx.stop, 1);
+    SDL_SetAtomicInt(&ts->drain_ctx.stop, 1);
     int worker_status = -1;
     SDL_WaitThread(ts->worker, &worker_status);
     ts->worker = NULL;
@@ -439,7 +439,7 @@ static void test_seek_storm(void **state) {
     ts->video_tex = NULL;
     SDL_DestroyRenderer(ts->renderer);
     ts->renderer = NULL;
-    SDL_FreeSurface(ts->screen);
+    SDL_DestroySurface(ts->screen);
     ts->screen = NULL;
     Kit_CloseSource(ts->src);
     ts->src = NULL;
@@ -451,7 +451,7 @@ static int state_query_thread(void *data) {
     unsigned int frames_length, frames_size, video_packets_length, video_packets_capacity;
     unsigned int samples_length, samples_size, audio_packets_length, audio_packets_capacity;
     long i;
-    for(i = 0; i < WORKER_ITER_CAP && !SDL_AtomicGet(&ctx->stop); i++) {
+    for(i = 0; i < WORKER_ITER_CAP && !SDL_GetAtomicInt(&ctx->stop); i++) {
         Kit_GetPlayerState(ctx->player);
         Kit_GetPlayerVideoBufferState(
             ctx->player, &frames_length, &frames_size, &video_packets_length, &video_packets_capacity
@@ -487,7 +487,7 @@ static void test_state_queries_during_playback(void **state) {
     assert_non_null(ts->player);
 
     ts->state_ctx = (StateWorkerCtx){.player = ts->player, .iterations = 0};
-    SDL_AtomicSet(&ts->state_ctx.stop, 0);
+    SDL_SetAtomicInt(&ts->state_ctx.stop, 0);
     ts->worker = SDL_CreateThread(state_query_thread, "stress_state_query", &ts->state_ctx);
     assert_non_null(ts->worker);
 
@@ -501,7 +501,7 @@ static void test_state_queries_during_playback(void **state) {
     }
 
     // Act / Assert: join the worker and verify it ran to completion.
-    SDL_AtomicSet(&ts->state_ctx.stop, 1);
+    SDL_SetAtomicInt(&ts->state_ctx.stop, 1);
     int worker_status = -1;
     SDL_WaitThread(ts->worker, &worker_status);
     ts->worker = NULL;

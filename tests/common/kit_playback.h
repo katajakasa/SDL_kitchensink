@@ -17,8 +17,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include <SDL.h>
-#include <SDL_timer.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_timer.h>
 
 #include "kitchensink3/kitchensink.h"
 
@@ -58,7 +58,7 @@ static inline bool pump_video_once(Kit_Player *player, SDL_Texture *texture) {
 
 /** @brief Creates a headless software-rendered target: an RGBA32 surface plus a software renderer over it. */
 static inline void create_headless_renderer(int w, int h, SDL_Surface **screen, SDL_Renderer **renderer) {
-    *screen = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
+    *screen = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
     assert_non_null(*screen);
     *renderer = SDL_CreateSoftwareRenderer(*screen);
     assert_non_null(*renderer);
@@ -110,7 +110,7 @@ static inline void close_fixture(PlayerFixture *fx) {
     if(fx->renderer != NULL)
         SDL_DestroyRenderer(fx->renderer);
     if(fx->screen != NULL)
-        SDL_FreeSurface(fx->screen);
+        SDL_DestroySurface(fx->screen);
     if(fx->src != NULL)
         Kit_CloseSource(fx->src);
     fx->player = NULL;
@@ -137,7 +137,7 @@ static inline int kit_playback_teardown(void **state) {
 static inline bool wait_for_data(PlayerFixture *fx) {
     unsigned char buffer[8192];
     bool received = false;
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS && !received) {
         const int audio_received = pump_audio_once(fx->player, buffer, sizeof(buffer));
         const bool video_received = pump_video_once(fx->player, fx->texture);
@@ -151,7 +151,7 @@ static inline bool wait_for_data(PlayerFixture *fx) {
 /** @brief Waits (bounded) until Kit_GetPlayerState() reports KIT_STOPPED, polling it as the sole trigger for the lazy
  * EOF flip. */
 static inline bool wait_for_stopped(Kit_Player *player) {
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS && Kit_GetPlayerState(player) != KIT_STOPPED)
         SDL_Delay(10);
     return Kit_GetPlayerState(player) == KIT_STOPPED;
@@ -162,7 +162,7 @@ static inline bool wait_for_stopped(Kit_Player *player) {
 static inline bool drain_to_idle(PlayerFixture *fx, int idle_target) {
     unsigned char buffer[8192];
     int idle_streak = 0;
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS && idle_streak < idle_target) {
         const int audio_received = pump_audio_once(fx->player, buffer, sizeof(buffer));
         const bool video_received = pump_video_once(fx->player, fx->texture);
@@ -179,7 +179,7 @@ static inline bool drain_to_idle(PlayerFixture *fx, int idle_target) {
  * bound elapses; `texture`/`audio_buffer` may be NULL to skip that half. Returns true on a clean idle settle. */
 static inline bool
 pump_av_until_idle(Kit_Player *player, SDL_Texture *texture, unsigned char *audio_buffer, size_t audio_buffer_size) {
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     int idle_streak = 0;
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS && idle_streak < 10) {
         bool got_something = false;
@@ -198,7 +198,7 @@ pump_av_until_idle(Kit_Player *player, SDL_Texture *texture, unsigned char *audi
 
 /** @brief Pumps video until a frame has been received, bounded by wall clock; returns whether one arrived. */
 static inline bool wait_for_video_frame(Kit_Player *player, SDL_Texture *texture) {
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     bool received = false;
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS && !received) {
         received = pump_video_once(player, texture);
@@ -212,7 +212,7 @@ static inline bool wait_for_video_frame(Kit_Player *player, SDL_Texture *texture
  * pump_audio_once(), the backend buffer size is set to the read size, so silence padding stays enabled. */
 static inline int wait_for_audio_data(Kit_Player *player, unsigned char *buffer, size_t buffer_size) {
     int received = 0;
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS && received == 0) {
         received = Kit_GetPlayerAudioData(player, (int)buffer_size, buffer, buffer_size);
         if(received == 0)
@@ -225,7 +225,7 @@ static inline int wait_for_audio_data(Kit_Player *player, unsigned char *buffer,
  * seen. */
 static inline bool pump_until_audio_flows(Kit_Player *player) {
     unsigned char buffer[8192];
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS) {
         if(pump_audio_once(player, buffer, sizeof(buffer)) > 0)
             return true;
@@ -243,7 +243,7 @@ static inline bool drain_audio_to_eof(Kit_Player *player) {
     const double duration = Kit_GetPlayerDuration(player);
     unsigned char buffer[8192];
     int quiet = 0;
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS &&
           (quiet < quiet_target || Kit_GetPlayerPosition(player) < duration)) {
         if(pump_audio_once(player, buffer, sizeof(buffer)) > 0) {
@@ -262,7 +262,7 @@ static inline bool drain_audio_to_eof(Kit_Player *player) {
 static inline int pump_until_subtitle_rects(
     Kit_Player *player, SDL_Texture *video_tex, SDL_Texture *sub_tex, SDL_Rect *sources, SDL_Rect *targets, int limit
 ) {
-    const Uint32 wait_start = SDL_GetTicks();
+    const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS) {
         Kit_GetPlayerVideoSDLTexture(player, video_tex, NULL);
         const int got = Kit_GetPlayerSubtitleSDLTexture(player, sub_tex, sources, targets, limit);
