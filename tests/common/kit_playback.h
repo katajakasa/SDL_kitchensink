@@ -260,7 +260,7 @@ static inline bool drain_audio_to_eof(Kit_Player *player) {
  * returns the rect count (0 on timeout). Rendering is pull-driven off the player's sync clock, which only advances
  * while playback is pumped, so the video texture must be pumped alongside the subtitle getter. */
 static inline int pump_until_subtitle_rects(
-    Kit_Player *player, SDL_Texture *video_tex, SDL_Texture *sub_tex, SDL_Rect *sources, SDL_Rect *targets, int limit
+    Kit_Player *player, SDL_Texture *video_tex, SDL_Texture *sub_tex, SDL_FRect *sources, SDL_FRect *targets, int limit
 ) {
     const Uint64 wait_start = SDL_GetTicks();
     while(SDL_GetTicks() - wait_start < WAIT_BOUND_MS) {

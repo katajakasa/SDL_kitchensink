@@ -35,13 +35,13 @@ assert_double_in_range_impl(const double value, const double min, const double m
  * (cmocka's assert_int_in_range only handles integers.) */
 #define assert_double_in_range(value, min, max) assert_double_in_range_impl((value), (min), (max), __FILE__, __LINE__)
 
-static inline void assert_rect_in_bounds_impl(
-    const SDL_Rect *rect, const int bound_w, const int bound_h, const char *file, const int line
+static inline void assert_frect_in_bounds_impl(
+    const SDL_FRect *rect, const float bound_w, const float bound_h, const char *file, const int line
 ) {
-    if(rect->x < 0 || rect->y < 0 || rect->w <= 0 || rect->h <= 0 || rect->x + rect->w > bound_w ||
+    if(rect->x < 0.0f || rect->y < 0.0f || rect->w <= 0.0f || rect->h <= 0.0f || rect->x + rect->w > bound_w ||
        rect->y + rect->h > bound_h) {
         cmocka_print_error(
-            "rect {x=%d, y=%d, w=%d, h=%d} not within %dx%d bounds\n",
+            "rect {x=%f, y=%f, w=%f, h=%f} not within %fx%f bounds\n",
             rect->x,
             rect->y,
             rect->w,
@@ -53,10 +53,10 @@ static inline void assert_rect_in_bounds_impl(
     }
 }
 
-/** @brief Asserts an SDL_Rect has a non-negative origin, a positive size, and lies fully inside a
+/** @brief Asserts an SDL_FRect has a non-negative origin, a positive size, and lies fully inside a
  * bound_w x bound_h area, reporting the offending rect on failure. */
-#define assert_rect_in_bounds(rect, bound_w, bound_h)                                                                 \
-    assert_rect_in_bounds_impl((rect), (bound_w), (bound_h), __FILE__, __LINE__)
+#define assert_frect_in_bounds(rect, bound_w, bound_h)                                                               \
+    assert_frect_in_bounds_impl((rect), (bound_w), (bound_h), __FILE__, __LINE__)
 
 static inline void assert_source_open_fails_cleanly_impl(const char *path, const char *file, const int line) {
     const char *printable_path = path != NULL ? path : "(null)";

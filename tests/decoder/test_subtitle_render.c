@@ -127,13 +127,14 @@ static int test_teardown(void **state) {
 }
 
 /** @brief Asserts a batch of rects has sources within the atlas bounds and targets with positive, sane sizes. */
-static void assert_rects_sane(const SDL_Rect *sources, const SDL_Rect *targets, int count) {
+static void assert_rects_sane(const SDL_FRect *sources, const SDL_FRect *targets, int count) {
     for(int i = 0; i < count; i++) {
-        assert_rect_in_bounds(&sources[i], ATLAS_SIZE, ATLAS_SIZE);
+        // Sources must be within the atlas bounds
+        assert_frect_in_bounds(&sources[i], (float)ATLAS_SIZE, (float)ATLAS_SIZE);
         // Targets may extend past the screen area, so only their sizes are
         // bounded (against garbage values, not any real layout limit).
-        assert_int_in_range(targets[i].w, 1, 10000);
-        assert_int_in_range(targets[i].h, 1, 10000);
+        assert_double_in_range(targets[i].w, 1, 10000);
+        assert_double_in_range(targets[i].h, 1, 10000);
     }
 }
 
@@ -147,8 +148,8 @@ static void test_srt_subtitle_renders(void **state) {
     open_subtitle_fixture(f, SRT_FILE);
 
     // Act
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     const int got = pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
 
     // Assert
@@ -168,8 +169,8 @@ static void test_ass_subtitle_renders(void **state) {
     open_subtitle_fixture(f, ASS_FILE);
 
     // Act
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     const int got = pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
 
     // Assert
@@ -190,8 +191,8 @@ static void test_image_subtitle_renders(void **state) {
     open_subtitle_fixture(f, IMAGE_FILE);
 
     // Act
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     const int got = pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
 
     // Assert
@@ -211,8 +212,8 @@ static void test_image_subtitle_screen_resize(void **state) {
     // Arrange: get the cue on screen first.
     open_subtitle_fixture(f, IMAGE_FILE);
 
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     const int got_before =
         pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
     assert_true(got_before > 0);
@@ -238,12 +239,12 @@ static void test_subtitle_screen_resize(void **state) {
     // Arrange: render one cue at the original screen size.
     open_subtitle_fixture(f, SRT_FILE);
 
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     const int got_before =
         pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
     assert_true(got_before > 0);
-    const SDL_Rect target_before = targets[0];
+    const SDL_FRect target_before = targets[0];
 
     // Act
     Kit_SetPlayerScreenSize(f->player, SCREEN_W * 2, SCREEN_H * 2);
@@ -255,7 +256,7 @@ static void test_subtitle_screen_resize(void **state) {
     for(int i = 0; i < PUMP_ITERS && !changed; i++) {
         Kit_GetPlayerVideoSDLTexture(f->player, f->video_tex, NULL);
         const int got_after = Kit_GetPlayerSubtitleSDLTexture(f->player, f->sub_tex, sources, targets, RECT_LIMIT);
-        if(got_after > 0 && memcmp(&targets[0], &target_before, sizeof(SDL_Rect)) != 0)
+        if(got_after > 0 && memcmp(&targets[0], &target_before, sizeof(SDL_FRect)) != 0)
             changed = true;
         else
             SDL_Delay(PUMP_DELAY_MS);
@@ -314,8 +315,8 @@ static void test_font_attachment_subtitle(void **state) {
     open_subtitle_fixture(f, FONT_FILE);
 
     // Act
-    SDL_Rect sources[RECT_LIMIT];
-    SDL_Rect targets[RECT_LIMIT];
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
     const int got = pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
 
     // Assert

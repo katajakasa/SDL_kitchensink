@@ -309,8 +309,8 @@ static void test_close_subtitle_stream_mid_play(void **state) {
 
     // Act: pump until subtitle rects appear, confirming subtitles are
     // actually active before closing the stream.
-    SDL_Rect sources[16];
-    SDL_Rect targets[16];
+    SDL_FRect sources[16];
+    SDL_FRect targets[16];
     const int got = pump_until_subtitle_rects(ts->player, ts->video_tex, ts->sub_tex, sources, targets, 16);
     assert_true(got > 0);
 
