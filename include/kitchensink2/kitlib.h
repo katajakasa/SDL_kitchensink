@@ -68,7 +68,7 @@ KIT_API int Kit_Init(unsigned int flags);
  *
  * Note that any calls to library functions after this will cause undefined behaviour!
  */
-KIT_API void Kit_Quit();
+KIT_API void Kit_Quit(void);
 
 /**
  * @brief Can be used to fetch the version of the linked SDL_kitchensink library

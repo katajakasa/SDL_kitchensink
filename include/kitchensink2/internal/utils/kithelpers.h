@@ -18,7 +18,7 @@
  *
  * @return Current time in seconds, as a fractional value derived from av_gettime_relative()
  */
-KIT_LOCAL double Kit_GetSystemTime();
+KIT_LOCAL double Kit_GetSystemTime(void);
 
 /**
  * @brief Checks whether an attachment stream is a font attachment usable for subtitle rendering.

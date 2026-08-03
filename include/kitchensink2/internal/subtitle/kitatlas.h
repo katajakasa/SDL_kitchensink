@@ -52,7 +52,7 @@ typedef struct Kit_TextureAtlas {
  *
  * @return newly allocated atlas, or NULL on allocation failure
  */
-KIT_LOCAL Kit_TextureAtlas *Kit_CreateAtlas();
+KIT_LOCAL Kit_TextureAtlas *Kit_CreateAtlas(void);
 
 /**
  * @brief Frees an atlas and its item/shelf storage.

@@ -28,6 +28,6 @@ typedef struct Kit_LibraryState {
  *
  * @return Pointer to the static Kit_LibraryState instance (never NULL)
  */
-KIT_LOCAL Kit_LibraryState *Kit_GetLibraryState();
+KIT_LOCAL Kit_LibraryState *Kit_GetLibraryState(void);
 
 #endif // KITLIBSTATE_H

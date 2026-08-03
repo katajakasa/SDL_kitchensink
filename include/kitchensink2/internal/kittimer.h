@@ -25,7 +25,7 @@ typedef struct Kit_Timer Kit_Timer;
  *
  * @return New timer, or NULL on allocation failure (see Kit_GetError())
  */
-KIT_LOCAL Kit_Timer *Kit_CreateTimer();
+KIT_LOCAL Kit_Timer *Kit_CreateTimer(void);
 /**
  * @brief Creates a new timer handle sharing src's underlying value (increments its refcount).
  *

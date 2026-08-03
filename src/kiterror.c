@@ -45,7 +45,7 @@ static Kit_ErrorState *Kit_GetErrorState(void) {
     return state;
 }
 
-const char *Kit_GetError() {
+const char *Kit_GetError(void) {
     Kit_ErrorState *state = Kit_GetErrorState();
     if(state != NULL && state->available) {
         state->available = false;
@@ -66,7 +66,7 @@ void Kit_SetError(const char *fmt, ...) {
     state->available = true;
 }
 
-void Kit_ClearError() {
+void Kit_ClearError(void) {
     Kit_ErrorState *state = Kit_GetErrorState();
     if(state == NULL)
         return;
