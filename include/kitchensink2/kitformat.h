@@ -16,8 +16,6 @@ extern "C" {
 
 #include "kitchensink2/kitconfig.h"
 
-#define KIT_MAX_HW_DEVICES 32
-
 /**
  * @brief Hardware decoder device types
  *
