@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <kitchensink3/kitchensink.h>
 
 #include "example_common.h"
@@ -34,14 +34,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Open file with fopen. We then proceed to read this with our custom file handlers.
-    SDL_RWops *rw_ops = SDL_RWFromFile(filename, "rb");
-    if(rw_ops == NULL) {
+    SDL_IOStream *io_stream = SDL_IOFromFile(filename, "rb");
+    if(io_stream == NULL) {
         fprintf(stderr, "Unable to open file '%s' for reading\n", filename);
         return 1;
     }
 
-    // Open up the SDL RWops source
-    Kit_Source *src = Kit_CreateSourceFromRW(rw_ops);
+    // Open up the SDL IOStream source
+    Kit_Source *src = Kit_CreateSourceFromIO(io_stream);
     if(src == NULL) {
         fprintf(stderr, "Unable to load file '%s': %s\n", filename, Kit_GetError());
         return 1;
@@ -79,16 +79,15 @@ int main(int argc, char *argv[]) {
     }
 
     // Init audio
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = pinfo.audio_format.sample_rate;
-    wanted_spec.format = pinfo.audio_format.format;
-    wanted_spec.channels = Kit_GetChannelLayoutCount(pinfo.audio_format.layout);
-    const SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
-    SDL_PauseAudioDevice(audio_dev, 0);
+    SDL_AudioSpec audio_spec;
+    SDL_memset(&audio_spec, 0, sizeof(audio_spec));
+    audio_spec.freq = pinfo.audio_format.sample_rate;
+    audio_spec.format = pinfo.audio_format.format;
+    audio_spec.channels = Kit_GetChannelLayoutCount(pinfo.audio_format.layout);
+    SDL_AudioStream *audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
+    SDL_ResumeAudioStreamDevice(audio_stream);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
     SDL_Texture *video_tex = SDL_CreateTexture(
         renderer,
         pinfo.video_format.format,
@@ -100,15 +99,16 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error while attempting to create a video texture\n");
         return 1;
     }
+    SDL_SetTextureScaleMode(video_tex, SDL_SCALEMODE_LINEAR);
 
     // This is the subtitle texture atlas. This contains all the subtitle image fragments.
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Always nearest for atlas operations
     SDL_Texture *subtitle_tex =
         SDL_CreateTexture(renderer, pinfo.subtitle_format.format, SDL_TEXTUREACCESS_STATIC, ATLAS_WIDTH, ATLAS_HEIGHT);
     if(subtitle_tex == NULL) {
         fprintf(stderr, "Error while attempting to create a subtitle texture atlas\n");
         return 1;
     }
+    SDL_SetTextureScaleMode(subtitle_tex, SDL_SCALEMODE_NEAREST); // Always nearest for atlas operations
 
     // Make sure subtitle texture is in correct blending mode
     SDL_SetTextureBlendMode(subtitle_tex, SDL_BLENDMODE_BLEND);
@@ -126,7 +126,9 @@ int main(int argc, char *argv[]) {
     SDL_Rect targets[ATLAS_MAX];
 
     // Get movie area size
-    SDL_RenderSetLogicalSize(renderer, pinfo.video_format.width, pinfo.video_format.height);
+    SDL_SetRenderLogicalPresentation(
+        renderer, pinfo.video_format.width, pinfo.video_format.height, SDL_LOGICAL_PRESENTATION_LETTERBOX
+    );
     bool run = true;
     while(run) {
         if(Kit_GetPlayerState(player) == KIT_STOPPED) {
@@ -137,20 +139,20 @@ int main(int argc, char *argv[]) {
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     run = false;
                     break;
-                case SDL_KEYUP:
-                    if(event.key.keysym.sym == SDLK_RIGHT)
+                case SDL_EVENT_KEY_UP:
+                    if(event.key.key == SDLK_RIGHT)
                         Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) + 10);
-                    if(event.key.keysym.sym == SDLK_LEFT)
+                    if(event.key.key == SDLK_LEFT)
                         Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) - 10);
                     break;
             }
         }
 
         // Refresh audio
-        const int queued = SDL_GetQueuedAudioSize(audio_dev);
+        const int queued = SDL_GetAudioStreamQueued(audio_stream);
         if(queued < AUDIO_BUFFER_SIZE) {
             int need = AUDIO_BUFFER_SIZE - queued;
 
@@ -158,26 +160,25 @@ int main(int argc, char *argv[]) {
                 const int ret = Kit_GetPlayerAudioData(player, queued, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE);
                 need -= ret;
                 if(ret > 0) {
-                    SDL_QueueAudio(audio_dev, audio_buf, ret);
+                    SDL_PutAudioStreamData(audio_stream, audio_buf, ret);
                 } else {
                     break;
                 }
-            }
-            // If we now have data, start playback (again)
-            if(SDL_GetQueuedAudioSize(audio_dev) > 0) {
-                SDL_PauseAudioDevice(audio_dev, 0);
             }
         }
 
         // Refresh video texture and render it
         Kit_GetPlayerVideoSDLTexture(player, video_tex, NULL);
-        SDL_RenderCopy(renderer, video_tex, NULL, NULL);
+        SDL_RenderTexture(renderer, video_tex, NULL, NULL);
 
         // Refresh subtitle texture atlas and render subtitle frames from it
         // For subtitles, use screen size instead of video size for best quality
         const int got = Kit_GetPlayerSubtitleSDLTexture(player, subtitle_tex, sources, targets, ATLAS_MAX);
         for(int i = 0; i < got; i++) {
-            SDL_RenderCopy(renderer, subtitle_tex, &sources[i], &targets[i]);
+            SDL_FRect src_rect, dst_rect;
+            SDL_RectToFRect(&sources[i], &src_rect);
+            SDL_RectToFRect(&targets[i], &dst_rect);
+            SDL_RenderTexture(renderer, subtitle_tex, &src_rect, &dst_rect);
         }
 
         // Render to screen + wait for vsync
@@ -186,12 +187,12 @@ int main(int argc, char *argv[]) {
 
     Kit_ClosePlayer(player);
     Kit_CloseSource(src);
-    SDL_RWclose(rw_ops);
+    SDL_CloseIO(io_stream);
     Kit_Quit();
 
     SDL_DestroyTexture(subtitle_tex);
     SDL_DestroyTexture(video_tex);
-    SDL_CloseAudioDevice(audio_dev);
+    SDL_DestroyAudioStream(audio_stream);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

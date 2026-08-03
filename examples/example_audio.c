@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <kitchensink3/kitchensink.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     // left at its Kit_ResetAudioFormatRequest() default to keep the source value.
     Kit_AudioFormatRequest audio_request;
     Kit_ResetAudioFormatRequest(&audio_request);
-    audio_request.format = AUDIO_S16SYS;
+    audio_request.format = SDL_AUDIO_S16;
     audio_request.is_signed = 1;
     audio_request.bytes = 2;
     audio_request.sample_rate = 48000;
@@ -101,13 +101,13 @@ int main(int argc, char *argv[]) {
     );
 
     // Init audio
-    SDL_AudioSpec wanted_spec, audio_spec;
-    SDL_memset(&wanted_spec, 0, sizeof(wanted_spec));
-    wanted_spec.freq = player_info.audio_format.sample_rate;
-    wanted_spec.format = player_info.audio_format.format;
-    wanted_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-    const SDL_AudioDeviceID audio_dev = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &audio_spec, 0);
-    SDL_PauseAudioDevice(audio_dev, 0);
+    SDL_AudioSpec audio_spec;
+    SDL_memset(&audio_spec, 0, sizeof(audio_spec));
+    audio_spec.freq = player_info.audio_format.sample_rate;
+    audio_spec.format = player_info.audio_format.format;
+    audio_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
+    SDL_AudioStream *audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
+    SDL_ResumeAudioStreamDevice(audio_stream);
 
     // Flush output just in case
     fflush(stderr);
@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     run = false;
                     break;
             }
@@ -154,10 +154,10 @@ int main(int argc, char *argv[]) {
         // Fetch as many audio samples as the decoder is willing to give.
         int queued, ret;
         do {
-            queued = SDL_GetQueuedAudioSize(audio_dev);
+            queued = SDL_GetAudioStreamQueued(audio_stream);
             ret = Kit_GetPlayerAudioData(player, UINT_MAX, (unsigned char *)audio_buf, AUDIO_BUFFER_SIZE - queued);
             if(ret > 0) {
-                SDL_QueueAudio(audio_dev, audio_buf, ret);
+                SDL_PutAudioStreamData(audio_stream, audio_buf, ret);
             }
         } while(ret > 0 && queued < AUDIO_BUFFER_SIZE);
 
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
     Kit_CloseSource(src);
     Kit_Quit();
 
-    SDL_CloseAudioDevice(audio_dev);
+    SDL_DestroyAudioStream(audio_stream);
     SDL_Quit();
     return 0;
 }

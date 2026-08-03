@@ -1,5 +1,5 @@
-#include <SDL.h>
-#include <SDL_opengl.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #include <kitchensink3/kitchensink.h>
 #include <math.h>
 #include <stdbool.h>
@@ -196,18 +196,17 @@ int main(int argc, char *argv[]) {
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             switch(event.type) {
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     run = false;
                     break;
-                case SDL_KEYUP:
-                    if(event.key.keysym.sym == SDLK_RIGHT)
+                case SDL_EVENT_KEY_UP:
+                    if(event.key.key == SDLK_RIGHT)
                         Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) + 10);
-                    if(event.key.keysym.sym == SDLK_LEFT)
+                    if(event.key.key == SDLK_LEFT)
                         Kit_PlayerSeek(player, Kit_GetPlayerPosition(player) - 10);
                     break;
-                case SDL_WINDOWEVENT:
-                    if(event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-                        set_perspective(event.window.data1, event.window.data2);
+                case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+                    set_perspective(event.window.data1, event.window.data2);
                     break;
                 default:;
             }
@@ -250,7 +249,7 @@ int main(int argc, char *argv[]) {
     Kit_Quit();
 
     glDeleteTextures(1, &video_tex);
-    SDL_GL_DeleteContext(gl_ctx);
+    SDL_GL_DestroyContext(gl_ctx);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;

@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <kitchensink3/kitchensink.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -156,9 +156,8 @@ int main(int argc, char *argv[]) {
 
             // Use SDL_Surfaces for simple blitting. Since we know that the source data is RGB24 - as we told Kit
             // to convert it - we can just declare the data as RGB24 here.
-            SDL_Surface *pic = SDL_CreateRGBSurfaceWithFormatFrom(
-                frame_data[0], area.w, area.h, 24, frame_line_size[0], SDL_PIXELFORMAT_RGB24
-            );
+            SDL_Surface *pic =
+                SDL_CreateSurfaceFrom(area.w, area.h, SDL_PIXELFORMAT_RGB24, frame_data[0], frame_line_size[0]);
 
             // Fetch and render subtitles on top of the image frame
             const int subtitle_frames =
@@ -167,11 +166,10 @@ int main(int argc, char *argv[]) {
                 for(int i = 0; i < subtitle_frames; i++) {
                     const SDL_Rect *s = &source_rects[i];
                     SDL_Rect *t = &target_rects[i];
-                    SDL_Surface *frame = SDL_CreateRGBSurfaceWithFormatFrom(
-                        subtitle_data[i], s->w, s->h, 32, s->w * 4, SDL_PIXELFORMAT_RGBA32
-                    );
-                    SDL_BlitScaled(frame, s, pic, t);
-                    SDL_FreeSurface(frame);
+                    SDL_Surface *frame =
+                        SDL_CreateSurfaceFrom(s->w, s->h, SDL_PIXELFORMAT_RGBA32, subtitle_data[i], s->w * 4);
+                    SDL_BlitSurfaceScaled(frame, s, pic, t, SDL_SCALEMODE_LINEAR);
+                    SDL_DestroySurface(frame);
                 }
             }
 
@@ -189,7 +187,7 @@ int main(int argc, char *argv[]) {
             );
 
             // We are done with data. Unlock the video output. This invalidates the data and line_size pointers!
-            SDL_FreeSurface(pic);
+            SDL_DestroySurface(pic);
             Kit_UnlockPlayerVideoRawFrame(player);
             frame_index++;
         }
