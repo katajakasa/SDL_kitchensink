@@ -22,7 +22,7 @@ extern "C" {
  * Used as a bitmask in Kit_VideoFormatRequest.hw_device_types to limit which hardware
  * decoders may be used.
  */
-typedef enum
+typedef enum Kit_HardwareDeviceType
 {
     KIT_HWDEVICE_TYPE_NONE = 0,
     KIT_HWDEVICE_TYPE_VDPAU = 0x1,
