@@ -8,6 +8,7 @@
 #include "kitchensink2/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink2/internal/subtitle/renderers/kitsubimage.h"
 #include "kitchensink2/internal/utils/kitalloc.h"
+#include "kitchensink2/internal/utils/kithelpers.h"
 #include "kitchensink2/kiterror.h"
 
 typedef struct Kit_ImageSubtitleRenderer {
@@ -25,13 +26,41 @@ typedef struct Kit_ImageSubtitleRenderer {
     unsigned int cached_items_size;
 } Kit_ImageSubtitleRenderer;
 
+/**
+ * Converts a paletted bitmap subtitle rect to an RGBA8888 surface.
+ */
+static SDL_Surface *Kit_ConvertBitmapRect(const AVSubtitleRect *r) {
+    SDL_Surface *src;
+    SDL_Surface *dst = NULL;
+    SDL_PixelFormat *palette_format;
+    const Uint32 *palette_values = (const Uint32 *)r->data[1];
+    const int color_count = Kit_clamp(r->nb_colors, 0, 256);
+    SDL_Color colors[256];
+
+    if((palette_format = SDL_AllocFormat(SDL_PIXELFORMAT_ARGB8888)) == NULL)
+        return NULL;
+    for(int c = 0; c < color_count; c++)
+        SDL_GetRGBA(palette_values[c], palette_format, &colors[c].r, &colors[c].g, &colors[c].b, &colors[c].a);
+    SDL_FreeFormat(palette_format);
+
+    if((src = SDL_CreateRGBSurfaceWithFormatFrom(r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8)
+       ) == NULL)
+        return NULL;
+    if(SDL_SetPaletteColors(src->format->palette, colors, 0, color_count) != 0)
+        goto exit_0;
+    dst = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_RGBA32, 0);
+
+exit_0:
+    SDL_FreeSurface(src);
+    return dst;
+}
+
 static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, double pts, double start, double end) {
     assert(renderer != NULL);
     assert(sub_src != NULL);
 
     Kit_ImageSubtitleRenderer *image_renderer = renderer->userdata;
     const AVSubtitle *sub = sub_src;
-    SDL_Surface *tmp = NULL;
     SDL_Surface *dst = NULL;
     const double start_pts = pts + start;
     const double end_pts = pts + end;
@@ -49,12 +78,8 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
         r = sub->rects[n];
         if(r->type != SUBTITLE_BITMAP)
             continue;
-
-        tmp = SDL_CreateRGBSurfaceWithFormatFrom(r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8);
-        SDL_SetPaletteColors(tmp->format->palette, (SDL_Color *)r->data[1], 0, 256);
-        dst = SDL_CreateRGBSurfaceWithFormat(0, r->w, r->h, 32, SDL_PIXELFORMAT_RGBA32);
-        SDL_BlitSurface(tmp, NULL, dst, NULL);
-        SDL_FreeSurface(tmp);
+        if((dst = Kit_ConvertBitmapRect(r)) == NULL)
+            continue; // Skip this rect if conversion fails
 
         // Create a new packet and write it to output buffer
         Kit_SetSubtitlePacketData(image_renderer->in_packet, false, start_pts, end_pts, r->x, r->y, dst);
