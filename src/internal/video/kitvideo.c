@@ -110,7 +110,8 @@ static Kit_DecoderInputResult dec_input_video_cb(const Kit_Decoder *decoder, con
 static bool dec_decode_video_cb(const Kit_Decoder *decoder, double *pts) {
     assert(decoder);
     Kit_VideoDecoder *video_decoder = decoder->userdata;
-    int ret = KIT_FAULT_WRAP_CODE("decode_receive", avcodec_receive_frame(decoder->codec_ctx, video_decoder->tmp_frame));
+    int ret =
+        KIT_FAULT_WRAP_CODE("decode_receive", avcodec_receive_frame(decoder->codec_ctx, video_decoder->tmp_frame));
     if(ret == 0) {
         // Process the temporary frame, and then make sure result is in in_frame.
         // If the frame is hardware frame, we need to pull it from the hardware device first!

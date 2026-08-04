@@ -119,9 +119,9 @@ typedef struct Kit_SubtitleOutputFormat {
  */
 typedef struct Kit_VideoOutputFormat {
     Kit_HardwareDeviceType hw_device_type; ///< Hardware decoder in use, KIT_HWDEVICE_TYPE_NONE if disabled.
-    unsigned int format;         ///< SDL_PixelFormat for surface format description
-    int width;                   ///< Width in pixels
-    int height;                  ///< Height in pixels
+    unsigned int format;                   ///< SDL_PixelFormat for surface format description
+    int width;                             ///< Width in pixels
+    int height;                            ///< Height in pixels
 } Kit_VideoOutputFormat;
 
 /**

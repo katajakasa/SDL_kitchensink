@@ -33,8 +33,8 @@ static void dec_read_subtitle(const Kit_Decoder *decoder, int64_t packet_pts) {
     if(subtitle_decoder->scratch_frame.end_display_time == UINT_MAX)
         subtitle_decoder->scratch_frame.end_display_time = 30000;
 
-    const double start = subtitle_decoder->scratch_frame.start_display_time / 1000.0F;
-    const double end = subtitle_decoder->scratch_frame.end_display_time / 1000.0F;
+    const double start = subtitle_decoder->scratch_frame.start_display_time / 1000.0;
+    const double end = subtitle_decoder->scratch_frame.end_display_time / 1000.0;
 
     // Create a packet. This should be filled by renderer.
     Kit_RunSubtitleRenderer(subtitle_decoder->renderer, &subtitle_decoder->scratch_frame, pts, start, end);
