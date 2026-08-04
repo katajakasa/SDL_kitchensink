@@ -8,6 +8,7 @@
 #include "kitchensink3/internal/subtitle/kitsubtitlepacket.h"
 #include "kitchensink3/internal/subtitle/renderers/kitsubimage.h"
 #include "kitchensink3/internal/utils/kitalloc.h"
+#include "kitchensink3/internal/utils/kithelpers.h"
 #include "kitchensink3/kiterror.h"
 
 typedef struct Kit_ImageSubtitleRenderer {
@@ -25,13 +26,42 @@ typedef struct Kit_ImageSubtitleRenderer {
     unsigned int cached_items_size;
 } Kit_ImageSubtitleRenderer;
 
+/**
+ * Converts a paletted bitmap subtitle rect to an RGBA8888 surface.
+ */
+static SDL_Surface *Kit_ConvertBitmapRect(const AVSubtitleRect *r) {
+    SDL_Surface *src;
+    SDL_Surface *dst = NULL;
+    SDL_Palette *palette;
+    const SDL_PixelFormatDetails *palette_format;
+    const Uint32 *palette_values = (const Uint32 *)r->data[1];
+    const int color_count = Kit_clamp(r->nb_colors, 0, 256);
+    SDL_Color colors[256];
+
+    if((palette_format = SDL_GetPixelFormatDetails(SDL_PIXELFORMAT_ARGB8888)) == NULL)
+        return NULL;
+    for(int c = 0; c < color_count; c++)
+        SDL_GetRGBA(palette_values[c], palette_format, NULL, &colors[c].r, &colors[c].g, &colors[c].b, &colors[c].a);
+
+    if((src = SDL_CreateSurfaceFrom(r->w, r->h, SDL_PIXELFORMAT_INDEX8, r->data[0], r->linesize[0])) == NULL)
+        return NULL;
+    if((palette = SDL_CreateSurfacePalette(src)) == NULL)
+        goto exit_0;
+    if(!SDL_SetPaletteColors(palette, colors, 0, color_count))
+        goto exit_0;
+    dst = SDL_ConvertSurface(src, SDL_PIXELFORMAT_RGBA32);
+
+exit_0:
+    SDL_DestroySurface(src);
+    return dst;
+}
+
 static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, double pts, double start, double end) {
     assert(renderer != NULL);
     assert(sub_src != NULL);
 
     Kit_ImageSubtitleRenderer *image_renderer = renderer->userdata;
     const AVSubtitle *sub = sub_src;
-    SDL_Surface *tmp = NULL;
     SDL_Surface *dst = NULL;
     const double start_pts = pts + start;
     const double end_pts = pts + end;
@@ -49,12 +79,8 @@ static void ren_render_image_cb(Kit_SubtitleRenderer *renderer, void *sub_src, d
         r = sub->rects[n];
         if(r->type != SUBTITLE_BITMAP)
             continue;
-
-        tmp = SDL_CreateSurfaceFrom(r->w, r->h, SDL_PIXELFORMAT_INDEX8, r->data[0], r->linesize[0]);
-        SDL_SetPaletteColors(SDL_CreateSurfacePalette(tmp), (SDL_Color *)r->data[1], 0, 256);
-        dst = SDL_CreateSurface(r->w, r->h, SDL_PIXELFORMAT_RGBA32);
-        SDL_BlitSurface(tmp, NULL, dst, NULL);
-        SDL_DestroySurface(tmp);
+        if((dst = Kit_ConvertBitmapRect(r)) == NULL)
+            continue; // Skip this rect if conversion fails
 
         // Create a new packet and write it to output buffer
         Kit_SetSubtitlePacketData(image_renderer->in_packet, false, start_pts, end_pts, r->x, r->y, dst);

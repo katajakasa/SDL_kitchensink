@@ -203,6 +203,43 @@ static void test_image_subtitle_renders(void **state) {
 }
 
 /**
+ * @brief The bitmap cue in subtitled_image.mkv is a solid opaque red (#ff0000) rectangle
+ * (see test-data/src/make_vobsub.py), and it must still be red after the palette
+ * conversion in kitsubimage.c. Guards against reading FFmpeg's native-endian ARGB
+ * palette words as byte-ordered SDL_Color fields, which swaps red and blue on
+ * little-endian (issue #120).
+ */
+static void test_image_subtitle_colors(void **state) {
+    SubtitleFixture *f = *state;
+
+    // Arrange
+    open_subtitle_fixture(f, IMAGE_FILE);
+
+    SDL_FRect sources[RECT_LIMIT];
+    SDL_FRect targets[RECT_LIMIT];
+    const int got = pump_until_subtitle_rects(f->player, f->video_tex, f->sub_tex, sources, targets, RECT_LIMIT);
+    assert_true(got > 0);
+
+    // Act: draw the first cue fragment 1:1 into the top-left corner of the
+    // screen surface and sample the pixel at its center.
+    const SDL_FRect dst = {0, 0, sources[0].w, sources[0].h};
+    assert_true(SDL_SetRenderDrawColor(f->renderer, 0, 0, 0, 255));
+    assert_true(SDL_RenderClear(f->renderer));
+    assert_true(SDL_RenderTexture(f->renderer, f->sub_tex, &sources[0], &dst));
+    assert_true(SDL_RenderPresent(f->renderer));
+
+    // Assert
+    Uint8 r, g, b, a;
+    assert_true(SDL_ReadSurfacePixel(f->screen, (int)dst.w / 2, (int)dst.h / 2, &r, &g, &b, &a));
+    assert_int_equal(r, 0xFF);
+    assert_int_equal(g, 0x00);
+    assert_int_equal(b, 0x00);
+    assert_int_equal(a, 0xFF);
+
+    close_subtitle_fixture(f);
+}
+
+/**
  * @brief Kit_SetPlayerScreenSize() on an image-subtitle player recomputes scaling without
  * crashing and keeps returning sane rects (guards the div-by-zero fix in ren_set_img_size_cb).
  */
@@ -331,6 +368,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_srt_subtitle_renders, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_ass_subtitle_renders, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_image_subtitle_renders, test_setup, test_teardown),
+        cmocka_unit_test_setup_teardown(test_image_subtitle_colors, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_image_subtitle_screen_resize, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_subtitle_screen_resize, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_subtitle_raw_frames, test_setup, test_teardown),
