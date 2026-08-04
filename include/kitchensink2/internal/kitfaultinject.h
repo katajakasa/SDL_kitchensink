@@ -18,11 +18,12 @@
 #define KIT_FAIL_POINT(name) Kit_TestFailPoint(name)
 #define KIT_FAIL_POINT_CODE(name, errp) Kit_TestFailPointCode(name, errp)
 
-// CODE form substitutes the armed error code for an int-returning call; PTR form substitutes NULL for a pointer-returning call.
-// Both evaluate call at most once; CODE form is GCC/Clang-only (statement expression).
-#define KIT_FAULT_WRAP_CODE(name, call) __extension__ ({ \
-        int kit_fw_err_ = 0; \
-        KIT_FAIL_POINT_CODE(name, &kit_fw_err_) ? kit_fw_err_ : (call); \
+// CODE form substitutes the armed error code for an int-returning call; PTR form substitutes NULL for a
+// pointer-returning call. Both evaluate call at most once; CODE form is GCC/Clang-only (statement expression).
+#define KIT_FAULT_WRAP_CODE(name, call)                                                                               \
+    __extension__({                                                                                                   \
+        int kit_fw_err_ = 0;                                                                                          \
+        KIT_FAIL_POINT_CODE(name, &kit_fw_err_) ? kit_fw_err_ : (call);                                               \
     })
 #define KIT_FAULT_WRAP_PTR(name, call) (KIT_FAIL_POINT(name) ? NULL : (call))
 

@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
 
 #include <SDL_mutex.h>
@@ -51,14 +52,14 @@ static void ren_render_ass_cb(Kit_SubtitleRenderer *renderer, void *src, double 
 
     // Read incoming subtitle packets to libASS
     SDL_LockMutex(ass_renderer->decoder_lock);
-    const long long start_ms = (start + pts) * 1000;
-    const long long end_ms = end * 1000;
+    const long long start_ms = llrint((start + pts) * 1000);
+    const long long duration_ms = llrint((end - start) * 1000);
     for(int r = 0; r < sub->num_rects; r++) {
         if(sub->rects[r]->ass == NULL)
             continue;
 
         // This requires the sub_text_format codec_opt set for ffmpeg
-        ass_process_chunk(ass_renderer->track, sub->rects[r]->ass, strlen(sub->rects[r]->ass), start_ms, end_ms);
+        ass_process_chunk(ass_renderer->track, sub->rects[r]->ass, strlen(sub->rects[r]->ass), start_ms, duration_ms);
     }
     SDL_UnlockMutex(ass_renderer->decoder_lock);
 }

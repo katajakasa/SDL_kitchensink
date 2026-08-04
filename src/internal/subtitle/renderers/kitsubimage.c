@@ -43,8 +43,8 @@ static SDL_Surface *Kit_ConvertBitmapRect(const AVSubtitleRect *r) {
         SDL_GetRGBA(palette_values[c], palette_format, &colors[c].r, &colors[c].g, &colors[c].b, &colors[c].a);
     SDL_FreeFormat(palette_format);
 
-    if((src = SDL_CreateRGBSurfaceWithFormatFrom(r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8)
-       ) == NULL)
+    if((src = SDL_CreateRGBSurfaceWithFormatFrom(r->data[0], r->w, r->h, 8, r->linesize[0], SDL_PIXELFORMAT_INDEX8)) ==
+       NULL)
         return NULL;
     if(SDL_SetPaletteColors(src->format->palette, colors, 0, color_count) != 0)
         goto exit_0;
