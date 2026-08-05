@@ -242,7 +242,7 @@ KIT_API int Kit_GetBestSourceStream(const Kit_Source *src, const Kit_StreamType 
  * open the source using the player, and use Kit_GetPlayerDuration() instead.
  *
  * @param src Source to query from
- * @return Duration of the source in seconds. May be negative if the duration is unknown.
+ * @return Duration of the source in seconds, or -1 if the duration is unknown.
  */
 KIT_API double Kit_GetSourceDuration(const Kit_Source *src);
 

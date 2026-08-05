@@ -271,7 +271,10 @@ int Kit_GetSourceStreamCount(const Kit_Source *src) {
 
 double Kit_GetSourceDuration(const Kit_Source *src) {
     assert(src != NULL);
-    return ((AVFormatContext *)src->format_ctx)->duration / (double)AV_TIME_BASE;
+    const int64_t duration = ((AVFormatContext *)src->format_ctx)->duration;
+    if(duration == AV_NOPTS_VALUE)
+        return -1.0;
+    return duration / (double)AV_TIME_BASE;
 }
 
 int Kit_GetSourceStreamList(const Kit_Source *src, const Kit_StreamType type, int *list, int size) {
