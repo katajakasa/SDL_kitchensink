@@ -5,7 +5,7 @@
  * lookups.
  *
  * Needs the generated fixtures under KIT_TEST_DATA_DIR (video_audio.mp4,
- * many_subs.mkv, audio_first.mkv); see tests/CMakeLists.txt.
+ * many_subs.mkv, audio_first.mkv, no_duration.h264); see tests/CMakeLists.txt.
  *
  * @author Tuomas Virtanen
  * @copyright Tuomas Virtanen; MIT license (see LICENSE)
@@ -27,6 +27,7 @@
 #define VIDEO_AUDIO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
 #define MANY_SUBS_FILE KIT_TEST_DATA_DIR "/many_subs.mkv"
 #define AUDIO_FIRST_FILE KIT_TEST_DATA_DIR "/audio_first.mkv"
+#define NO_DURATION_FILE KIT_TEST_DATA_DIR "/no_duration.h264"
 
 /** @brief Per-test resources, heap-allocated by test_setup() and released by test_teardown(),
  * so a mid-test assert failure cannot leak them or cascade into the remaining tests in the
@@ -99,6 +100,24 @@ static void test_source_duration_fractional(void **state) {
 
     // Act / Assert: integer division would yield exactly 2.0, below this range.
     assert_double_in_range(Kit_GetSourceDuration(ts->src), 2.01, 2.04);
+
+    Kit_CloseSource(ts->src);
+    ts->src = NULL;
+}
+
+/**
+ * @brief Kit_GetSourceDuration() reports an unknown duration as exactly -1: a raw elementary
+ * stream has no container duration, which must not leak through as a raw AV_NOPTS_VALUE
+ * division (a garbage value in the billions of negative seconds).
+ */
+static void test_source_duration_unknown(void **state) {
+    TestState *ts = *state;
+    // Arrange
+    ts->src = Kit_CreateSourceFromUrl(NO_DURATION_FILE);
+    assert_non_null(ts->src);
+
+    // Act / Assert
+    assert_double_in_range(Kit_GetSourceDuration(ts->src), -1.0, -1.0);
 
     Kit_CloseSource(ts->src);
     ts->src = NULL;
@@ -275,6 +294,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_open_null_url_fails, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_close_null_source_is_noop, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_source_duration_fractional, test_setup, test_teardown),
+        cmocka_unit_test_setup_teardown(test_source_duration_unknown, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_stream_list, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_next_stream_iteration, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_source_from_io, test_setup, test_teardown),

@@ -360,7 +360,10 @@ static bool Kit_IsRunning(const Kit_Player *player) {
             return true;
     if(!Kit_IsTimerInitialized(player->sync_timer))
         return false;
-    return Kit_GetPlayerPosition(player) < Kit_GetPlayerDuration(player);
+    const double duration = Kit_GetPlayerDuration(player);
+    if(duration < 0)
+        return false;
+    return Kit_GetPlayerPosition(player) < duration;
 }
 
 /**
@@ -916,7 +919,7 @@ int Kit_PlayerSeek(Kit_Player *player, double seek_set) {
     const double duration = Kit_GetPlayerDuration(player);
     if(seek_set <= 0)
         seek_set = 0;
-    if(seek_set >= duration)
+    if(duration >= 0 && seek_set >= duration)
         seek_set = duration;
 
     // Halt the whole pipeline first to avoid race conditions
@@ -949,8 +952,10 @@ double Kit_GetPlayerDuration(const Kit_Player *player) {
 
 double Kit_GetPlayerPosition(const Kit_Player *player) {
     assert(player != NULL);
-    double pos = Kit_GetTimerElapsed(player->sync_timer);
-    double dur = Kit_GetPlayerDuration(player);
+    const double pos = Kit_GetTimerElapsed(player->sync_timer);
+    const double dur = Kit_GetPlayerDuration(player);
+    if(dur < 0)
+        return pos;
     return pos >= dur ? dur : pos;
 }
 

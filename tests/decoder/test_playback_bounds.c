@@ -22,11 +22,13 @@
 
 #include "kitchensink3/kitchensink.h"
 
+#include "kit_assert.h"
 #include "kit_lifecycle.h"
 #include "kit_playback.h"
 
 #define SINGLE_FRAME_FILE KIT_TEST_DATA_DIR "/single_frame.mp4"
 #define SHORT_AUDIO_FILE KIT_TEST_DATA_DIR "/short_audio.m4a"
+#define NO_DURATION_FILE KIT_TEST_DATA_DIR "/no_duration.h264"
 
 /** @brief Per-test resources, heap-allocated by test_setup() and released by test_teardown(),
  * so a mid-test assert failure cannot leak them or let a failed test's live player threads
@@ -246,6 +248,53 @@ static void test_no_silence_past_eof(void **state) {
     ts->src = NULL;
 }
 
+// -- test_unknown_duration_player --------------------------------------
+
+/**
+ * @brief A source with an unknown duration (raw elementary stream) keeps the player API sane:
+ * duration reads as exactly -1, position never turns into a huge garbage value, and a forward
+ * seek is not clamped against the unknown duration. Frame delivery is not asserted -- the
+ * fixture's packets carry no timestamps, so frames cannot sync against the playback clock.
+ */
+static void test_unknown_duration_player(void **state) {
+    TestState *ts = *state;
+
+    // Arrange
+    ts->src = Kit_CreateSourceFromUrl(NO_DURATION_FILE);
+    assert_non_null(ts->src);
+    const int video_index = Kit_GetBestSourceStream(ts->src, KIT_STREAMTYPE_VIDEO);
+    assert_true(video_index >= 0);
+    ts->player = Kit_CreatePlayer(ts->src, video_index, -1, -1, NULL, NULL, 160, 120, NULL);
+    assert_non_null(ts->player);
+
+    // Assert: unknown duration is reported as the -1 sentinel, both before and during playback.
+    assert_double_in_range(Kit_GetPlayerDuration(ts->player), -1.0, -1.0);
+    Kit_PlayerPlay(ts->player);
+    assert_double_in_range(Kit_GetPlayerDuration(ts->player), -1.0, -1.0);
+
+    // Assert: position stays a real clock value instead of collapsing to the (garbage) duration.
+    for(int i = 0; i < 5; i++) {
+        assert_double_in_range(Kit_GetPlayerPosition(ts->player), 0.0, 60.0);
+        SDL_Delay(10);
+    }
+
+    // Act: seek forward; with no known duration the target must not be clamped down.
+    assert_int_equal(Kit_PlayerSeek(ts->player, 0.5), 0);
+
+    // Assert: the player survives the seek with a sane position.
+    assert_int_not_equal(Kit_GetPlayerState(ts->player), KIT_CLOSED);
+    for(int i = 0; i < 5; i++) {
+        assert_double_in_range(Kit_GetPlayerPosition(ts->player), 0.0, 60.0);
+        SDL_Delay(10);
+    }
+
+    Kit_PlayerStop(ts->player);
+    Kit_ClosePlayer(ts->player);
+    ts->player = NULL;
+    Kit_CloseSource(ts->src);
+    ts->src = NULL;
+}
+
 // -- test_single_frame_video -------------------------------------------
 
 /**
@@ -339,6 +388,7 @@ int main(void) {
         cmocka_unit_test_setup_teardown(test_seek_after_eof, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_getters_after_eof, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_no_silence_past_eof, test_setup, test_teardown),
+        cmocka_unit_test_setup_teardown(test_unknown_duration_player, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_single_frame_video, test_setup, test_teardown),
         cmocka_unit_test_setup_teardown(test_short_audio_drains, test_setup, test_teardown),
     };

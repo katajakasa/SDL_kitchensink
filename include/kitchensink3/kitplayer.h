@@ -664,8 +664,9 @@ KIT_API void Kit_PlayerPause(Kit_Player *player);
  * If the player is paused, it will start from the seek position when playback is continued.
  *
  * Out-of-range targets are silently clamped to [0, duration] and the call still reports
- * success. Note also that the actual seek operation runs asynchronously on the demuxer
- * thread; if it fails there, playback simply continues from the old position.
+ * success. If the duration is unknown, only the lower bound is clamped. Note also that the
+ * actual seek operation runs asynchronously on the demuxer thread; if it fails there,
+ * playback simply continues from the old position.
  *
  * This may not work for network or custom sources!
  *
@@ -681,7 +682,7 @@ KIT_API int Kit_PlayerSeek(Kit_Player *player, double time);
  * Returns the duration of the source in seconds
  *
  * @param player Player instance
- * @return Duration
+ * @return Duration in seconds, or -1 if the duration is unknown
  */
 KIT_API double Kit_GetPlayerDuration(const Kit_Player *player);
 

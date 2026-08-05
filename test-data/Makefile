@@ -54,6 +54,7 @@ FIXTURES = \
     $(OUT)/audio_22050.m4a \
     $(OUT)/single_frame.mp4 \
     $(OUT)/short_audio.m4a \
+    $(OUT)/no_duration.h264 \
     $(OUT)/video_vp9.webm \
     $(OUT)/video_10bit.mkv \
     $(OUT)/video_mpeg2.ts \
@@ -216,6 +217,13 @@ $(OUT)/single_frame.mp4: | $(OUT)
 
 $(OUT)/short_audio.m4a: | $(OUT)
 	$(FF) -f lavfi -i sine=frequency=440:duration=0.05 -c:a aac $(BITEXACT) $@
+
+# Raw H.264 elementary stream: no container, so the duration is unknown
+# (AV_NOPTS_VALUE) at both format and stream level, and packets carry no
+# timestamps.
+$(OUT)/no_duration.h264: | $(OUT)
+	$(FF) -f lavfi -i testsrc2=duration=1:size=160x120:rate=25 \
+	    -c:v libx264 -pix_fmt yuv420p -f h264 $(BITEXACT) $@
 
 # Video codec/pixel-format matrix: one fixture per supported codec, pixel
 # format, or odd geometry, for test_video_formats.
