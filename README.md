@@ -17,94 +17,35 @@ Features:
 * Bitmap, text and SSA/ASS subtitle support
 * Video hardware decoding (optionally)
 
-Note! Master branch is for the development of v3.x.x series.
+Note! Master branch is for the development of the v3.x.x series, the first to
+support SDL3. The v2 series (the last to support SDL2) and older series live
+in release branches; see [CONTRIBUTING.md](CONTRIBUTING.md) for the branch
+and support table.
 
-* v3 is under development in master branch, and is the first version to support SDL3.
-* v2 can be found in the release/v2 branch. Bugfixes and new features are accepted / added. Note that v2 of
-  SDL_kitchensink is the last version to support SDL2.
-* v1 can be found in the release/v1 branch. Only smaller bugfixes will be accepted / added.
-* v0 is no longer in development, and no fixes of any kind will be made or accepted.
+## 1. Quickstart
 
-| Version | SDL   | Supported          | Bugfixes           | New features       | Branch     |
-|---------|-------|--------------------|--------------------|--------------------|------------|
-| 3.x.x   | 3.x.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | master     |
-| 2.x.x   | 2.x.x | :white_check_mark: | :white_check_mark: | :white_check_mark: | release/v2 |
-| 1.x.x   | 2.x.x | :white_check_mark: | :white_check_mark: | :x:                | release/v1 |
-| 0.x.x   | 2.x.x | :x:                | :x:                | :x:                | release/v0 |
+On Debian/Ubuntu:
 
-## 1. Library requirements
-
-Build requirements:
-
-* CMake (>=3.10)
-* GCC (C99 support required)
-
-Library requirements:
-
-* SDL3 3.2.0 or newer
-* FFmpeg 5.1 or newer
-* libass (optional, supports runtime linking via SDL_LoadSO)
-
-Note that Clang might work, but is not tested. Older SDL3 and FFmpeg library versions may or may not work; versions
-noted here are the only ones tested.
-
-### 1.1. Debian / Ubuntu
-
-```
-sudo apt-get install libsdl3-dev libavcodec-dev libavformat-dev \
+```sh
+sudo apt-get install cmake ninja-build libsdl3-dev libavcodec-dev libavformat-dev \
     libavutil-dev libswresample-dev libswscale-dev libass-dev
+cmake -GNinja -S. -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+ninja -C build
+sudo ninja -C build install
 ```
 
-### 1.2. MSYS2 64bit
+For other platforms (Arch Linux, MSYS2), CMake options, examples and
+sanitizer builds, see [docs/COMPILING.md](docs/COMPILING.md).
 
-These are for x86_64. For 32bit installation, just change the package names a bit .
+## 2. Development
 
-```
-pacman -S mingw-w64-x86_64-SDL3 mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libass
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how development is organized, and
+the developer docs for details:
 
-## 2. Compiling
-
-By default, both static and dynamic libraries are built.
-
-* Set BUILD_STATIC off if you don't want to build static library
-* Set BUILD_SHARED off if you don't want to build shared library
-* Dynamic library is called libSDL_kitchensink3.dll or .so
-* Static library is called libSDL_kitchensink3.a
-* If you build in debug mode (```-DCMAKE_BUILD_TYPE=Debug```), libraries will be postfixed with 'd'.
-
-Change CMAKE_INSTALL_PREFIX as necessary to change the installation path. The files will be installed to
-
-* CMAKE_INSTALL_PREFIX/lib for libraries (.dll.a, .a, etc.)
-* CMAKE_INSTALL_PREFIX/bin for binaries (.dll, .so)
-* CMAKE_INSTALL_PREFIX/include for headers
-
-### 2.1. Building the libraries on Debian/Ubuntu
-
-1. ```mkdir build && cd build```
-2. ```cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
-3. ```make -j```
-4. ```sudo make install```
-
-### 2.2. Building the libraries on MSYS2
-
-1. ```mkdir build && cd build```
-2. ```cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ..```
-3. ```make```
-4. ```make install```
-
-### 2.3. Building examples
-
-Just add ```-DBUILD_EXAMPLES=1``` to cmake arguments and rebuild.
-
-### 2.4. Building with AddressSanitizer
-
-This is for development/debugging use only!
-
-Make sure llvm is installed, then add ```-DUSE_ASAN=1``` to the cmake arguments and rebuild. Note that ASAN is not
-supported on all OSes (eg. windows).
-
-After building, you should be able to just run the examples and get asan errors.
+* [docs/COMPILING.md](docs/COMPILING.md) -- dependencies, building, CMake options
+* [docs/TESTING.md](docs/TESTING.md) -- test suite, sanitizers, test media
+* [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) -- project structure and internals
+* [docs/STYLE_GUIDE.md](docs/STYLE_GUIDE.md) -- code style and conventions
 
 ## 3. Q&A
 

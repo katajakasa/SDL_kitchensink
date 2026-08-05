@@ -167,7 +167,7 @@ static void test_add_and_get_items(void **state) {
 
 /**
  * @brief A fractional target rect survives the add/get round-trip unrounded, and the returned
- * source rect equals the packed integer region converted to float — subpixel placement must not
+ * source rect equals the packed integer region converted to float -- subpixel placement must not
  * be truncated anywhere in the atlas.
  */
 static void test_fractional_target_roundtrip(void **state) {
