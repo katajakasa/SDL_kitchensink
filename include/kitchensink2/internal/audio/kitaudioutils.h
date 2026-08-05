@@ -43,18 +43,22 @@ KIT_LOCAL void Kit_FindAVChannelLayout(Kit_AudioChannelLayout layout, AVChannelL
 KIT_LOCAL Kit_AudioChannelLayout Kit_FindChannelLayout(const AVChannelLayout *channel_layout);
 
 /**
- * @brief Returns the number of bytes per sample for an FFmpeg sample format.
+ * @brief Returns the bytes per sample of the SDL output format an FFmpeg sample format maps to
+ * (see Kit_FindSDLSampleFormat).
  *
  * @param fmt FFmpeg sample format
- * @return 1 for 8-bit formats, 4 for 32-bit formats, 2 otherwise (default)
+ * @return 1 for 8-bit formats, 4 for 32-bit and 64-bit formats, 2 otherwise (default)
  */
 KIT_LOCAL int Kit_FindBytes(enum AVSampleFormat fmt);
 
 /**
- * @brief Maps an FFmpeg sample format to the matching SDL audio format constant.
+ * @brief Maps an FFmpeg sample format to the closest matching SDL audio format constant.
+ *
+ * The 64-bit formats narrow to their 32-bit SDL equivalent (S64 to AUDIO_S32SYS, DBL to
+ * AUDIO_F32SYS), since SDL has no 64-bit audio formats.
  *
  * @param fmt FFmpeg sample format
- * @return Matching SDL audio format (defaults to AUDIO_S16SYS for anything not 8-bit or 32-bit)
+ * @return Closest matching SDL audio format (defaults to AUDIO_S16SYS for anything without a match)
  */
 KIT_LOCAL int Kit_FindSDLSampleFormat(enum AVSampleFormat fmt);
 
