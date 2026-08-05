@@ -43,7 +43,9 @@ FIXTURES = \
     $(OUT)/many_subs.mkv \
     $(OUT)/audio_s16.wav \
     $(OUT)/audio_f32.wav \
+    $(OUT)/audio_f64.wav \
     $(OUT)/audio_s32.flac \
+    $(OUT)/audio_s64.wav \
     $(OUT)/audio_mp3.mp3 \
     $(OUT)/audio_vorbis.ogg \
     $(OUT)/audio_opus.mka \
@@ -177,8 +179,14 @@ $(OUT)/audio_s16.wav: | $(OUT)
 $(OUT)/audio_f32.wav: | $(OUT)
 	$(FF) -f lavfi -i sine=frequency=440:duration=1 -c:a pcm_f32le $(BITEXACT) $@
 
+$(OUT)/audio_f64.wav: | $(OUT)
+	$(FF) -f lavfi -i sine=frequency=440:duration=1 -c:a pcm_f64le $(BITEXACT) $@
+
 $(OUT)/audio_s32.flac: | $(OUT)
 	$(FF) -f lavfi -i sine=frequency=440:duration=1 -c:a flac -sample_fmt s32 $(BITEXACT) $@
+
+$(OUT)/audio_s64.wav: | $(OUT)
+	$(FF) -f lavfi -i sine=frequency=440:duration=1 -c:a pcm_s64le $(BITEXACT) $@
 
 $(OUT)/audio_mp3.mp3: | $(OUT)
 	$(FF) -f lavfi -i sine=frequency=440:duration=1 -c:a libmp3lame $(BITEXACT) $@
