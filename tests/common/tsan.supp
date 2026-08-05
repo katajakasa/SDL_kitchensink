@@ -1,36 +1,10 @@
 # FFmpeg internals use their own lock-free synchronization that TSan
-# cannot model; races wholly inside FFmpeg libraries are not ours. The
-# system libraries are stripped, so symbol-scoped `race:` entries do not
-# match -- called_from_lib is the only granularity that works. Known cost:
-# a real Kit bug (e.g. an object freed on one thread while another still
-# uses it) is also silenced whenever one of the two racing accesses happens
-# to execute inside a suppressed library, with Kit code only deeper in the
-# stack. To re-audit an entry, delete its line, re-run the suite, and
-# symbolize the reported offsets with addr2line against the debuginfod
-# debuginfo.
-#
-# libavcodec -- investigated 2026-07-26 (suspected Kit_PlayerStop teardown
-# race, ex-TODO item): with this entry removed, every report symbolizes
-# (via debuginfod) to pairs wholly inside h264 frame threading --
-# ff_h264_free_tables under avcodec_flush_buffers vs ff_er_add_slice /
-# h264_frame_start on av:h264 workers. FFmpeg parks workers through an
-# atomic fast path (state == INPUT_READY skips the mutex), and atomics in
-# the uninstrumented system library create no happens-before edge TSan can
-# see, so these are false positives.
-#
-# libavutil / libavformat / libswscale -- audited 2026-08-02 by removing
-# these entries and re-running the suite: hundreds of reports fire, and
-# every racing access pair (frames #0/#1) sits inside the libraries
-# themselves; Kit code appears only deeper in the stacks as the caller.
-# libavutil dominates because it hosts the buffer pools and threading
-# helpers that avcodec's frame-threading workers run on.
-#
-# libswresample -- did not fire in the 2026-08-02 audit run, but audio
-# resampling exercises the same uninstrumented-atomics pattern from the
-# audio decoder thread; kept on the same basis as the entries above.
+# cannot model; races wholly inside FFmpeg libraries are not ours.
 called_from_lib:libavcodec
 called_from_lib:libavformat
 called_from_lib:libavutil
 called_from_lib:libswscale
 called_from_lib:libswresample
 
+# libdbus -- Not out issue, ignore.
+deadlock:libdbus
