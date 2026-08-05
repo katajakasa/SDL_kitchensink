@@ -279,6 +279,10 @@ KIT_API int Kit_GetPlayerSubtitleStream(const Kit_Player *player);
  *
  * Note that this function returns 1 if fill rate IS reached, and 0 if not.
  *
+ * If no pipeline thread is running (playback has not been started, has been stopped, or the
+ * stream has fully ended), the fill levels can never change; the function then returns 1 so
+ * that callers do not wait for data that cannot arrive.
+ *
  * @param player Player instance
  * @param audio_input Audio input packet buffer fill rate (0-100) or -1
  * @param audio_output Audio output frame buffer fill rate (0-100) or -1
@@ -297,6 +301,10 @@ Kit_HasBufferFillRate(const Kit_Player *player, int audio_input, int audio_outpu
  * Timeout argument is used to limit the wait time (in seconds).
  *
  * If the function encountered the timeout, return value is 1. Otherwise 0 (for success).
+ *
+ * Returns 0 without waiting if no pipeline thread is running (playback has not been started,
+ * has been stopped, or the stream has fully ended), since the requested fill level could
+ * then never be reached.
  *
  * @param player Player instance
  * @param audio_input Audio input packet buffer fill rate (0-100) or -1

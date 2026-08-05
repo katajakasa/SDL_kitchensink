@@ -350,15 +350,27 @@ exit_0:
     return NULL;
 }
 
-static bool Kit_IsRunning(const Kit_Player *player) {
+static bool Kit_IsDecoderThreadRunning(const Kit_Player *player, int index) {
+    Kit_LockDecoderCtrl(player, index);
+    Kit_DecoderThread *thread = player->dec_threads[index];
+    const bool alive = thread != NULL && Kit_IsDecoderThreadAlive(thread);
+    Kit_UnlockDecoderCtrl(player, index);
+    return alive;
+}
+
+static bool Kit_IsPipelineAlive(const Kit_Player *player) {
     if(Kit_IsDemuxerThreadAlive(player->demux_thread))
         return true;
-    if(player->dec_threads[KIT_VIDEO_INDEX])
-        if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_VIDEO_INDEX]))
-            return true;
-    if(player->dec_threads[KIT_AUDIO_INDEX])
-        if(Kit_IsDecoderThreadAlive(player->dec_threads[KIT_AUDIO_INDEX]))
-            return true;
+    if(Kit_IsDecoderThreadRunning(player, KIT_VIDEO_INDEX))
+        return true;
+    if(Kit_IsDecoderThreadRunning(player, KIT_AUDIO_INDEX))
+        return true;
+    return false;
+}
+
+static bool Kit_IsRunning(const Kit_Player *player) {
+    if(Kit_IsPipelineAlive(player))
+        return true;
     if(!Kit_IsTimerInitialized(player->sync_timer))
         return false;
     const double duration = Kit_GetPlayerDuration(player);
@@ -722,6 +734,8 @@ SDL_Texture *Kit_CreatePlayerSubtitleSDLTexture(const Kit_Player *player, SDL_Re
 int Kit_HasBufferFillRate(
     const Kit_Player *player, int audio_input, int audio_output, int video_input, int video_output
 ) {
+    if(!Kit_IsPipelineAlive(player))
+        return 1;
     if(video_output != -1 || video_input != -1) {
         unsigned int fl, fc, pl, pc;
         Kit_GetPlayerVideoBufferState(player, &fl, &fc, &pl, &pc);
