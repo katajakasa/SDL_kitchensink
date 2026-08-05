@@ -12,6 +12,8 @@ enum AVSampleFormat Kit_FindAVSampleFormat(int format)
             return AV_SAMPLE_FMT_S16;
         case SDL_AUDIO_S32:
             return AV_SAMPLE_FMT_S32;
+        case SDL_AUDIO_F32:
+            return AV_SAMPLE_FMT_FLT;
         default:
             return AV_SAMPLE_FMT_NONE;
     }
@@ -68,6 +70,12 @@ int Kit_FindBytes(enum AVSampleFormat fmt) {
             return 1;
         case AV_SAMPLE_FMT_S32P:
         case AV_SAMPLE_FMT_S32:
+        case AV_SAMPLE_FMT_S64P:
+        case AV_SAMPLE_FMT_S64:
+        case AV_SAMPLE_FMT_FLTP:
+        case AV_SAMPLE_FMT_FLT:
+        case AV_SAMPLE_FMT_DBLP:
+        case AV_SAMPLE_FMT_DBL:
             return 4;
         default:
             return 2;
@@ -81,7 +89,14 @@ int Kit_FindSDLSampleFormat(enum AVSampleFormat fmt) {
             return SDL_AUDIO_U8;
         case AV_SAMPLE_FMT_S32P:
         case AV_SAMPLE_FMT_S32:
+        case AV_SAMPLE_FMT_S64P:
+        case AV_SAMPLE_FMT_S64:
             return SDL_AUDIO_S32;
+        case AV_SAMPLE_FMT_FLTP:
+        case AV_SAMPLE_FMT_FLT:
+        case AV_SAMPLE_FMT_DBLP:
+        case AV_SAMPLE_FMT_DBL:
+            return SDL_AUDIO_F32;
         default:
             return SDL_AUDIO_S16;
     }

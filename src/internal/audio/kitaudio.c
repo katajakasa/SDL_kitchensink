@@ -297,12 +297,12 @@ Kit_Decoder *Kit_CreateAudioDecoder(
     output.layout = (format_request->layout != KIT_LAYOUT_UNKNOWN)
                         ? format_request->layout
                         : Kit_FindChannelLayout(&decoder->codec_ctx->ch_layout);
-    output.bytes =
-        (format_request->bytes > -1) ? format_request->bytes : Kit_FindBytes(decoder->codec_ctx->sample_fmt);
-    output.is_signed = (format_request->is_signed > -1) ? format_request->is_signed
-                                                        : Kit_FindSignedness(decoder->codec_ctx->sample_fmt);
     output.format = (format_request->format != 0) ? format_request->format
                                                   : Kit_FindSDLSampleFormat(decoder->codec_ctx->sample_fmt);
+    output.bytes =
+        (format_request->bytes > -1) ? format_request->bytes : Kit_FindBytes(Kit_FindAVSampleFormat(output.format));
+    output.is_signed = (format_request->is_signed > -1) ? format_request->is_signed
+                                                        : Kit_FindSignedness(Kit_FindAVSampleFormat(output.format));
 
     Kit_FindAVChannelLayout(output.layout, &out_layout);
     if(KIT_FAULT_WRAP_CODE(

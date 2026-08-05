@@ -27,12 +27,14 @@ static void test_find_av_sample_format(void **state) {
     assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_U8), AV_SAMPLE_FMT_U8);
     assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_S16), AV_SAMPLE_FMT_S16);
     assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_S32), AV_SAMPLE_FMT_S32);
+    assert_int_equal(Kit_FindAVSampleFormat(SDL_AUDIO_F32), AV_SAMPLE_FMT_FLT);
     assert_int_equal(Kit_FindAVSampleFormat(0xBEEF), AV_SAMPLE_FMT_NONE);
 }
 
 /**
- * @brief Byte width per sample is correct for planar and packed U8/S16/S32; unlisted formats (FLT)
- * fall back to 2, the S16 width they are converted to.
+ * @brief Byte width matches the SDL output format each FFmpeg sample format maps to: the 64-bit
+ * formats narrow to 32-bit output (4), and unlisted formats (S16P) fall back to 2, the S16 width
+ * they are converted to.
  */
 static void test_find_bytes(void **state) {
     (void)state;
@@ -41,8 +43,14 @@ static void test_find_bytes(void **state) {
     assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_U8P), 1);
     assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_S32), 4);
     assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_S32P), 4);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_FLT), 4);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_FLTP), 4);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_DBL), 4);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_DBLP), 4);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_S64), 4);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_S64P), 4);
     assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_S16), 2);
-    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_FLT), 2);
+    assert_int_equal(Kit_FindBytes(AV_SAMPLE_FMT_S16P), 2);
 }
 
 /**
@@ -55,18 +63,29 @@ static void test_find_signedness(void **state) {
     assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_U8P), 0);
     assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_S16), 1);
     assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_S32), 1);
+    assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_FLT), 1);
+    assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_FLTP), 1);
+    assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_DBL), 1);
+    assert_int_equal(Kit_FindSignedness(AV_SAMPLE_FMT_S64), 1);
 }
 
 /**
- * @brief AV sample formats map back to an SDL format; formats with no direct match (FLTP) degrade to a supported one.
+ * @brief AV sample formats map back to an SDL format; the 64-bit formats narrow to their 32-bit
+ * SDL equivalent, and formats with no direct match (S16P) degrade to a supported one.
  */
 static void test_find_sdl_sample_format(void **state) {
     (void)state;
-    // Arrange / Act / Assert: direct mappings, plus the no-direct-match degradation
+    // Arrange / Act / Assert: direct mappings, 64-bit narrowing, plus the no-direct-match degradation
     assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_U8), SDL_AUDIO_U8);
     assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S32), SDL_AUDIO_S32);
     assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S16), SDL_AUDIO_S16);
-    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_FLTP), SDL_AUDIO_S16);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_FLT), SDL_AUDIO_F32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_FLTP), SDL_AUDIO_F32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_DBL), SDL_AUDIO_F32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_DBLP), SDL_AUDIO_F32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S64), SDL_AUDIO_S32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S64P), SDL_AUDIO_S32);
+    assert_int_equal(Kit_FindSDLSampleFormat(AV_SAMPLE_FMT_S16P), SDL_AUDIO_S16);
 }
 
 /**

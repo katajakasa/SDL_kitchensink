@@ -25,6 +25,7 @@
 #include "kitchensink3/kitchensink.h"
 
 #define VIDEO_FILE KIT_TEST_DATA_DIR "/video_audio.mp4"
+#define S32_FLAC_FILE KIT_TEST_DATA_DIR "/audio_s32.flac"
 
 /** @brief Per-test resources, heap-allocated by test_setup() and released by test_teardown(),
  * so a mid-test assert failure cannot leak them or let a failed case's live player threads
@@ -80,7 +81,9 @@ typedef struct {
 static const AudioFormatCase decode_cases[] = {
     {"s16_wav",     KIT_TEST_DATA_DIR "/audio_s16.wav",     1, 44100},
     {"f32_wav",     KIT_TEST_DATA_DIR "/audio_f32.wav",     1, 44100},
+    {"f64_wav",     KIT_TEST_DATA_DIR "/audio_f64.wav",     1, 44100},
     {"s32_flac",    KIT_TEST_DATA_DIR "/audio_s32.flac",    1, 44100},
+    {"s64_wav",     KIT_TEST_DATA_DIR "/audio_s64.wav",     1, 44100},
     {"mp3",         KIT_TEST_DATA_DIR "/audio_mp3.mp3",     1, 44100},
     {"vorbis_ogg",  KIT_TEST_DATA_DIR "/audio_vorbis.ogg",  1, 44100},
     {"opus_mka",    KIT_TEST_DATA_DIR "/audio_opus.mka",    1, 48000},
@@ -151,6 +154,7 @@ typedef enum
 
 typedef struct {
     const char *label;
+    const char *file; // fixture to open; the request must be honored regardless of the source format
     Kit_AudioFormatRequest request;
     AudioRequestCheck check;
     unsigned int expected_format;
@@ -167,7 +171,7 @@ static void test_audio_format_request_honored(void **state) {
     const AudioRequestCase *c = ts->param;
 
     // Arrange
-    ts->src = Kit_CreateSourceFromUrl(VIDEO_FILE);
+    ts->src = Kit_CreateSourceFromUrl(c->file);
     assert_non_null(ts->src);
     const int audio_index = Kit_GetBestSourceStream(ts->src, KIT_STREAMTYPE_AUDIO);
     assert_true(audio_index >= 0);
@@ -197,6 +201,12 @@ static void test_audio_format_request_honored(void **state) {
     int received = wait_for_audio_data(ts->player, buffer, sizeof(buffer));
     assert_true(received > 0);
 
+    // Drain a few more buffers so reads that continue mid-frame are exercised too;
+    // with ASAN this catches output byte-width bookkeeping that disagrees with the
+    // converted sample format.
+    for(int extra = 0; extra < 4; extra++)
+        wait_for_audio_data(ts->player, buffer, sizeof(buffer));
+
     Kit_ClosePlayer(ts->player);
     ts->player = NULL;
     Kit_CloseSource(ts->src);
@@ -204,8 +214,8 @@ static void test_audio_format_request_honored(void **state) {
 }
 
 int main(void) {
-    KitParamName names[sizeof(decode_cases) / sizeof(decode_cases[0]) + 3];
-    struct CMUnitTest tests[sizeof(decode_cases) / sizeof(decode_cases[0]) + 3];
+    KitParamName names[sizeof(decode_cases) / sizeof(decode_cases[0]) + 5];
+    struct CMUnitTest tests[sizeof(decode_cases) / sizeof(decode_cases[0]) + 5];
     size_t n = 0;
 
     for(size_t i = 0; i < sizeof(decode_cases) / sizeof(decode_cases[0]); i++) {
@@ -225,6 +235,10 @@ int main(void) {
     Kit_ResetAudioFormatRequest(&req_format);
     req_format.format = SDL_AUDIO_S16;
 
+    Kit_AudioFormatRequest req_format_f32;
+    Kit_ResetAudioFormatRequest(&req_format_f32);
+    req_format_f32.format = SDL_AUDIO_F32;
+
     Kit_AudioFormatRequest req_rate;
     Kit_ResetAudioFormatRequest(&req_rate);
     req_rate.sample_rate = 22050;
@@ -233,10 +247,14 @@ int main(void) {
     Kit_ResetAudioFormatRequest(&req_layout);
     req_layout.layout = KIT_LAYOUT_MONO;
 
+    // The s32_flac case forces a format narrower than the source's sample format; it must not
+    // confuse the output byte-width bookkeeping (regression: 4-byte S32 source, 2-byte S16 out).
     const AudioRequestCase request_cases[] = {
-        {"format_s16sys",     req_format, CHECK_FORMAT,      SDL_AUDIO_S16, 0,     KIT_LAYOUT_UNKNOWN},
-        {"sample_rate_22050", req_rate,   CHECK_SAMPLE_RATE, 0,            22050, KIT_LAYOUT_UNKNOWN},
-        {"layout_mono",       req_layout, CHECK_LAYOUT,      0,            0,     KIT_LAYOUT_MONO   },
+        {"format_s16",          VIDEO_FILE,    req_format,     CHECK_FORMAT,      SDL_AUDIO_S16, 0,     KIT_LAYOUT_UNKNOWN},
+        {"format_s16_s32_flac", S32_FLAC_FILE, req_format,     CHECK_FORMAT,      SDL_AUDIO_S16, 0,     KIT_LAYOUT_UNKNOWN},
+        {"format_f32",          VIDEO_FILE,    req_format_f32, CHECK_FORMAT,      SDL_AUDIO_F32, 0,     KIT_LAYOUT_UNKNOWN},
+        {"sample_rate_22050",   VIDEO_FILE,    req_rate,       CHECK_SAMPLE_RATE, 0,             22050, KIT_LAYOUT_UNKNOWN},
+        {"layout_mono",         VIDEO_FILE,    req_layout,     CHECK_LAYOUT,      0,             0,     KIT_LAYOUT_MONO   },
     };
 
     for(size_t i = 0; i < sizeof(request_cases) / sizeof(request_cases[0]); i++) {
