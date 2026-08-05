@@ -135,7 +135,8 @@ int main(int argc, char *argv[]) {
     audio_spec.freq = player_info.audio_format.sample_rate;
     audio_spec.format = player_info.audio_format.format;
     audio_spec.channels = Kit_GetChannelLayoutCount(player_info.audio_format.layout);
-    SDL_AudioStream *audio_stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
+    SDL_AudioStream *audio_stream =
+        SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_spec, NULL, NULL);
     SDL_ResumeAudioStreamDevice(audio_stream);
 
     // Initialize video texture. This will probably end up as YV12 most of the time.

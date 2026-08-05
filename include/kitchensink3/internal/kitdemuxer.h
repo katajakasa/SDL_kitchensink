@@ -25,13 +25,13 @@
  * @brief Demuxer state: source, one packet buffer and stream index per stream type, and a scratch packet.
  */
 typedef struct Kit_Demuxer {
-    const Kit_Source *src;                        ///< Source being demuxed; not owned.
-    Kit_PacketBuffer *buffers[KIT_INDEX_COUNT];   ///< Per-stream-type output packet buffers; NULL if unused.
+    const Kit_Source *src;                         ///< Source being demuxed; not owned.
+    Kit_PacketBuffer *buffers[KIT_INDEX_COUNT];    ///< Per-stream-type output packet buffers; NULL if unused.
     SDL_AtomicInt stream_indexes[KIT_INDEX_COUNT]; ///< Per-stream-type source stream index; -1 if unused.
     SDL_AtomicInt abort_requested;                 ///< Breaks the read-retry delay in Kit_RunDemuxer() on abort.
-    AVPacket *scratch_packet;                     ///< Reusable packet used for reading/writing.
-    int read_attempts;                            ///< Read attempts before a failure is treated as EOF.
-    int read_retry_delay;                         ///< Delay between read attempts, in milliseconds.
+    AVPacket *scratch_packet;                      ///< Reusable packet used for reading/writing.
+    int read_attempts;                             ///< Read attempts before a failure is treated as EOF.
+    int read_retry_delay;                          ///< Delay between read attempts, in milliseconds.
 } Kit_Demuxer;
 
 /**

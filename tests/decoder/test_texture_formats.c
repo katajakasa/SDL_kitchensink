@@ -97,7 +97,8 @@ static void assert_texture_has_contrast(TestState *ts, SDL_Renderer *renderer, S
     assert_non_null(ts->pixels);
     for(int y = 0; y < h; y++) {
         memcpy(
-            ts->pixels + (size_t)y * w * 4, (unsigned char *)readback->pixels + (size_t)y * readback->pitch,
+            ts->pixels + (size_t)y * w * 4,
+            (unsigned char *)readback->pixels + (size_t)y * readback->pitch,
             (size_t)w * 4
         );
     }
@@ -133,25 +134,25 @@ typedef struct {
 } TextureFormatCase;
 
 static const TextureFormatCase format_cases[] = {
-    {"yv12",     SDL_PIXELFORMAT_YV12  },
-    {"iyuv",     SDL_PIXELFORMAT_IYUV  },
-    {"yuy2",     SDL_PIXELFORMAT_YUY2  },
-    {"uyvy",     SDL_PIXELFORMAT_UYVY  },
-    {"yvyu",     SDL_PIXELFORMAT_YVYU  },
-    {"nv12",     SDL_PIXELFORMAT_NV12  },
-    {"nv21",     SDL_PIXELFORMAT_NV21  },
-    {"argb32",   SDL_PIXELFORMAT_ARGB32},
-    {"rgba32",   SDL_PIXELFORMAT_RGBA32},
-    {"bgra32",   SDL_PIXELFORMAT_BGRA32},
-    {"abgr32",   SDL_PIXELFORMAT_ABGR32},
+    {"yv12",     SDL_PIXELFORMAT_YV12    },
+    {"iyuv",     SDL_PIXELFORMAT_IYUV    },
+    {"yuy2",     SDL_PIXELFORMAT_YUY2    },
+    {"uyvy",     SDL_PIXELFORMAT_UYVY    },
+    {"yvyu",     SDL_PIXELFORMAT_YVYU    },
+    {"nv12",     SDL_PIXELFORMAT_NV12    },
+    {"nv21",     SDL_PIXELFORMAT_NV21    },
+    {"argb32",   SDL_PIXELFORMAT_ARGB32  },
+    {"rgba32",   SDL_PIXELFORMAT_RGBA32  },
+    {"bgra32",   SDL_PIXELFORMAT_BGRA32  },
+    {"abgr32",   SDL_PIXELFORMAT_ABGR32  },
     {"xrgb8888", SDL_PIXELFORMAT_XRGB8888},
     {"xbgr8888", SDL_PIXELFORMAT_XBGR8888},
-    {"rgb24",    SDL_PIXELFORMAT_RGB24 },
-    {"bgr24",    SDL_PIXELFORMAT_BGR24 },
+    {"rgb24",    SDL_PIXELFORMAT_RGB24   },
+    {"bgr24",    SDL_PIXELFORMAT_BGR24   },
     {"rgb555",   SDL_PIXELFORMAT_XRGB1555},
     {"bgr555",   SDL_PIXELFORMAT_XBGR1555},
-    {"rgb565",   SDL_PIXELFORMAT_RGB565},
-    {"bgr565",   SDL_PIXELFORMAT_BGR565},
+    {"rgb565",   SDL_PIXELFORMAT_RGB565  },
+    {"bgr565",   SDL_PIXELFORMAT_BGR565  },
 };
 
 /**

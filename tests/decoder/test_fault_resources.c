@@ -116,10 +116,10 @@ static void attempt_create_player(void *ctx) {
 // -- test_mutex_failure_unwinds ----------------------------------------
 
 /**
- * @brief Failing the "sdl_mutex" point at each ordinal Kit_CreatePlayer() consumes (SDL_CreateMutex/SDL_CreateCondition
- * calls in Kit_CreatePlayer's own locks and every packet buffer created along the way -- the demuxer's per-stream
- * buffers plus the audio/video decoders' output buffers) yields a clean NULL + Kit_GetError(), with no leaks
- * (ASan-checked unwind).
+ * @brief Failing the "sdl_mutex" point at each ordinal Kit_CreatePlayer() consumes
+ * (SDL_CreateMutex/SDL_CreateCondition calls in Kit_CreatePlayer's own locks and every packet buffer created along the
+ * way -- the demuxer's per-stream buffers plus the audio/video decoders' output buffers) yields a clean NULL +
+ * Kit_GetError(), with no leaks (ASan-checked unwind).
  */
 static void test_mutex_failure_unwinds(void **state) {
     TestState *ts = *state;

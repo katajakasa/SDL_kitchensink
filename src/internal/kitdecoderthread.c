@@ -84,7 +84,8 @@ static int Kit_DecodeMain(void *ptr) {
         // Feed the decoder until its internal queue is full (input callback signals retry) or input runs out.
         // Queueing multiple packets at once lets decoders keep several frames in flight.
         int timeout = 100;
-        while(SDL_GetAtomicInt(&thread->run) && Kit_ProcessPacket(thread, &pts_jumped, &draining, &eof_received, timeout))
+        while(SDL_GetAtomicInt(&thread->run) &&
+              Kit_ProcessPacket(thread, &pts_jumped, &draining, &eof_received, timeout))
             timeout = 0;
 
         // Run the decoder. This will consume packets from the ffmpeg queue. We may need to call this multiple times,
