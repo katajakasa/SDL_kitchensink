@@ -60,6 +60,8 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
     // references to its own buffer, leaving the scratch_buffer in a clean state.
     for(int i = 0; i < KIT_INDEX_COUNT; i++) {
         if(demuxer->scratch_packet->stream_index == SDL_GetAtomicInt(&demuxer->stream_indexes[i])) {
+            demuxer->scratch_packet->opaque =
+                Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, Kit_GetTimerSerial(demuxer->timer));
             if(!Kit_WritePacketBuffer(demuxer->buffers[i], demuxer->scratch_packet))
                 av_packet_unref(demuxer->scratch_packet);
             return true;
@@ -72,13 +74,19 @@ bool Kit_RunDemuxer(Kit_Demuxer *demuxer) {
 }
 
 Kit_Demuxer *Kit_CreateDemuxer(
-    const Kit_Source *src, int video_index, int audio_index, int subtitle_index, const Kit_PlayerConfig *config
+    const Kit_Source *src,
+    int video_index,
+    int audio_index,
+    int subtitle_index,
+    const Kit_PlayerConfig *config,
+    const Kit_Timer *timer
 ) {
     Kit_Demuxer *demuxer = NULL;
     Kit_PacketBuffer *video_buf = NULL;
     Kit_PacketBuffer *audio_buf = NULL;
     Kit_PacketBuffer *subtitle_buf = NULL;
     AVPacket *scratch_packet;
+    Kit_Timer *demuxer_timer = NULL;
 
     if((demuxer = Kit_Calloc(1, sizeof(Kit_Demuxer))) == NULL) {
         Kit_SetError("Unable to allocate demuxer");
@@ -86,6 +94,10 @@ Kit_Demuxer *Kit_CreateDemuxer(
     }
     if((scratch_packet = av_packet_alloc()) == NULL) {
         goto error_1;
+    }
+    if((demuxer_timer = Kit_CreateSecondaryTimer(timer, false)) == NULL) {
+        Kit_SetError("Unable to allocate demuxer timer");
+        goto error_2;
     }
     if(video_index >= 0) {
         video_buf = Kit_CreatePacketBuffer(
@@ -98,7 +110,7 @@ Kit_Demuxer *Kit_CreateDemuxer(
         );
         if(video_buf == NULL) {
             Kit_SetError("Unable to allocate video packet buffer");
-            goto error_2;
+            goto error_3;
         }
     }
     if(audio_index >= 0) {
@@ -112,7 +124,7 @@ Kit_Demuxer *Kit_CreateDemuxer(
         );
         if(audio_buf == NULL) {
             Kit_SetError("Unable to allocate audio packet buffer");
-            goto error_3;
+            goto error_4;
         }
     }
     if(subtitle_index >= 0) {
@@ -126,12 +138,13 @@ Kit_Demuxer *Kit_CreateDemuxer(
         );
         if(subtitle_buf == NULL) {
             Kit_SetError("Unable to allocate subtitle packet buffer");
-            goto error_4;
+            goto error_5;
         }
     }
 
     demuxer->src = src;
     demuxer->scratch_packet = scratch_packet;
+    demuxer->timer = demuxer_timer;
     demuxer->read_attempts = config->demuxer.read_attempts;
     demuxer->read_retry_delay = config->demuxer.read_retry_delay;
     demuxer->buffers[KIT_VIDEO_INDEX] = video_buf;
@@ -142,10 +155,12 @@ Kit_Demuxer *Kit_CreateDemuxer(
     SDL_SetAtomicInt(&demuxer->stream_indexes[KIT_SUBTITLE_INDEX], subtitle_index);
     return demuxer;
 
-error_4:
+error_5:
     Kit_FreePacketBuffer(&audio_buf);
-error_3:
+error_4:
     Kit_FreePacketBuffer(&video_buf);
+error_3:
+    Kit_CloseTimer(&demuxer_timer);
 error_2:
     av_packet_free(&scratch_packet);
 error_1:
@@ -190,6 +205,7 @@ void Kit_CloseDemuxer(Kit_Demuxer **ref) {
         SDL_SetAtomicInt(&demuxer->stream_indexes[i], -1);
     }
     av_packet_free(&demuxer->scratch_packet);
+    Kit_CloseTimer(&demuxer->timer);
     free(demuxer);
     *ref = NULL;
 }
@@ -204,13 +220,13 @@ static void Kit_SendSeekPacket(Kit_Demuxer *demuxer, unsigned int seek_serial) {
     }
 }
 
-bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, Kit_Timer *timer, const int64_t seek_target) {
+bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, const int64_t seek_target) {
     const int ret = KIT_FAULT_WRAP_CODE(
         "demux_seek", avformat_seek_file(demuxer->src->format_ctx, -1, INT64_MIN, seek_target, INT64_MAX, 0)
     );
     if(ret >= 0) {
         Kit_ClearDemuxerBuffers(demuxer);
-        Kit_SendSeekPacket(demuxer, Kit_IncreaseTimerSerial(timer));
+        Kit_SendSeekPacket(demuxer, Kit_IncreaseTimerSerial(demuxer->timer));
         return true;
     }
     return false;

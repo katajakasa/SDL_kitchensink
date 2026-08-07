@@ -147,11 +147,11 @@ static void fixture_open(demux_fixture *fx) {
     assert_non_null(fx->src);
     fx->video_index = Kit_GetBestSourceStream(fx->src, KIT_STREAMTYPE_VIDEO);
     assert_true(fx->video_index >= 0);
-    fx->demuxer = Kit_CreateDemuxer(fx->src, fx->video_index, -1, -1, &g_config);
-    assert_non_null(fx->demuxer);
     fx->timer = Kit_CreateTimer();
     assert_non_null(fx->timer);
-    fx->demux_thread = Kit_CreateDemuxerThread(fx->demuxer, fx->timer);
+    fx->demuxer = Kit_CreateDemuxer(fx->src, fx->video_index, -1, -1, &g_config, fx->timer);
+    assert_non_null(fx->demuxer);
+    fx->demux_thread = Kit_CreateDemuxerThread(fx->demuxer);
     assert_non_null(fx->demux_thread);
 }
 

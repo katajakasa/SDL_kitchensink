@@ -13,7 +13,7 @@ static int Kit_DemuxMain(void *ptr) {
         if(thread->seek) {
             // Seeks are only requested while the demuxer thread is stopped, no locks needed.
             thread->seek = false;
-            Kit_DemuxerSeek(thread->demuxer, thread->timer, thread->seek_target);
+            Kit_DemuxerSeek(thread->demuxer, thread->seek_target);
         }
         if(!Kit_RunDemuxer(thread->demuxer)) {
             eof = true;
@@ -30,29 +30,21 @@ static int Kit_DemuxMain(void *ptr) {
     return 0;
 }
 
-Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer, const Kit_Timer *timer) {
+Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer) {
     Kit_DemuxerThread *demuxer_thread = NULL;
-    Kit_Timer *seek_timer = NULL;
 
     if((demuxer_thread = Kit_Calloc(1, sizeof(Kit_DemuxerThread))) == NULL) {
         Kit_SetError("Unable to allocate demuxer thread");
         goto exit_0;
-    }
-    if((seek_timer = Kit_CreateSecondaryTimer(timer, false)) == NULL) {
-        Kit_SetError("Unable to allocate demuxer thread timer");
-        goto exit_1;
     }
 
     demuxer_thread->thread = NULL;
     demuxer_thread->demuxer = demuxer;
     demuxer_thread->seek = false;
     demuxer_thread->seek_target = 0;
-    demuxer_thread->timer = seek_timer;
     SDL_SetAtomicInt(&demuxer_thread->run, 0);
     return demuxer_thread;
 
-exit_1:
-    free(demuxer_thread);
 exit_0:
     return NULL;
 }
@@ -100,7 +92,6 @@ void Kit_CloseDemuxerThread(Kit_DemuxerThread **ref) {
     Kit_DemuxerThread *demuxer_thread = *ref;
     Kit_StopDemuxerThread(demuxer_thread);
     Kit_WaitDemuxerThread(demuxer_thread);
-    Kit_CloseTimer(&demuxer_thread->timer);
     free(demuxer_thread);
     *ref = NULL;
 }

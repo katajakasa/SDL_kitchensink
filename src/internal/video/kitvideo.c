@@ -83,7 +83,6 @@ static void dec_read_video(const Kit_Decoder *decoder) {
         sws_scale_frame(video_decoder->sws, video_decoder->out_frame, video_decoder->in_frame);
         av_frame_copy_props(video_decoder->out_frame, video_decoder->in_frame);
     }
-    video_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, decoder->output_serial);
 
     // Write video packet to packet buffer. This may block!
     // - if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.

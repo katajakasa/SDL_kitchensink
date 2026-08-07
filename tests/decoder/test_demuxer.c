@@ -30,6 +30,7 @@ static Kit_PlayerConfig g_config;
  * so a mid-test assert failure cannot leak them across the remaining tests in the group. */
 typedef struct {
     Kit_Source *src;
+    Kit_Timer *timer;
     Kit_Demuxer *demuxer;
 } TestState;
 
@@ -40,13 +41,14 @@ static int test_setup(void **state) {
 }
 
 /** @brief Per-test teardown: releases whatever the TestState still holds (demuxer before its
- * source), then the state itself. Tests NULL each member right after their own close, so only
- * what an assert-longjmp left behind is released here. */
+ * source and timer), then the state itself. Tests NULL each member right after their own close,
+ * so only what an assert-longjmp left behind is released here. */
 static int test_teardown(void **state) {
     TestState *ts = *state;
     if(ts == NULL)
         return 0;
     Kit_CloseDemuxer(&ts->demuxer);
+    Kit_CloseTimer(&ts->timer);
     Kit_CloseSource(ts->src);
     free(ts);
     *state = NULL;
@@ -71,7 +73,9 @@ static void test_demuxer_reads_packets(void **state) {
     const int audio_index = Kit_GetBestSourceStream(ts->src, KIT_STREAMTYPE_AUDIO);
     assert_true(video_index >= 0);
     assert_true(audio_index >= 0);
-    ts->demuxer = Kit_CreateDemuxer(ts->src, video_index, audio_index, -1, &g_config);
+    ts->timer = Kit_CreateTimer();
+    assert_non_null(ts->timer);
+    ts->demuxer = Kit_CreateDemuxer(ts->src, video_index, audio_index, -1, &g_config, ts->timer);
     assert_non_null(ts->demuxer);
 
     // Act: demux a handful of packets (see file header for the capacity warning)
@@ -96,6 +100,7 @@ static void test_demuxer_reads_packets(void **state) {
 
     Kit_CloseDemuxer(&ts->demuxer);
     assert_null(ts->demuxer);
+    Kit_CloseTimer(&ts->timer);
     Kit_CloseSource(ts->src);
     ts->src = NULL;
 }

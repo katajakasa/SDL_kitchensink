@@ -2,6 +2,7 @@
 #include <SDL3/SDL_mutex.h>
 
 #include "kitchensink3/internal/kitfaultinject.h"
+#include "kitchensink3/internal/kitpackettag.h"
 #include "kitchensink3/internal/kittimer.h"
 #include "kitchensink3/internal/utils/kitalloc.h"
 #include "kitchensink3/internal/utils/kithelpers.h"
@@ -117,7 +118,7 @@ void Kit_AdjustTimerBase(Kit_Timer *timer, double adjust, unsigned int serial) {
     timer->ref->value = now - adjust;
     timer->ref->pause_start = now;
     timer->ref->initialized = true;
-    SDL_SetAtomicInt(&timer->ref->base_serial, (int)serial);
+    SDL_SetAtomicInt(&timer->ref->base_serial, (int)(serial & KIT_PACKET_SERIAL_MASK));
     SDL_UnlockMutex(timer->ref->lock);
 }
 
@@ -169,21 +170,22 @@ bool Kit_IsTimerPrimary(const Kit_Timer *timer) {
 }
 
 unsigned int Kit_GetTimerSerial(const Kit_Timer *timer) {
-    return (unsigned int)SDL_GetAtomicInt(&timer->ref->serial);
+    return (unsigned int)SDL_GetAtomicInt(&timer->ref->serial) & KIT_PACKET_SERIAL_MASK;
 }
 
 unsigned int Kit_IncreaseTimerSerial(Kit_Timer *timer) {
-    return (unsigned int)SDL_AddAtomicInt(&timer->ref->serial, 1) + 1;
+    return ((unsigned int)SDL_AddAtomicInt(&timer->ref->serial, 1) + 1) & KIT_PACKET_SERIAL_MASK;
 }
 
 void Kit_SetTimerBaseSerial(Kit_Timer *timer, unsigned int serial) {
     if(timer->writeable) {
-        SDL_SetAtomicInt(&timer->ref->base_serial, (int)serial);
+        SDL_SetAtomicInt(&timer->ref->base_serial, (int)(serial & KIT_PACKET_SERIAL_MASK));
     }
 }
 
 bool Kit_IsTimerSynced(const Kit_Timer *timer) {
-    return SDL_GetAtomicInt(&timer->ref->base_serial) == SDL_GetAtomicInt(&timer->ref->serial);
+    return (SDL_GetAtomicInt(&timer->ref->base_serial) & (int)KIT_PACKET_SERIAL_MASK) ==
+           (SDL_GetAtomicInt(&timer->ref->serial) & (int)KIT_PACKET_SERIAL_MASK);
 }
 
 void Kit_CloseTimer(Kit_Timer **ref) {

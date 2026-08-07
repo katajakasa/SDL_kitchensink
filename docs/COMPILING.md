@@ -15,7 +15,7 @@ Build tools:
 Libraries:
 
 * SDL3 3.2.0 or newer
-* FFmpeg 5.1 or newer (libavcodec, libavformat, libavutil, libswscale,
+* FFmpeg 6.0 or newer (libavcodec, libavformat, libavutil, libswscale,
   libswresample)
 * libass (optional at build time only with `USE_DYNAMIC_LIBASS`, see below)
 * cmocka (only when building the test suite, `BUILD_TESTS=1`)
@@ -137,5 +137,5 @@ do this), `ninja -C build clangformat` reformats all sources in place. See
 
 `make docs` inside the build directory (or `doxygen` in the repository root)
 generates the Doxygen API documentation. The published documentation at
-<http://katajakasa.github.io/SDL_kitchensink/> is rebuilt automatically from
+<https://katajakasa.github.io/SDL_kitchensink/> is rebuilt automatically from
 the master, release/v2 and release/v1 branches on every push.

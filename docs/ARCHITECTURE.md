@@ -2,7 +2,7 @@
 
 This page describes how the repository is laid out and how the library works
 internally. It is aimed at people working on SDL_kitchensink itself; for
-using the library, see the [API documentation](http://katajakasa.github.io/SDL_kitchensink/)
+using the library, see the [API documentation](https://katajakasa.github.io/SDL_kitchensink/)
 and the `examples/` directory.
 
 ## 1. Repository layout
@@ -25,20 +25,11 @@ docs/                           This developer documentation
 
 ## 2. Public API vs internals
 
-Everything under `include/kitchensink3/*.h` is public, stable API:
-
-* `kitchensink.h` -- umbrella header that includes all of the below
-* `kitlib.h` -- library lifecycle
-* `kitsource.h` -- sources
-* `kitplayer.h` -- the player
-* `kiterror.h` -- errors
-* `kitformat.h` -- formats
-* `kitcodec.h` -- codec info
-* `kitutils.h` -- utils
-* `kitconfig.h` -- export/visibility macros (`KIT_API`, `KIT_LOCAL`)
-
-These headers are installed, documented with Doxygen, and changing them
-incompatibly is a major-version event.
+Everything under `include/kitchensink3/*.h` is public, stable API, split by
+topic -- lifecycle, sources, the player, errors, formats, codecs, utils, and
+the export macros in `kitconfig.h` -- with `kitchensink.h` as an umbrella
+header pulling in all of them. These headers are installed, documented with
+Doxygen, and changing them incompatibly is a major-version event.
 
 Everything under `include/kitchensink3/internal/` and `src/internal/` is
 private. Internal symbols are marked `KIT_LOCAL` (hidden visibility in shared
@@ -57,26 +48,27 @@ own thread is the final consumer, pulling output through the `Kit_GetPlayer*`
 functions.
 
 ```mermaid
-flowchart LR
-    subgraph app["Application thread"]
-        SRC["Kit_Source<br/>(URL / SDL_IOStream / custom I/O)"]
-        OUT["Kit_GetPlayerVideoSDLTexture()<br/>Kit_GetPlayerAudioData()<br/>Kit_GetPlayerSubtitleSDLTexture()"]
-    end
-    subgraph demux["Demuxer thread"]
-        DEM["Kit_Demuxer<br/>av_read_frame()"]
-    end
-    subgraph decoders["Decoder threads"]
-        VDEC["Video decoder"]
-        ADEC["Audio decoder"]
-        SDEC["Subtitle decoder"]
-    end
+flowchart TD
+    SRC(["`Kit_Source
+    (URL / SDL_IOStream / custom I/O)`"])
+    DEM["`Demuxer thread
+    Kit_Demuxer
+    av_read_frame()`"]
+    VDEC["Video decoder thread"]
+    ADEC["Audio decoder thread"]
+    SDEC["Subtitle decoder thread"]
+    OUT["`Application thread
+    Kit_GetPlayerVideoSDLTexture()
+    Kit_GetPlayerAudioData()
+    Kit_GetPlayerSubtitleSDLTexture()`"]
     SRC --> DEM
     DEM -->|"packet buffer"| VDEC
     DEM -->|"packet buffer"| ADEC
     DEM -->|"packet buffer"| SDEC
     VDEC -->|"frame buffer"| OUT
     ADEC -->|"sample FIFO"| OUT
-    SDEC -->|"texture atlas /<br/>frame buffer"| OUT
+    SDEC -->|"`texture atlas /
+    frame buffer`"| OUT
 ```
 
 Stage by stage:
@@ -85,10 +77,9 @@ Stage by stage:
   a URL, an `SDL_IOStream`, or custom read/seek callbacks.
 * **`Kit_Demuxer`**, driven by its **`Kit_DemuxerThread`**, reads packets
   from the source and routes each one into a per-stream-type
-  **`Kit_PacketBuffer`**. Packets for unselected streams are dropped.
-  Transient read errors are retried a configurable number of times; on EOF
-  the thread writes an EOF-tagged sentinel packet into every active buffer so
-  the decoders know to drain.
+  **`Kit_PacketBuffer`**. Packets for unselected streams are dropped, and on
+  EOF the thread writes an EOF-tagged sentinel packet into every active buffer
+  so the decoders know to drain.
 * **`Kit_Decoder`** is a generic wrapper that owns the `AVCodecContext` and
   handles hardware-decoder negotiation. The type-specific behavior (decode,
   flush, abort, output buffering) is plugged in through callbacks by the
@@ -104,11 +95,10 @@ Stage by stage:
 
 ### 3.1. Packet buffers
 
-`Kit_PacketBuffer` is the mechanism that decouples the threads: a
-thread-safe, fixed-capacity ring buffer of
-pre-allocated slots, with the slot type abstracted behind
-alloc/unref/free/move/ref callbacks (the same structure carries `AVPacket`s
-between demuxer and decoders, and decoded frames on the output side).
+`Kit_PacketBuffer` is the mechanism that decouples the threads: a thread-safe,
+fixed-capacity ring buffer of pre-allocated slots, with the slot type
+abstracted behind callbacks, so the same structure carries `AVPacket`s between
+demuxer and decoders and decoded frames on the output side.
 
 Writes block while the buffer is full and reads can block (with a timeout)
 while it is empty -- this provides natural backpressure: when the application
@@ -120,23 +110,84 @@ flush clears the aborted state.
 
 ### 3.2. Clock and seeking
 
-Playback is synchronized against a shared, reference-counted timer. The
-player owns the primary timer; decoders hold
-secondary handles onto the same underlying clock value. One stream is the
+Playback is synchronized against a single clock value that the player, the
+demuxer and the decoders all hold reference-counted handles onto, so it
+outlives whichever of them is torn down first. One stream is the
 primary sync source -- video when present, otherwise audio -- meaning its
 decoder is allowed to (re)base the shared clock; output is then shown,
 skipped or delayed relative to the clock within the configurable early/late
 thresholds of `Kit_PlayerConfig`.
 
-Seeks are handled by the demuxer: `Kit_PlayerSeek()` stops the pipeline
-threads, queues the seek target on the demuxer thread, and restarts it. The
-demuxer seeks the format context and, on success, flushes all packet buffers,
-bumps the timer's *serial*, and writes a seek-tagged packet carrying the new
-serial into every active buffer. Decoder threads see the marker, discard
-stale output, and re-base the clock -- this is how frames decoded before the
-seek are told apart from frames decoded after it.
+Seeking halts the whole pipeline rather than trying to redirect it mid-flight:
+`Kit_PlayerSeek()` stops the threads, hands the target to the demuxer, and
+restarts them. A successful seek bumps the timer's *serial*, which is what
+tells frames decoded before the seek apart from frames decoded after it, so
+stale output can be discarded and the clock re-based on the primary stream's
+first new frame. The next section describes how that serial travels.
 
-### 3.3. Thread lifecycle
+### 3.3. In-band control packets and seek serials
+
+The pipeline threads never signal each other directly; everything a decoder
+needs to know travels in-band, through the same packet buffers as the data.
+Every `AVPacket` and `AVFrame` moving between threads carries a small tag in
+its `opaque` field: a packet type and a *seek serial*, bit-packed into the
+pointer value by `kitpackettag.h`, so tagging costs no allocation.
+
+There are three packet types:
+
+* `DATA` -- carries stream data, stamped with the serial current at the time
+  the demuxer routed it.
+* `EOF` -- a sentinel written into every active packet buffer when the demuxer
+  reaches the end of the input, telling the decoders to drain.
+* `SEEK` -- a sentinel written into every active packet buffer after a
+  successful seek, carrying the new serial.
+
+Since the sentinels ride the same ring buffer as the data, their ordering
+relative to the data packets is inherent: a decoder is guaranteed to see the
+seek marker before any post-seek packet, with no separate synchronization.
+Stream switching relies on the same in-band property: after a switch, the
+decoder thread simply drops in-flight packets whose stream index does not
+match its stream.
+
+Serials have to survive decoding to be useful. The codec context is opened
+with `AV_CODEC_FLAG_COPY_OPAQUE`, so libavcodec
+carries each packet's tag to the frame decoded from that packet -- this keeps
+frame serials correct even when frame-threaded decoding reorders output
+around a seek. From there, the output frames get their tag as follows:
+
+* **Video** -- inherits the decoded frame's tag through the normal frame moves
+  and property copies.
+* **Audio** -- output frames are cut from a resample FIFO and have no single
+  source packet, so the decoder stamps them with the serial of the frames that
+  went into the FIFO; the FIFO is reset on every seek and flush, so it can
+  never hold a mix of serials.
+* **Subtitles** -- do not carry serials at all; the renderer buffers are simply
+  flushed on seek.
+
+On the consumer side, the video and audio getters simply compare each frame's
+serial against the timer's current serial and discard mismatches.
+
+One full seek, end to end:
+
+```mermaid
+sequenceDiagram
+    participant DEM as Demuxer thread
+    participant DEC as Decoder thread
+    participant APP as Application thread
+    Note over DEM,APP: steady state on serial 4
+    DEM->>DEC: DATA(4) packets
+    DEC->>APP: frames tagged 4
+    APP->>DEM:wrap: Kit_PlayerSeek(): stop pipeline, queue seek target, restart
+    Note over DEM: on restart: avformat_seek_file(), buffers flushed, serial bumped to 5
+    DEM->>DEC: SEEK(5) marker
+    Note over DEC: flush codec + output buffer, start tracking serial 5
+    DEM->>DEC: DATA(5) packets from the new position
+    DEC->>APP: frames tagged 5 (propagated by the codec)
+    Note over DEC: first output frame re-bases the shared clock
+    Note over APP: getters drop any straggler frame whose serial is not 5
+```
+
+### 3.4. Thread lifecycle
 
 Thread stop is a two-step protocol, visible throughout the internal APIs:
 clearing a thread's run flag only asks it to exit at its next loop check,
@@ -156,14 +207,14 @@ worth of subtitle fragments can be drawn from a single texture.
 libass itself is used either as a normal link-time dependency, or -- with the
 `USE_DYNAMIC_LIBASS` CMake option -- loaded at runtime via `SDL_LoadSO()`,
 in which case an internal header mirrors the needed libass API as function
-pointers. The library-wide singleton `Kit_LibraryState` holds the init flags
-and libass handles; all per-player tuning lives in `Kit_PlayerConfig`.
+pointers. Either way, the library-wide singleton `Kit_LibraryState` holds the
+init flags and libass handles.
 
 ## 5. Fault injection
 
-With the `KIT_FAULT_INJECTION` CMake option, a debug-only fault-injection
-registry is compiled in. Fallible spots in the
-library check named fail points through it, letting tests deterministically
-fail allocations, demuxer I/O, decoder calls and resource creation to
-exercise error paths. It is for the test suite only and must not be enabled
-in production builds. See [TESTING.md](TESTING.md).
+With the `KIT_FAULT_INJECTION` CMake option, a fault-injection registry is
+compiled in and fallible spots in the library start checking named fail points
+through it, letting tests deterministically fail allocations, I/O, decoder
+calls and resource creation to exercise error paths. It exists for the test
+suite and must never be enabled in production builds. See
+[TESTING.md](TESTING.md).
