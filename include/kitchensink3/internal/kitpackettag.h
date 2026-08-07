@@ -4,6 +4,8 @@
 /**
  * @brief Packs a packet/frame type and a seek serial number into a pointer-sized opaque tag,
  * so they can be stashed in the `opaque` field of an AVPacket/AVFrame without extra allocation.
+ * The demuxer stamps every data packet; AV_CODEC_FLAG_COPY_OPAQUE makes libavcodec carry the
+ * tag to the matching decoded frame, so frame serials stay correct under codec reordering.
  *
  * @file kitpackettag.h
  * @author Tuomas Virtanen
@@ -21,6 +23,9 @@ typedef enum Kit_PacketType
     KIT_PACKET_TYPE_EOF = 2,
 } Kit_PacketType;
 
+#define KIT_PACKET_SERIAL_BITS 30
+#define KIT_PACKET_SERIAL_MASK ((1u << KIT_PACKET_SERIAL_BITS) - 1u)
+
 /**
  * @brief Bit-packed view of an opaque tag pointer: a 2-bit Kit_PacketType and a 30-bit serial.
  */
@@ -28,7 +33,7 @@ typedef union Kit_PacketTag {
     void *opaque;
     struct {
         unsigned int type : 2;
-        unsigned int serial : 30;
+        unsigned int serial : KIT_PACKET_SERIAL_BITS;
     } bits;
 } Kit_PacketTag;
 

@@ -18,7 +18,8 @@ Kit_ProcessPacket(Kit_DecoderThread *thread, bool *pts_jumped, bool *draining, b
 
     // If a valid packet was found, first check if it's a control packet.
     // Seek packet is created in the demuxer, and is sent after avformat_seek_file() is called. It carries
-    // the seek serial, which we stamp on all output frames decoded from this point on.
+    // the seek serial, which we track for clock re-basing; data frames carry their own serial, propagated
+    // from the source packet by the codec.
     if(Kit_GetPacketType(thread->scratch_packet->opaque) == KIT_PACKET_TYPE_SEEK) {
         Kit_ClearDecoderBuffers(thread->decoder);
         thread->decoder->output_serial = Kit_GetPacketSerial(thread->scratch_packet->opaque);

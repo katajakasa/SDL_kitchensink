@@ -27,8 +27,11 @@ typedef struct Kit_AudioDecoder {
     AVFrame *in_frame;            ///< Temporary AVFrame for audio decoding purposes
     AVFrame *out_frame;           ///< Temporary AVFrame fur audio resampling purposes
     AVFrame *current;             ///< Audio packet we are currently reading from
+    size_t current_size;          ///< Total payload bytes in the current frame being drained by the getter
+    size_t current_left;          ///< Unconsumed bytes remaining in the current frame
     AVAudioFifo *fifo;            ///< FIFO for splitting and/or joining audio packets
     int64_t fifo_start_pts;       ///< Audio fifo start PTS
+    unsigned int fifo_serial;     ///< Seek serial of the frames in the FIFO
     Kit_PacketBuffer *buffer;     ///< Packet ringbuffer for decoded audio packets
     Kit_AudioOutputFormat output; ///< Output audio format description
     int early_threshold;          ///< Early sync threshold, in milliseconds
@@ -46,14 +49,8 @@ int Kit_GetAudioDecoderOutputFormat(const Kit_Decoder *decoder, Kit_AudioOutputF
     return 0;
 }
 
-static void write_packet(Kit_AudioDecoder *audio_decoder, int nb_samples) {
-    int total_bytes = SAMPLE_BYTES(audio_decoder) * nb_samples;
-
-    // Save bytes left in the frame. Misuse crop values, since they are only used for video packets by ffmpeg.
-    audio_decoder->out_frame->crop_top = total_bytes;
-    audio_decoder->out_frame->crop_bottom = total_bytes;
-
-    // Write video packet to packet buffer. This may block!
+static void write_packet(Kit_AudioDecoder *audio_decoder) {
+    // Write audio packet to packet buffer. This may block!
     // if write succeeds, no need to av_packet_unref, since Kit_WritePacketBuffer will move the refs.
     // If write fails, unref the packet. Fails should only happen if we are closing or seeking, so it is fine.
     if(!Kit_WritePacketBuffer(audio_decoder->buffer, audio_decoder->out_frame)) {
@@ -85,6 +82,7 @@ static void process_decoded_frame(Kit_AudioDecoder *audio_decoder) {
     );
     if(audio_decoder->fifo_start_pts == -1)
         audio_decoder->fifo_start_pts = audio_decoder->in_frame->best_effort_timestamp;
+    audio_decoder->fifo_serial = Kit_GetPacketSerial(audio_decoder->in_frame->opaque);
     av_frame_unref(audio_decoder->out_frame);
 }
 
@@ -102,15 +100,17 @@ static int get_limit(Kit_AudioDecoder *audio_decoder) {
 /**
  * If there is enough data in the FIFO, flush it out as a packet. This will do a memory copy!
  */
-static void read_fifo_frame(const Kit_Decoder *decoder, Kit_AudioDecoder *audio_decoder, bool flush) {
-    int fifo_samples = av_audio_fifo_size(audio_decoder->fifo);
-    int nb_sample_limit = get_limit(audio_decoder);
+static void read_fifo_frame(Kit_AudioDecoder *audio_decoder, bool flush) {
+    const int fifo_samples = av_audio_fifo_size(audio_decoder->fifo);
+    if(fifo_samples == 0)
+        return;
+    const int nb_sample_limit = get_limit(audio_decoder);
     if(fifo_samples > nb_sample_limit || flush) {
         // Setup an appropriately sized AVFrame
         prepare_out_frame(audio_decoder);
         audio_decoder->out_frame->nb_samples = fifo_samples;
         audio_decoder->out_frame->best_effort_timestamp = audio_decoder->fifo_start_pts;
-        audio_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, decoder->output_serial);
+        audio_decoder->out_frame->opaque = Kit_CreatePacketTag(KIT_PACKET_TYPE_DATA, audio_decoder->fifo_serial);
         if(av_frame_get_buffer(audio_decoder->out_frame, 0) < 0) {
             av_frame_unref(audio_decoder->out_frame);
             return;
@@ -119,7 +119,7 @@ static void read_fifo_frame(const Kit_Decoder *decoder, Kit_AudioDecoder *audio_
         // Read all available data from the FIFO
         av_audio_fifo_read(audio_decoder->fifo, (void **)audio_decoder->out_frame->data, fifo_samples);
         audio_decoder->fifo_start_pts = -1;
-        write_packet(audio_decoder, fifo_samples);
+        write_packet(audio_decoder);
     }
 }
 
@@ -176,13 +176,13 @@ static bool dec_decode_audio_cb(const Kit_Decoder *decoder, double *pts) {
     if(ret == 0) {
         *pts = audio_decoder->in_frame->best_effort_timestamp * av_q2d(decoder->stream->time_base);
         process_decoded_frame(audio_decoder);
-        read_fifo_frame(decoder, audio_decoder, false);
+        read_fifo_frame(audio_decoder, false);
         av_frame_unref(audio_decoder->in_frame);
         return true;
     }
     if(ret == AVERROR_EOF) {
         // If this is the end of the stream, flush the FIFO.
-        read_fifo_frame(decoder, audio_decoder, true);
+        read_fifo_frame(audio_decoder, true);
         SDL_SetAtomicInt(&audio_decoder->eof_seen, 1);
     }
     return false;
@@ -375,14 +375,15 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
 
     Kit_AudioDecoder *audio_decoder = decoder->userdata;
     int ret = 0;
-    size_t *size = &audio_decoder->current->crop_top;
-    size_t *left = &audio_decoder->current->crop_bottom;
 
     if(len <= 0)
         return 0;
-    if(*left > 0 && Kit_GetPacketSerial(audio_decoder->current->opaque) != Kit_GetTimerSerial(decoder->sync_timer))
+    if(audio_decoder->current_left > 0 &&
+       Kit_GetPacketSerial(audio_decoder->current->opaque) != Kit_GetTimerSerial(decoder->sync_timer)) {
         av_frame_unref(audio_decoder->current);
-    if(*left > 0)
+        audio_decoder->current_left = 0;
+    }
+    if(audio_decoder->current_left > 0)
         goto serve;
 
     if(!Kit_BeginPacketBufferRead(audio_decoder->buffer, audio_decoder->current, 0))
@@ -461,16 +462,18 @@ int Kit_GetAudioDecoderData(Kit_Decoder *decoder, size_t backend_buffer_size, un
     // LOG("[AUDIO] >>> SYNC!: pts = %lf, sync = %lf\n", pts, sync_ts);
 
     Kit_FinishPacketBufferRead(audio_decoder->buffer);
+    audio_decoder->current_size = SAMPLE_BYTES(audio_decoder) * audio_decoder->current->nb_samples;
+    audio_decoder->current_left = audio_decoder->current_size;
 
 serve:
     len = floor(len / SAMPLE_BYTES(audio_decoder)) * SAMPLE_BYTES(audio_decoder);
-    if(*left) {
-        ret = (len > *left) ? *left : len;
-        const int pos = *size - *left;
+    if(audio_decoder->current_left) {
+        ret = (len > audio_decoder->current_left) ? audio_decoder->current_left : len;
+        const int pos = audio_decoder->current_size - audio_decoder->current_left;
         memcpy(buf, audio_decoder->current->data[0] + pos, ret);
-        *left -= ret;
+        audio_decoder->current_left -= ret;
     }
-    if(*left == 0) {
+    if(audio_decoder->current_left == 0) {
         av_frame_unref(audio_decoder->current);
     }
     return ret;

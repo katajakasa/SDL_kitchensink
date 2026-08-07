@@ -13,7 +13,6 @@
 #include "kitchensink3/internal/kitbufferindex.h"
 #include "kitchensink3/internal/kitdemuxer.h"
 #include "kitchensink3/internal/kitpacketbuffer.h"
-#include "kitchensink3/internal/kittimer.h"
 #include "kitchensink3/kitconfig.h"
 #include <SDL3/SDL_thread.h>
 #include <stdbool.h>
@@ -27,21 +26,18 @@ typedef struct Kit_DemuxerThread {
     SDL_AtomicInt run;
     bool seek;           ///< Seek request flag; may only be set while the thread is not running
     int64_t seek_target; ///< Seek target position; may only be set while the thread is not running
-    Kit_Timer *timer;    ///< Non-writeable reference to the sync timer, used for the seek serial
 } Kit_DemuxerThread;
 
 /**
- * @brief Creates a demuxer thread bound to a demuxer, with its own secondary sync timer for seeks, but does
- *     not start it.
+ * @brief Creates a demuxer thread bound to a demuxer, but does not start it.
  *
  * @param demuxer Demuxer this thread will drive; not owned by the thread.
- * @param timer Primary sync timer the thread's secondary seek timer is derived from.
  * @return New demuxer thread (not started), or NULL on allocation failure.
  */
-KIT_LOCAL Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer, const Kit_Timer *timer);
+KIT_LOCAL Kit_DemuxerThread *Kit_CreateDemuxerThread(Kit_Demuxer *demuxer);
 
 /**
- * @brief Stops, waits for, and frees a demuxer thread, including its secondary timer.
+ * @brief Stops, waits for, and frees a demuxer thread.
  *
  * @param demuxer Pointer to the demuxer thread pointer; set to NULL after closing. No-op if NULL or already-NULL.
  */

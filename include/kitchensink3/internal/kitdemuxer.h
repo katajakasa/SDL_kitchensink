@@ -32,6 +32,7 @@ typedef struct Kit_Demuxer {
     AVPacket *scratch_packet;                      ///< Reusable packet used for reading/writing.
     int read_attempts;                             ///< Read attempts before a failure is treated as EOF.
     int read_retry_delay;                          ///< Delay between read attempts, in milliseconds.
+    Kit_Timer *timer;                              ///< Non-writeable timer handle. This is used for the serial stuff.
 } Kit_Demuxer;
 
 /**
@@ -42,10 +43,16 @@ typedef struct Kit_Demuxer {
  * @param audio_index Audio stream index to demux, or -1 to skip audio.
  * @param subtitle_index Subtitle stream index to demux, or -1 to skip subtitles.
  * @param config Player configuration to copy buffer sizes and read-retry settings from; not retained.
+ * @param timer Primary sync timer the demuxer's own secondary seek-serial timer handle is derived from.
  * @return New demuxer, or NULL on allocation failure (Kit_SetError() is called).
  */
 KIT_LOCAL Kit_Demuxer *Kit_CreateDemuxer(
-    const Kit_Source *src, int video_index, int audio_index, int subtitle_index, const Kit_PlayerConfig *config
+    const Kit_Source *src,
+    int video_index,
+    int audio_index,
+    int subtitle_index,
+    const Kit_PlayerConfig *config,
+    const Kit_Timer *timer
 );
 
 /**
@@ -97,17 +104,16 @@ KIT_LOCAL void Kit_AbortDemuxer(Kit_Demuxer *demuxer);
 /**
  * @brief Seeks the underlying format context and, on success, flushes buffers and injects a seek marker packet.
  *
- * On success, flushes all packet buffers, bumps @p timer's clock serial via Kit_IncreaseTimerSerial(), and
- * writes a seek-tagged packet (carrying the new serial) into every active buffer so decoder threads can
- * detect the seek and re-base their clocks. On failure, no state is changed and playback continues from the
- * old position; the clock serial is only bumped when the seek succeeds.
+ * On success, flushes all packet buffers, bumps the demuxer's sync timer handle's clock serial via
+ * Kit_IncreaseTimerSerial(), and writes a seek-tagged packet (carrying the new serial) into every active
+ * buffer so decoder threads can detect the seek and re-base their clocks. On failure, no state is changed
+ * and playback continues from the old position; the clock serial is only bumped when the seek succeeds.
  *
  * @param demuxer Demuxer to seek.
- * @param timer Sync timer whose serial is bumped on a successful seek.
  * @param seek_target Target position, in AV_TIME_BASE units (passed through to avformat_seek_file()).
  * @return true if avformat_seek_file() succeeded, false otherwise.
  */
-KIT_LOCAL bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, Kit_Timer *timer, int64_t seek_target);
+KIT_LOCAL bool Kit_DemuxerSeek(Kit_Demuxer *demuxer, int64_t seek_target);
 
 /**
  * @brief Flushes and reassigns the source stream index used for one stream type (e.g. on an audio track switch).

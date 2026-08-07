@@ -44,6 +44,7 @@ static Kit_PlayerConfig g_config;
  */
 typedef struct decoder_fixture {
     Kit_Source *src;
+    Kit_Timer *timer;
     Kit_Demuxer *demuxer;
     Kit_Decoder *decoder;
     int video_index;
@@ -76,6 +77,7 @@ static int test_teardown(void **state) {
     av_packet_free(&ts->pkt);
     Kit_CloseDecoder(&ts->fx.decoder);
     Kit_CloseDemuxer(&ts->fx.demuxer);
+    Kit_CloseTimer(&ts->fx.timer);
     Kit_CloseSource(ts->fx.src);
     ts->fx.src = NULL;
     Kit_CloseSource(ts->src2);
@@ -93,7 +95,9 @@ static void fixture_open(decoder_fixture *fx) {
     assert_non_null(fx->src);
     fx->video_index = Kit_GetBestSourceStream(fx->src, KIT_STREAMTYPE_VIDEO);
     assert_true(fx->video_index >= 0);
-    fx->demuxer = Kit_CreateDemuxer(fx->src, fx->video_index, -1, -1, &g_config);
+    fx->timer = Kit_CreateTimer();
+    assert_non_null(fx->timer);
+    fx->demuxer = Kit_CreateDemuxer(fx->src, fx->video_index, -1, -1, &g_config, fx->timer);
     assert_non_null(fx->demuxer);
 
     Kit_VideoFormatRequest request;
@@ -107,11 +111,12 @@ static void fixture_open(decoder_fixture *fx) {
 }
 
 /**
- * @brief Closes a decoder_fixture's decoder, demuxer, and source.
+ * @brief Closes a decoder_fixture's decoder, demuxer, demuxer timer, and source.
  */
 static void fixture_close(decoder_fixture *fx) {
     Kit_CloseDecoder(&fx->decoder);
     Kit_CloseDemuxer(&fx->demuxer);
+    Kit_CloseTimer(&fx->timer);
     Kit_CloseSource(fx->src);
     fx->src = NULL;
 }
@@ -267,7 +272,7 @@ static void test_flush_then_decode_again(void **state) {
     Kit_CloseDemuxer(&ts->fx.demuxer);
     ts->src2 = Kit_CreateSourceFromUrl(VIDEO_FILE);
     assert_non_null(ts->src2);
-    ts->fx.demuxer = Kit_CreateDemuxer(ts->src2, ts->fx.video_index, -1, -1, &g_config);
+    ts->fx.demuxer = Kit_CreateDemuxer(ts->src2, ts->fx.video_index, -1, -1, &g_config, ts->fx.timer);
     assert_non_null(ts->fx.demuxer);
     pts = -1.0;
     feed_until_decoded(&ts->fx, ts->pkt, &pts);
@@ -282,6 +287,7 @@ static void test_flush_then_decode_again(void **state) {
     Kit_CloseSource(ts->src2);
     ts->src2 = NULL;
     Kit_CloseDecoder(&ts->fx.decoder);
+    Kit_CloseTimer(&ts->fx.timer);
     Kit_CloseSource(ts->fx.src);
     ts->fx.src = NULL;
 }

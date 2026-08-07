@@ -154,7 +154,8 @@ Kit_Decoder *Kit_CreateDecoder(
         goto exit_2;
     }
     codec_ctx->pkt_timebase = stream->time_base;
-    codec_ctx->opaque = decoder; // Used by Kit_GetHardwarePixelFormat()
+    codec_ctx->opaque = decoder;                   // Used by Kit_GetHardwarePixelFormat()
+    codec_ctx->flags |= AV_CODEC_FLAG_COPY_OPAQUE; // Make sure the opaque handle gets copied!
 
     // Attempt to set up threading, if supported.
     codec_ctx->thread_count = thread_count;

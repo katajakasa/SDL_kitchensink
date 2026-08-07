@@ -256,10 +256,11 @@ Kit_Player *Kit_CreatePlayer(
     }
     if((timer = Kit_CreateTimer()) == NULL)
         goto exit_1;
-    if((demuxer = Kit_CreateDemuxer(src, video_stream_index, audio_stream_index, subtitle_stream_index, &config)) ==
+    if((demuxer =
+            Kit_CreateDemuxer(src, video_stream_index, audio_stream_index, subtitle_stream_index, &config, timer)) ==
        NULL)
         goto exit_2;
-    if((demux_thread = Kit_CreateDemuxerThread(demuxer, timer)) == NULL)
+    if((demux_thread = Kit_CreateDemuxerThread(demuxer)) == NULL)
         goto exit_3;
     if(audio_stream_index > -1) {
         if(!Kit_InitializeAudioDecoder(
